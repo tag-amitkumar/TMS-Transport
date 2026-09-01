@@ -1,0 +1,270 @@
+/* ==================================================================
+   TMS User Handbook — print/screen styles.
+
+   Deliberately matched to the application's own palette so the document
+   and the product look like the same thing. Screenshots are 1600px wide;
+   the content column is sized so they render close to 1:1 on a laptop
+   without forcing a horizontal scroll.
+   ================================================================== */
+
+:root {
+  --navy-900: #0F2338;
+  --navy-ink: #12263F;
+  --amber:    #EFA31D;
+  --body-bg:  #F7F9FC;
+  --border:   #E4EAF1;
+  --ink:      #1E2E44;
+  --muted:    #64748B;
+}
+
+/* Bootstrap 3 (which the flatly theme is built on) sets html{font-size:10px} so
+   that 1rem == 10px. Every rem in this stylesheet was written against a 16px
+   root, so without this the whole document renders at 62.5% — captions came out
+   at 8px. Reset the root and let the rem values mean what they say. */
+html { font-size: 16px; }
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--body-bg);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.main-container {
+  max-width: 1320px;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  padding: 2.5rem 2.25rem 4rem;
+  box-shadow: 0 1px 3px rgba(16, 35, 56, .07);
+  border-radius: 4px;
+}
+
+/* Nothing should ever push the page sideways — a handbook that scrolls
+   horizontally on a laptop is unusable. */
+pre, table { max-width: 100%; overflow-x: auto; }
+
+@media (max-width: 991px) {
+  .main-container { padding: 1.4rem 1rem 3rem; }
+}
+
+/* ---------- headings ---------- */
+
+h1, h2, h3, h4 { color: var(--navy-ink); font-weight: 660; letter-spacing: -.01em; }
+
+h1 {
+  font-size: 1.95rem;
+  margin-top: 3.5rem;
+  padding-bottom: .55rem;
+  border-bottom: 2px solid var(--amber);
+}
+h1:first-of-type { margin-top: 1.5rem; }
+
+h2 { font-size: 1.4rem;  margin-top: 2.5rem; }
+h3 { font-size: 1.09rem; margin-top: 1.9rem; color: #2B3F58; }
+h4 { font-size: .97rem;  margin-top: 1.5rem; }
+
+.title    { font-size: 2.5rem; font-weight: 700; margin-bottom: .2rem; }
+.subtitle { font-size: 1.12rem; color: var(--muted); font-weight: 400; }
+.author, .date { color: var(--muted); font-size: .9rem; }
+
+/* ---------- figures ---------- */
+
+img {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 3px 14px rgba(16, 35, 56, .10);
+  margin: .5rem 0 .35rem;
+  display: block;
+}
+
+/* Caption markup differs by pandoc version and output flavour: pandoc 2 emits
+   <p class="caption"> inside div.figure, pandoc 3 in html4 mode emits
+   div.figcaption inside div.float, and html5 emits <figcaption>. Style all
+   three, or the captions render as unstyled body text and read as stray
+   sentences under each screenshot. */
+p.caption,
+.figure p.caption,
+.float .figcaption,
+figcaption,
+caption {
+  color: var(--muted);
+  font-size: .845rem;
+  line-height: 1.5;
+  text-align: left;
+  margin: 0 0 2rem;
+  padding-left: .1rem;
+  font-style: normal;
+}
+
+.float, .figure { margin: 1.2rem 0 0; }
+
+/* ---------- tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .89rem;
+  margin: 1.2rem 0 1.8rem;
+}
+th {
+  text-align: left;
+  font-size: .68rem;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 650;
+  border-bottom: 1.5px solid var(--border);
+  padding: .5rem .65rem;
+}
+td {
+  border-bottom: 1px solid #F1F5F9;
+  padding: .5rem .65rem;
+  vertical-align: top;
+}
+tbody tr:hover { background: #FAFCFE; }
+
+/* ---------- inline pills used in the status legend ---------- */
+
+.hb-pill {
+  display: inline-block;
+  padding: .1rem .5rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 650;
+}
+.hb-green  { background: #E9F7EF; color: #1A7F45; }
+.hb-blue   { background: #E7F1FD; color: #1667C7; }
+.hb-purple { background: #F1EAFB; color: #6F42C1; }
+.hb-orange { background: #FDF3E0; color: #B3701A; }
+.hb-red    { background: #FDECEB; color: #C0392B; }
+.hb-grey   { background: #EEF1F5; color: #64748B; }
+
+/* ---------- hero ---------- */
+
+.hb-hero {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--navy-900);
+  background-image: radial-gradient(700px 260px at 20% -40%, #1B3A5C 0%, #0F2338 70%);
+  color: #fff;
+  border-radius: 12px;
+  padding: 1.6rem 1.8rem;
+  margin: 1.5rem 0 2.5rem;
+}
+.hb-hero-tile {
+  width: 52px; height: 52px; border-radius: 12px;
+  background: var(--amber); color: #fff;
+  display: grid; place-items: center;
+  font-size: 1.6rem; font-weight: 700; flex: 0 0 52px;
+}
+.hb-hero-title { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.hb-hero-sub   { color: #8FA3BA; font-size: .82rem; letter-spacing: .05em; text-transform: uppercase; }
+
+/* ---------- the operations chain ---------- */
+
+/* Pandoc wraps the inline spans of a raw-HTML block in a <p>, so the flex
+   container ends up with a single non-wrapping child and the chain runs off the
+   right edge of the page. Make the wrapper and the injected <p> both flex. */
+.hb-chain,
+.hb-chain > p {
+  display: flex; flex-wrap: wrap; gap: .4rem;
+  align-items: center;
+  margin: 0;
+}
+.hb-chain { margin: 1.4rem 0 1.8rem; }
+.hb-chain span {
+  background: #EFF4FA;
+  border: 1px solid var(--border);
+  color: var(--navy-ink);
+  border-radius: 7px;
+  padding: .4rem .7rem;
+  font-size: .82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hb-chain span + span::before {
+  content: "→";
+  color: var(--amber);
+  font-weight: 700;
+  margin-right: .55rem;
+  margin-left: -.15rem;
+}
+
+/* ---------- callouts from blockquotes ---------- */
+
+blockquote {
+  border: none;
+  border-left: 3px solid var(--amber);
+  background: #FDF8EC;
+  color: #7A5A12;
+  padding: .8rem 1rem;
+  margin: 1.4rem 0;
+  font-size: .9rem;
+  border-radius: 0 8px 8px 0;
+}
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ---------- code ---------- */
+
+pre {
+  background: #0F2338;
+  color: #DCE6F2;
+  border: none;
+  border-radius: 8px;
+  padding: .85rem 1rem;
+  font-size: .84rem;
+  line-height: 1.55;
+}
+pre code { color: inherit; background: none; }
+code {
+  background: #EFF3F8;
+  color: #1B3A5C;
+  padding: .1rem .35rem;
+  border-radius: 4px;
+  font-size: .88em;
+}
+
+/* ---------- table of contents ---------- */
+
+.tocify {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: .855rem;
+  background: #fff;
+}
+.tocify-header  { margin: 0; }
+.tocify-item    { padding: .28rem .8rem; }
+.list-group-item.active,
+.list-group-item.active:hover,
+.list-group-item.active:focus {
+  background: var(--navy-900);
+  border-color: var(--navy-900);
+  color: #fff;
+  font-weight: 600;
+}
+.tocify .list-group-item:hover { background: #F1F5F9; color: var(--navy-ink); }
+
+/* ---------- misc ---------- */
+
+hr { border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+.hb-foot {
+  text-align: center;
+  color: var(--muted);
+  font-size: .8rem;
+  padding: 1.5rem 0 .5rem;
+}
+
+/* Un-numbered sub-headings ({-}) still deserve their own rhythm. */
+h3.unnumbered, h4.unnumbered { color: var(--navy-ink); }
+
+@media print {
+  .main-container { box-shadow: none; max-width: 100%; padding: 0; }
+  .tocify, .toc-content > .row > .col-xs-12:first-child { display: none; }
+  img { box-shadow: none; page-break-inside: avoid; }
+  h1 { page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+}

@@ -18,3 +18,11 @@ desktop.ini
 # Runtime scratch
 www/uploads/
 *.log
+
+# Screenshot tooling (see tools/capture-screenshots.js)
+tools/node_modules/
+
+# knitr intermediates — the rendered HANDBOOK.html is committed, its
+# scratch dir is not
+HANDBOOK_files/
+HANDBOOK_cache/

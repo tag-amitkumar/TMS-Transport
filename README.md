@@ -4,6 +4,10 @@ A logistics ERP for a road-freight carrier, built in R/Shiny. Bookings,
 consignments, fleet, GST compliance, accounts, HRMS and self-service portals for
 customers and vendors.
 
+**New here? Start with the [User Handbook](HANDBOOK.html)** — a screenshot-led
+walkthrough of every screen, the order you actually do things in, and what each
+error message means. Source: [HANDBOOK.Rmd](HANDBOOK.Rmd).
+
 Built from a 30-screen UI design deck. The review of that deck — every ambiguity
 found and the decision taken for each — is in **[DESIGN-REVIEW.md](DESIGN-REVIEW.md)**.
 
@@ -105,6 +109,9 @@ the screen that grants access.
 ```
 app.R              entry point: auth gate, router, module wiring
 global.R           config, domain vocabulary, formatting helpers
+HANDBOOK.Rmd       user handbook source; renders to HANDBOOK.html
+docs/img/          handbook screenshots, captured from the running app
+tools/             capture-screenshots.js — regenerates those screenshots
 R/
   store.R          storage layer — the only code that touches files
   seed.R           synthetic data generator
