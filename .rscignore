@@ -1,0 +1,28 @@
+# Files rsconnect must not ship to shinyapps.io.
+#
+# Two reasons to be strict here. Size: the handbook and its screenshots are 23 MB
+# of the repo's 24 MB and are useless at runtime. Dependencies: leaving
+# HANDBOOK.Rmd in the bundle makes rsconnect resolve rmarkdown, knitr and their
+# trees as app dependencies, which lengthens every build for a document the
+# server never renders.
+
+# Documentation and its assets
+HANDBOOK.Rmd
+HANDBOOK.html
+HANDBOOK_files
+docs
+DESIGN-REVIEW.md
+README.md
+
+# Tooling — screenshot capture runs on a developer machine, not the server
+tools
+install_packages.R
+
+# Tests
+tests
+
+# Repo furniture
+.claude
+.gitignore
+.rscignore
+LICENSE
