@@ -4,9 +4,20 @@ A logistics ERP for a road-freight carrier, built in R/Shiny. Bookings,
 consignments, fleet, GST compliance, accounts, HRMS and self-service portals for
 customers and vendors.
 
+**▶ Live demo: <https://sendwave.shinyapps.io/tms-transport/>** — sign in with a
+**Quick preview** chip on the login screen to explore any role.
+
 **New here? Start with the [User Handbook](HANDBOOK.html)** — a screenshot-led
 walkthrough of every screen, the order you actually do things in, and what each
 error message means. Source: [HANDBOOK.Rmd](HANDBOOK.Rmd).
+
+> **About the live demo.** shinyapps.io gives each instance an ephemeral
+> filesystem, so anything you create there — a booking, a receipt, an approved
+> leave request — works for your session but is discarded when the instance
+> restarts, and is not shared with other visitors. The demo also ships a fixed
+> snapshot of seed data, so relative figures ("bookings today", GPS "updated N
+> minutes ago") drift as the snapshot ages. Run `Rscript R/seed.R` locally for a
+> dataset anchored to today.
 
 Built from a 30-screen UI design deck. The review of that deck — every ambiguity
 found and the decision taken for each — is in **[DESIGN-REVIEW.md](DESIGN-REVIEW.md)**.
