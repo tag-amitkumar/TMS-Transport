@@ -1,0 +1,281 @@
+role,module,view,create,edit,delete,approve,export
+Super Admin,dashboard,1,1,1,1,1,1
+Super Admin,branches,1,1,1,1,1,1
+Super Admin,users,1,1,1,1,1,1
+Super Admin,clients,1,1,1,1,1,1
+Super Admin,vendors,1,1,1,1,1,1
+Super Admin,bookings,1,1,1,1,1,1
+Super Admin,cargo_moto,1,1,1,1,1,1
+Super Admin,consignments,1,1,1,1,1,1
+Super Admin,trips,1,1,1,1,1,1
+Super Admin,ewaybill,1,1,1,1,1,1
+Super Admin,pod,1,1,1,1,1,1
+Super Admin,tracking,1,1,1,1,1,1
+Super Admin,livegps,1,1,1,1,1,1
+Super Admin,vehicles,1,1,1,1,1,1
+Super Admin,drivers,1,1,1,1,1,1
+Super Admin,pincodes,1,1,1,1,1,1
+Super Admin,complaints,1,1,1,1,1,1
+Super Admin,invoices,1,1,1,1,1,1
+Super Admin,payments,1,1,1,1,1,1
+Super Admin,hrms_employees,1,1,1,1,1,1
+Super Admin,hrms_attendance,1,1,1,1,1,1
+Super Admin,hrms_payroll,1,1,1,1,1,1
+Super Admin,reports,1,1,1,1,1,1
+Super Admin,portal_branch,1,1,1,1,1,1
+Super Admin,portal_customer,1,1,1,1,1,1
+Super Admin,portal_vendor,1,1,1,1,1,1
+Super Admin,security,1,1,1,1,1,1
+Super Admin,settings,1,1,1,1,1,1
+Branch Admin,dashboard,1,1,1,0,1,1
+Branch Admin,branches,1,1,1,0,1,1
+Branch Admin,users,1,1,1,0,1,1
+Branch Admin,clients,1,1,1,0,1,1
+Branch Admin,vendors,1,1,1,0,1,1
+Branch Admin,bookings,1,1,1,0,1,1
+Branch Admin,cargo_moto,1,1,1,0,1,1
+Branch Admin,consignments,1,1,1,0,1,1
+Branch Admin,trips,1,1,1,0,1,1
+Branch Admin,ewaybill,1,1,1,0,1,1
+Branch Admin,pod,1,1,1,0,1,1
+Branch Admin,tracking,1,1,1,0,1,1
+Branch Admin,livegps,1,1,1,0,1,1
+Branch Admin,vehicles,1,1,1,0,1,1
+Branch Admin,drivers,1,1,1,0,1,1
+Branch Admin,pincodes,1,1,1,0,1,1
+Branch Admin,complaints,1,1,1,0,1,1
+Branch Admin,invoices,1,1,1,0,1,1
+Branch Admin,payments,1,1,1,0,1,1
+Branch Admin,hrms_employees,1,1,1,0,1,1
+Branch Admin,hrms_attendance,1,1,1,0,1,1
+Branch Admin,hrms_payroll,1,1,1,0,1,1
+Branch Admin,reports,1,1,1,0,1,1
+Branch Admin,portal_branch,1,1,1,0,1,1
+Branch Admin,portal_customer,1,1,1,0,1,1
+Branch Admin,portal_vendor,1,1,1,0,1,1
+Branch Admin,security,0,0,0,0,0,0
+Branch Admin,settings,0,0,0,0,0,0
+Operations Manager,dashboard,1,1,1,0,1,0
+Operations Manager,branches,0,0,0,0,0,0
+Operations Manager,users,0,0,0,0,0,0
+Operations Manager,clients,1,1,1,0,1,0
+Operations Manager,vendors,1,1,1,0,1,0
+Operations Manager,bookings,1,1,1,0,1,0
+Operations Manager,cargo_moto,1,1,1,0,1,0
+Operations Manager,consignments,1,1,1,0,1,0
+Operations Manager,trips,1,1,1,0,1,0
+Operations Manager,ewaybill,1,1,1,0,1,0
+Operations Manager,pod,1,1,1,0,1,0
+Operations Manager,tracking,1,1,1,0,1,0
+Operations Manager,livegps,1,1,1,0,1,0
+Operations Manager,vehicles,1,1,1,0,1,0
+Operations Manager,drivers,1,1,1,0,1,0
+Operations Manager,pincodes,1,1,1,0,1,0
+Operations Manager,complaints,1,1,1,0,1,0
+Operations Manager,invoices,0,0,0,0,0,0
+Operations Manager,payments,0,0,0,0,0,0
+Operations Manager,hrms_employees,1,1,1,0,1,0
+Operations Manager,hrms_attendance,1,1,1,0,1,0
+Operations Manager,hrms_payroll,0,0,0,0,0,0
+Operations Manager,reports,1,1,1,0,1,0
+Operations Manager,portal_branch,1,1,1,0,1,0
+Operations Manager,portal_customer,1,1,1,0,1,0
+Operations Manager,portal_vendor,1,1,1,0,1,0
+Operations Manager,security,0,0,0,0,0,0
+Operations Manager,settings,0,0,0,0,0,0
+Booking Executive,dashboard,1,1,1,0,0,0
+Booking Executive,branches,0,0,0,0,0,0
+Booking Executive,users,0,0,0,0,0,0
+Booking Executive,clients,1,1,1,0,0,0
+Booking Executive,vendors,1,1,1,0,0,0
+Booking Executive,bookings,1,1,1,0,0,0
+Booking Executive,cargo_moto,1,1,1,0,0,0
+Booking Executive,consignments,1,1,1,0,0,0
+Booking Executive,trips,1,1,1,0,0,0
+Booking Executive,ewaybill,1,1,1,0,0,0
+Booking Executive,pod,1,1,1,0,0,0
+Booking Executive,tracking,1,1,1,0,0,0
+Booking Executive,livegps,1,1,1,0,0,0
+Booking Executive,vehicles,1,1,1,0,0,0
+Booking Executive,drivers,1,1,1,0,0,0
+Booking Executive,pincodes,1,1,1,0,0,0
+Booking Executive,complaints,1,1,1,0,0,0
+Booking Executive,invoices,0,0,0,0,0,0
+Booking Executive,payments,0,0,0,0,0,0
+Booking Executive,hrms_employees,0,0,0,0,0,0
+Booking Executive,hrms_attendance,0,0,0,0,0,0
+Booking Executive,hrms_payroll,0,0,0,0,0,0
+Booking Executive,reports,0,0,0,0,0,0
+Booking Executive,portal_branch,1,1,1,0,0,0
+Booking Executive,portal_customer,1,1,1,0,0,0
+Booking Executive,portal_vendor,1,1,1,0,0,0
+Booking Executive,security,0,0,0,0,0,0
+Booking Executive,settings,0,0,0,0,0,0
+Dispatcher,dashboard,1,1,0,0,0,0
+Dispatcher,branches,0,0,0,0,0,0
+Dispatcher,users,0,0,0,0,0,0
+Dispatcher,clients,1,1,0,0,0,0
+Dispatcher,vendors,1,1,0,0,0,0
+Dispatcher,bookings,1,1,0,0,0,0
+Dispatcher,cargo_moto,1,1,0,0,0,0
+Dispatcher,consignments,1,1,0,0,0,0
+Dispatcher,trips,1,1,0,0,0,0
+Dispatcher,ewaybill,1,1,0,0,0,0
+Dispatcher,pod,1,1,0,0,0,0
+Dispatcher,tracking,1,1,0,0,0,0
+Dispatcher,livegps,1,1,0,0,0,0
+Dispatcher,vehicles,1,1,0,0,0,0
+Dispatcher,drivers,1,1,0,0,0,0
+Dispatcher,pincodes,1,1,0,0,0,0
+Dispatcher,complaints,1,1,0,0,0,0
+Dispatcher,invoices,0,0,0,0,0,0
+Dispatcher,payments,0,0,0,0,0,0
+Dispatcher,hrms_employees,0,0,0,0,0,0
+Dispatcher,hrms_attendance,0,0,0,0,0,0
+Dispatcher,hrms_payroll,0,0,0,0,0,0
+Dispatcher,reports,0,0,0,0,0,0
+Dispatcher,portal_branch,1,1,0,0,0,0
+Dispatcher,portal_customer,1,1,0,0,0,0
+Dispatcher,portal_vendor,1,1,0,0,0,0
+Dispatcher,security,0,0,0,0,0,0
+Dispatcher,settings,0,0,0,0,0,0
+Accountant,dashboard,1,0,0,0,1,1
+Accountant,branches,1,0,0,0,1,1
+Accountant,users,0,0,0,0,0,0
+Accountant,clients,1,0,0,0,1,1
+Accountant,vendors,1,0,0,0,1,1
+Accountant,bookings,1,0,0,0,1,1
+Accountant,cargo_moto,0,0,0,0,0,0
+Accountant,consignments,1,0,0,0,1,1
+Accountant,trips,1,0,0,0,1,1
+Accountant,ewaybill,1,0,0,0,1,1
+Accountant,pod,1,0,0,0,1,1
+Accountant,tracking,1,0,0,0,1,1
+Accountant,livegps,0,0,0,0,0,0
+Accountant,vehicles,1,0,0,0,1,1
+Accountant,drivers,1,0,0,0,1,1
+Accountant,pincodes,0,0,0,0,0,0
+Accountant,complaints,1,0,0,0,1,1
+Accountant,invoices,1,1,1,0,1,1
+Accountant,payments,1,1,1,0,1,1
+Accountant,hrms_employees,1,0,0,0,1,1
+Accountant,hrms_attendance,1,0,0,0,1,1
+Accountant,hrms_payroll,1,0,0,0,1,1
+Accountant,reports,1,0,0,0,1,1
+Accountant,portal_branch,1,0,0,0,1,1
+Accountant,portal_customer,1,0,0,0,1,1
+Accountant,portal_vendor,1,0,0,0,1,1
+Accountant,security,0,0,0,0,0,0
+Accountant,settings,0,0,0,0,0,0
+HR Manager,dashboard,1,1,1,0,1,1
+HR Manager,branches,1,1,1,0,1,1
+HR Manager,users,0,0,0,0,0,0
+HR Manager,clients,1,1,1,0,1,1
+HR Manager,vendors,1,1,1,0,1,1
+HR Manager,bookings,0,0,0,0,0,0
+HR Manager,cargo_moto,0,0,0,0,0,0
+HR Manager,consignments,0,0,0,0,0,0
+HR Manager,trips,1,1,1,0,1,1
+HR Manager,ewaybill,0,0,0,0,0,0
+HR Manager,pod,0,0,0,0,0,0
+HR Manager,tracking,1,1,1,0,1,1
+HR Manager,livegps,0,0,0,0,0,0
+HR Manager,vehicles,1,1,1,0,1,1
+HR Manager,drivers,1,1,1,0,1,1
+HR Manager,pincodes,0,0,0,0,0,0
+HR Manager,complaints,1,1,1,0,1,1
+HR Manager,invoices,0,0,0,0,0,0
+HR Manager,payments,0,0,0,0,0,0
+HR Manager,hrms_employees,1,1,1,0,1,1
+HR Manager,hrms_attendance,1,1,1,0,1,1
+HR Manager,hrms_payroll,1,1,1,0,1,1
+HR Manager,reports,1,1,1,0,1,1
+HR Manager,portal_branch,1,1,1,0,1,1
+HR Manager,portal_customer,1,1,1,0,1,1
+HR Manager,portal_vendor,1,1,1,0,1,1
+HR Manager,security,0,0,0,0,0,0
+HR Manager,settings,0,0,0,0,0,0
+Driver,dashboard,0,0,0,0,0,0
+Driver,branches,0,0,0,0,0,0
+Driver,users,0,0,0,0,0,0
+Driver,clients,0,0,0,0,0,0
+Driver,vendors,0,0,0,0,0,0
+Driver,bookings,0,0,0,0,0,0
+Driver,cargo_moto,0,0,0,0,0,0
+Driver,consignments,0,0,0,0,0,0
+Driver,trips,1,0,0,0,0,0
+Driver,ewaybill,0,0,0,0,0,0
+Driver,pod,1,0,0,0,0,0
+Driver,tracking,1,0,0,0,0,0
+Driver,livegps,0,0,0,0,0,0
+Driver,vehicles,0,0,0,0,0,0
+Driver,drivers,0,0,0,0,0,0
+Driver,pincodes,0,0,0,0,0,0
+Driver,complaints,0,0,0,0,0,0
+Driver,invoices,0,0,0,0,0,0
+Driver,payments,0,0,0,0,0,0
+Driver,hrms_employees,0,0,0,0,0,0
+Driver,hrms_attendance,0,0,0,0,0,0
+Driver,hrms_payroll,0,0,0,0,0,0
+Driver,reports,0,0,0,0,0,0
+Driver,portal_branch,0,0,0,0,0,0
+Driver,portal_customer,0,0,0,0,0,0
+Driver,portal_vendor,0,0,0,0,0,0
+Driver,security,0,0,0,0,0,0
+Driver,settings,0,0,0,0,0,0
+Vendor,dashboard,0,0,0,0,0,0
+Vendor,branches,0,0,0,0,0,0
+Vendor,users,0,0,0,0,0,0
+Vendor,clients,0,0,0,0,0,0
+Vendor,vendors,0,0,0,0,0,0
+Vendor,bookings,0,0,0,0,0,0
+Vendor,cargo_moto,0,0,0,0,0,0
+Vendor,consignments,0,0,0,0,0,0
+Vendor,trips,0,0,0,0,0,0
+Vendor,ewaybill,0,0,0,0,0,0
+Vendor,pod,1,0,0,0,0,0
+Vendor,tracking,1,0,0,0,0,0
+Vendor,livegps,0,0,0,0,0,0
+Vendor,vehicles,0,0,0,0,0,0
+Vendor,drivers,0,0,0,0,0,0
+Vendor,pincodes,0,0,0,0,0,0
+Vendor,complaints,0,0,0,0,0,0
+Vendor,invoices,0,0,0,0,0,0
+Vendor,payments,0,0,0,0,0,0
+Vendor,hrms_employees,0,0,0,0,0,0
+Vendor,hrms_attendance,0,0,0,0,0,0
+Vendor,hrms_payroll,0,0,0,0,0,0
+Vendor,reports,0,0,0,0,0,0
+Vendor,portal_branch,0,0,0,0,0,0
+Vendor,portal_customer,0,0,0,0,0,0
+Vendor,portal_vendor,1,0,0,0,0,0
+Vendor,security,0,0,0,0,0,0
+Vendor,settings,0,0,0,0,0,0
+Customer,dashboard,0,0,0,0,0,0
+Customer,branches,0,0,0,0,0,0
+Customer,users,0,0,0,0,0,0
+Customer,clients,0,0,0,0,0,0
+Customer,vendors,0,0,0,0,0,0
+Customer,bookings,0,0,0,0,0,0
+Customer,cargo_moto,0,0,0,0,0,0
+Customer,consignments,0,0,0,0,0,0
+Customer,trips,0,0,0,0,0,0
+Customer,ewaybill,0,0,0,0,0,0
+Customer,pod,0,0,0,0,0,0
+Customer,tracking,1,0,0,0,0,0
+Customer,livegps,0,0,0,0,0,0
+Customer,vehicles,0,0,0,0,0,0
+Customer,drivers,0,0,0,0,0,0
+Customer,pincodes,0,0,0,0,0,0
+Customer,complaints,0,0,0,0,0,0
+Customer,invoices,0,0,0,0,0,0
+Customer,payments,0,0,0,0,0,0
+Customer,hrms_employees,0,0,0,0,0,0
+Customer,hrms_attendance,0,0,0,0,0,0
+Customer,hrms_payroll,0,0,0,0,0,0
+Customer,reports,0,0,0,0,0,0
+Customer,portal_branch,0,0,0,0,0,0
+Customer,portal_customer,1,0,0,0,0,0
+Customer,portal_vendor,0,0,0,0,0,0
+Customer,security,0,0,0,0,0,0
+Customer,settings,0,0,0,0,0,0

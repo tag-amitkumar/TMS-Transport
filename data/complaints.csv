@@ -1,0 +1,35 @@
+complaint_id,client_id,lr_no,cn_no,branch_id,category,priority,subject,raised_dt,target_dt,resolved_dt,assigned_to,progress_pct,resolution,status
+CMP-3281,CUST-0140,LR-8537,CN-90537,BR-001,Billing Issue,Medium,Short quantity received,2026-08-21,2026-08-23,2026-08-22,USR-0140,100,Customer notified · closed,Resolved
+CMP-3282,CUST-0091,LR-8556,CN-90556,BR-001,Damaged Goods,High,Shipment delayed beyond committed ETA,2026-08-23,2026-08-25,,USR-0072,15,,Assigned
+CMP-3283,CUST-0192,LR-8574,CN-90574,BR-007,Delay,Medium,Repeated pickup delay,2026-08-08,2026-08-10,,USR-0023,46,,In Progress
+CMP-3284,CUST-0070,LR-8504,CN-90504,BR-011,Wrong Delivery,Medium,Bags found torn on arrival,2026-08-11,2026-08-13,,,0,,New
+CMP-3285,CUST-0123,LR-8515,CN-90515,BR-018,Wrong Delivery,High,Shipment delayed beyond committed ETA,2026-08-28,2026-08-30,,,0,,New
+CMP-3286,CUST-0201,LR-8645,CN-90645,BR-014,Damaged Goods,Medium,Short quantity received,2026-08-19,2026-08-21,,,0,,New
+CMP-3287,CUST-0057,LR-8560,CN-90560,BR-006,Billing Issue,High,Bags found torn on arrival,2026-08-28,2026-08-30,2026-08-30,USR-0031,100,Customer notified · closed,Resolved
+CMP-3288,CUST-0040,LR-8548,CN-90548,BR-013,Delay,Medium,Bags found torn on arrival,2026-08-07,2026-08-09,2026-08-09,USR-0050,100,Customer notified · closed,Resolved
+CMP-3289,CUST-0115,LR-8572,CN-90572,BR-010,POD Issue,Low,POD copy not received by consignee,2026-08-27,2026-08-29,,USR-0143,38,,In Progress
+CMP-3290,CUST-0065,LR-8595,CN-90595,BR-009,Wrong Delivery,Medium,E-way bill mismatch flagged at checkpost,2026-08-14,2026-08-16,,USR-0089,15,,Assigned
+CMP-3291,CUST-0040,LR-8679,CN-90679,BR-013,Billing Issue,High,POD copy not received by consignee,2026-08-09,2026-08-11,2026-08-12,USR-0067,100,Customer notified · closed,Resolved
+CMP-3292,CUST-0116,LR-8781,CN-90781,BR-010,Billing Issue,Medium,Short quantity received,2026-08-29,2026-08-31,2026-09-01,USR-0029,100,Customer notified · closed,Resolved
+CMP-3293,CUST-0114,LR-8711,CN-90711,BR-006,Delay,Medium,Billing amount mismatch on invoice,2026-08-09,2026-08-11,2026-08-11,USR-0012,100,Customer notified · closed,Resolved
+CMP-3294,CUST-0031,LR-8526,CN-90526,BR-002,Driver Complaint,Medium,Driver misbehaviour reported,2026-08-25,2026-08-27,,,0,,New
+CMP-3295,CUST-0107,LR-8740,CN-90740,BR-004,Driver Complaint,Medium,POD copy not received by consignee,2026-08-11,2026-08-13,,USR-0117,15,,Assigned
+CMP-3296,CUST-0077,LR-8605,CN-90605,BR-002,Service Complaint,Low,Wrong consignee delivery address used,2026-08-29,2026-08-31,,USR-0082,41,,In Progress
+CMP-3297,CUST-0023,LR-8580,CN-90580,BR-011,Damaged Goods,High,Shipment delayed beyond committed ETA,2026-08-31,2026-09-02,,,0,,New
+CMP-3298,CUST-0097,LR-8532,CN-90532,BR-001,POD Issue,Low,Driver misbehaviour reported,2026-08-21,2026-08-23,2026-08-22,USR-0120,100,Customer notified · closed,Resolved
+CMP-3299,CUST-0047,LR-8802,CN-90802,BR-007,Service Complaint,Medium,Short quantity received,2026-08-24,2026-08-26,2026-08-27,USR-0079,100,Customer notified · closed,Resolved
+CMP-3300,CUST-0162,LR-8545,CN-90545,BR-018,Billing Issue,Low,Short quantity received,2026-08-13,2026-08-15,,,0,,New
+CMP-3301,CUST-0010,LR-8746,CN-90746,BR-012,POD Issue,Medium,E-way bill mismatch flagged at checkpost,2026-08-31,2026-09-02,,USR-0006,67,,In Progress
+CMP-3302,CUST-0049,LR-8764,CN-90764,BR-016,POD Issue,Medium,Driver misbehaviour reported,2026-08-11,2026-08-13,,USR-0056,15,,Assigned
+CMP-3303,CUST-0086,LR-8617,CN-90617,BR-008,Driver Complaint,Low,Driver misbehaviour reported,2026-08-15,2026-08-17,,USR-0008,40,,In Progress
+CMP-3304,CUST-0109,LR-8581,CN-90581,BR-006,Damaged Goods,Medium,Bags found torn on arrival,2026-08-15,2026-08-17,,,0,,New
+CMP-3305,CUST-0134,LR-8518,CN-90518,BR-011,Billing Issue,High,Shipment delayed beyond committed ETA,2026-08-29,2026-08-31,2026-08-30,USR-0122,100,Customer notified · closed,Resolved
+CMP-3306,CUST-0157,LR-8688,CN-90688,BR-006,Billing Issue,Medium,Billing amount mismatch on invoice,2026-08-18,2026-08-20,2026-08-19,USR-0094,100,Customer notified · closed,Resolved
+CMP-3307,CUST-0034,LR-8622,CN-90622,BR-012,Driver Complaint,High,Shipment delayed beyond committed ETA,2026-08-08,2026-08-10,,,0,,New
+CMP-3308,CUST-0091,LR-8752,CN-90752,BR-001,Service Complaint,Medium,Billing amount mismatch on invoice,2026-08-23,2026-08-25,,USR-0028,15,,Assigned
+CMP-3309,CUST-0016,LR-8684,CN-90684,BR-001,Billing Issue,Medium,Wrong consignee delivery address used,2026-08-25,2026-08-27,,USR-0114,15,,Assigned
+CMP-3310,CUST-0161,LR-8653,CN-90653,BR-005,Delay,Medium,Shipment delayed beyond committed ETA,2026-08-08,2026-08-10,,USR-0097,15,,Assigned
+CMP-3311,CUST-0105,LR-8772,CN-90772,BR-001,POD Issue,Medium,Short quantity received,2026-08-16,2026-08-18,,USR-0007,15,,Assigned
+CMP-3312,CUST-0183,LR-8727,CN-90727,BR-012,Delay,Medium,Short quantity received,2026-08-21,2026-08-23,2026-08-22,USR-0102,100,Customer notified · closed,Resolved
+CMP-3313,CUST-0209,LR-8786,CN-90786,BR-011,Wrong Delivery,Low,Short quantity received,2026-08-21,2026-08-23,,,0,,New
+CMP-3314,CUST-0024,LR-8541,CN-90541,BR-015,Billing Issue,Medium,Billing amount mismatch on invoice,2026-08-21,2026-08-23,2026-08-23,USR-0125,100,Customer notified · closed,Resolved

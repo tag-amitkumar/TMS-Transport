@@ -1,0 +1,14 @@
+key,value
+company_name,Amardip Road Carriers
+company_gstin,27AAACA1234F1Z1
+registered_office,"Plot 14, MIDC, Hingna Rd, Nagpur 440016"
+support_email,support@amardiptms.in
+support_phone,+91 98230 11223
+base_currency,INR
+timezone,Asia/Kolkata
+date_format,DD-MMM-YYYY
+fy_start,01 April
+retain_gps_months,18
+retain_docs_months,36
+retain_finance_years,8
+retain_notif_months,12

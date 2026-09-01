@@ -1,0 +1,7 @@
+name,provider,status
+WhatsApp Business API,Meta Cloud API via Gupshup,Not configured
+Transactional Email,SendGrid,Not configured
+SMS Gateway,MSG91,Not configured
+GST / e-Way Bill (GSP),GSTR-1/3B · e-way generate/cancel,Not configured
+GPS / Telematics,OEM feeds — live tracking,Not configured
+Payment Gateway,Razorpay — customer bill payments,Not configured

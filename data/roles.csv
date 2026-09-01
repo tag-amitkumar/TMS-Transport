@@ -1,0 +1,11 @@
+role,description
+Super Admin,"Full system access, all branches"
+Branch Admin,Full access scoped to own branch
+Operations Manager,"Bookings, consignments, fleet ops"
+Booking Executive,"Creates & edits bookings, LRs"
+Dispatcher,Vehicle allocation & dispatch
+Accountant,"Invoices, payments, GST, payroll"
+HR Manager,"Employees, attendance, leave, payroll"
+Driver,Mobile app · trip & POD updates
+Vendor,"Assigned trips, POD upload, payments"
+Customer,Self-service portal · own shipments only

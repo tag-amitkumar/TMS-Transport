@@ -1,0 +1,20 @@
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Environment / secrets — never commit these
+.Renviron
+.env
+rsconnect/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime scratch
+www/uploads/
+*.log

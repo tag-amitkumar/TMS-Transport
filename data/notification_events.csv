@@ -1,0 +1,11 @@
+event,email,sms,whatsapp,inapp
+Booking Created,1,1,1,1
+Vehicle Assigned,0,1,1,1
+Shipment Dispatched,1,1,1,1
+Shipment Delivered,1,1,1,1
+POD Uploaded,1,0,1,1
+E-Way Bill Expiry,1,1,0,1
+Vehicle Maintenance Reminder,1,0,0,1
+Complaint Updates,1,0,1,1
+Payroll Generated,1,0,0,1
+Leave Approval,1,0,0,1

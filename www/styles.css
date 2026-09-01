@@ -1,0 +1,586 @@
+/* ==================================================================
+   TMS — structural styles.
+
+   Bootstrap tokens are set in R/theme.R; this file builds the shapes the deck
+   uses that Bootstrap has no component for: the fixed dark sidebar, the KPI
+   stat card, the master–detail split, kanban columns, status pills and the
+   dense data-table treatment.
+   ================================================================== */
+
+:root {
+  --navy-900: #0F2338;
+  --navy-800: #17324D;
+  --navy-700: #1B3A5C;
+  --navy-ink: #12263F;
+  --amber:    #EFA31D;
+  --amber-dark: #D18E12;
+  --amber-soft: #FDF8EC;
+  --body-bg:  #F4F7FB;
+  --border:   #E4EAF1;
+  --border-sub: #EEF2F7;
+  --ink:      #1E2E44;
+  --muted:    #64748B;
+  --faint:    #94A3B8;
+
+  --sidebar-w: 256px;
+  --topbar-h:  68px;
+}
+
+html, body { background: var(--body-bg); }
+
+body {
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv02","cv03","cv04","tnum";
+}
+
+/* Tabular figures everywhere numbers line up in a column. */
+.num, .stat-value, table td, table th { font-variant-numeric: tabular-nums; }
+
+/* Codes: vehicle registrations, GSTIN, LR numbers, IFSC. The deck sets these
+   in a spaced monospace so operators can read a plate at a glance. */
+.mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .04em;
+  font-size: .8125rem;
+}
+
+/* ------------------------------------------------------------------
+   Shell: fixed sidebar + scrolling content
+   ------------------------------------------------------------------ */
+
+.tms-shell { display: flex; min-height: 100vh; }
+
+.tms-sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: var(--navy-900);
+  color: #CBD5E1;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Thin, low-contrast scrollbar — a default light one is jarring on the navy. */
+.tms-sidebar::-webkit-scrollbar { width: 6px; }
+.tms-sidebar::-webkit-scrollbar-thumb { background: #24405f; border-radius: 3px; }
+.tms-sidebar::-webkit-scrollbar-track { background: transparent; }
+
+.tms-brand {
+  display: flex; align-items: center; gap: .625rem;
+  padding: 1.125rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.tms-brand-tile {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--amber);
+  color: #fff; font-weight: 700; font-size: 1.125rem;
+  display: grid; place-items: center;
+  flex: 0 0 38px;
+}
+.tms-brand-name { color: #fff; font-weight: 700; font-size: 1rem; line-height: 1.1; }
+.tms-brand-sub  { color: #7F93AB; font-size: .625rem; letter-spacing: .09em; text-transform: uppercase; }
+
+.tms-nav { padding: .5rem 0 1rem; flex: 1 1 auto; }
+
+.tms-nav-caption {
+  padding: .875rem 1rem .3rem;
+  font-size: .625rem; letter-spacing: .1em; text-transform: uppercase;
+  color: #5E7590;
+  font-weight: 600;
+}
+
+.tms-nav-item {
+  display: flex; align-items: center; gap: .625rem;
+  padding: .5rem 1rem;
+  color: #C3D0DE;
+  font-size: .8125rem;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  user-select: none;
+  transition: background .12s ease, color .12s ease;
+}
+.tms-nav-item:hover { background: rgba(255,255,255,.045); color: #fff; }
+
+.tms-nav-item.active {
+  background: var(--navy-800);
+  color: #fff;
+  border-left-color: var(--amber);
+  font-weight: 550;
+}
+
+.tms-nav-item .ico { width: 17px; text-align: center; opacity: .85; flex: 0 0 17px; }
+.tms-nav-item .caret { margin-left: auto; opacity: .5; font-size: .7rem; }
+
+/* Second-level items under an expanded group. */
+.tms-nav-sub {
+  padding: .4rem 1rem .4rem 2.65rem;
+  font-size: .8125rem;
+  color: #9FB1C4;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.tms-nav-sub:hover { color: #fff; background: rgba(255,255,255,.03); }
+.tms-nav-sub.active {
+  background: var(--navy-800);
+  color: #fff;
+  font-weight: 550;
+  border-left-color: var(--amber);
+}
+
+/* Signed-in user chip pinned to the bottom of the rail. */
+.tms-userchip {
+  margin: .75rem;
+  padding: .625rem .75rem;
+  background: rgba(255,255,255,.05);
+  border-radius: 10px;
+  display: flex; align-items: center; gap: .625rem;
+}
+
+.tms-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+/* ------------------------------------------------------------------
+   Top bar
+   ------------------------------------------------------------------ */
+
+.tms-topbar {
+  height: var(--topbar-h);
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 1.5rem;
+  position: sticky; top: 0; z-index: 30;
+}
+
+.tms-crumb { font-size: .75rem; color: var(--muted); margin-bottom: .1rem; }
+.tms-crumb b { color: var(--navy-ink); font-weight: 600; }
+.tms-title { font-size: 1.3rem; font-weight: 680; color: var(--navy-ink); line-height: 1.15; margin: 0; }
+
+.tms-search {
+  margin-left: auto;
+  position: relative;
+  width: min(340px, 32vw);
+}
+.tms-search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: .5rem .75rem .5rem 2.1rem;
+  font-size: .8125rem;
+  background: #F8FAFC;
+}
+.tms-search input:focus { outline: none; border-color: var(--amber); background: #fff; }
+.tms-search .fa-magnifying-glass {
+  position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+  color: var(--faint); font-size: .8rem;
+}
+
+.tms-iconbtn {
+  width: 36px; height: 36px; border-radius: 9px;
+  border: 1px solid var(--border); background: #fff;
+  display: grid; place-items: center; color: var(--muted);
+  cursor: pointer; position: relative;
+}
+.tms-iconbtn:hover { background: #F8FAFC; color: var(--navy-ink); }
+.tms-iconbtn .dot {
+  position: absolute; top: 7px; right: 8px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--amber); border: 1.5px solid #fff;
+}
+
+.tms-page { padding: 1.25rem 1.5rem 2rem; flex: 1 1 auto; }
+
+/* ------------------------------------------------------------------
+   Avatars
+   ------------------------------------------------------------------ */
+
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: .6875rem; font-weight: 650; color: #fff;
+  flex: 0 0 32px; letter-spacing: .02em;
+}
+.avatar-sm { width: 26px; height: 26px; flex-basis: 26px; font-size: .625rem; }
+.avatar-lg { width: 44px; height: 44px; flex-basis: 44px; font-size: .875rem; }
+
+/* ------------------------------------------------------------------
+   Cards
+   ------------------------------------------------------------------ */
+
+.tms-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: 0 1px 2px rgba(16,35,56,.04);
+}
+.tms-card-head {
+  padding: .875rem 1.125rem;
+  border-bottom: 1px solid var(--border-sub);
+  display: flex; align-items: center; gap: .75rem;
+}
+.tms-card-title { font-size: .9375rem; font-weight: 650; color: var(--navy-ink); margin: 0; }
+.tms-card-sub   { font-size: .75rem; color: var(--muted); margin: .1rem 0 0; }
+.tms-card-body  { padding: 1.125rem; }
+.tms-card-foot  {
+  padding: .75rem 1.125rem;
+  border-top: 1px solid var(--border-sub);
+  font-size: .75rem; color: var(--muted);
+}
+
+/* KPI stat card — the row of five across the top of most screens. */
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: .9375rem 1.0625rem;
+  box-shadow: 0 1px 2px rgba(16,35,56,.04);
+  height: 100%;
+}
+.stat-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+.stat-label {
+  font-size: .625rem; letter-spacing: .085em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.stat-value { font-size: 1.75rem; font-weight: 680; color: var(--navy-ink); line-height: 1.15; margin: .375rem 0 0; }
+.stat-value .unit { font-size: .9rem; font-weight: 500; color: var(--muted); }
+.stat-sub { font-size: .6875rem; color: var(--muted); margin-top: .25rem; }
+.stat-ico {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center; font-size: .8rem;
+  background: #F1F5F9; color: var(--muted);
+}
+
+/* Accent rail on the cards the deck highlights (expiring, overdue, at-risk). */
+.stat-card.accent-warn   { border-left: 3px solid var(--amber); }
+.stat-card.accent-danger { border-left: 3px solid #C0392B; }
+.stat-card.accent-ok     { border-left: 3px solid #1A7F45; }
+
+.delta-up   { color: #1A7F45; font-weight: 600; }
+.delta-down { color: #C0392B; font-weight: 600; }
+
+/* ------------------------------------------------------------------
+   Status pills
+   ------------------------------------------------------------------ */
+
+.pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .18rem .55rem;
+  border-radius: 999px;
+  font-size: .6875rem; font-weight: 600;
+  white-space: nowrap; line-height: 1.4;
+}
+.pill::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor; flex: 0 0 5px;
+}
+.pill.nodot::before { display: none; }
+
+.pill-green  { background: #E9F7EF; color: #1A7F45; }
+.pill-blue   { background: #E7F1FD; color: #1667C7; }
+.pill-purple { background: #F1EAFB; color: #6F42C1; }
+.pill-orange { background: #FDF3E0; color: #B3701A; }
+.pill-red    { background: #FDECEB; color: #C0392B; }
+.pill-grey   { background: #EEF1F5; color: #64748B; }
+
+/* Filter chips above list screens. */
+.chip-row { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.chip {
+  padding: .32rem .7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: .75rem; color: var(--ink);
+  cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.chip:hover { background: #F8FAFC; }
+.chip.active { background: var(--navy-700); border-color: var(--navy-700); color: #fff; font-weight: 600; }
+.chip .count { opacity: .65; font-weight: 600; }
+
+/* Underlined tab strip (All / Draft / Confirmed / ...). */
+.tab-row { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--border); align-items: center; }
+.tab-item {
+  padding: .55rem 0 .6rem;
+  font-size: .8125rem; color: var(--muted);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; white-space: nowrap;
+}
+.tab-item:hover { color: var(--navy-ink); }
+.tab-item.active { color: var(--navy-ink); font-weight: 650; border-bottom-color: var(--amber); }
+.tab-item .count { color: var(--faint); font-weight: 600; margin-left: .25rem; }
+
+/* ------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------ */
+
+.btn-tms-primary {
+  background: var(--amber); border: 1px solid var(--amber);
+  color: #3B2A06; font-weight: 650; font-size: .8125rem;
+  padding: .48rem .95rem; border-radius: 9px;
+}
+.btn-tms-primary:hover { background: var(--amber-dark); border-color: var(--amber-dark); color: #3B2A06; }
+
+.btn-tms-dark {
+  background: var(--navy-700); border: 1px solid var(--navy-700);
+  color: #fff; font-weight: 600; font-size: .8125rem;
+  padding: .48rem .95rem; border-radius: 9px;
+}
+.btn-tms-dark:hover { background: var(--navy-800); color: #fff; }
+
+.btn-tms-ghost {
+  background: #fff; border: 1px solid var(--border);
+  color: var(--ink); font-weight: 550; font-size: .8125rem;
+  padding: .48rem .95rem; border-radius: 9px;
+}
+.btn-tms-ghost:hover { background: #F8FAFC; }
+
+.btn-tms-sm { padding: .3rem .65rem; font-size: .75rem; border-radius: 7px; }
+
+/* ------------------------------------------------------------------
+   Tables (DT)
+   ------------------------------------------------------------------ */
+
+.tms-table table.dataTable {
+  border-collapse: collapse !important;
+  font-size: .8125rem;
+  width: 100% !important;
+}
+.tms-table table.dataTable thead th {
+  background: #fff;
+  border-bottom: 1px solid var(--border) !important;
+  border-top: none !important;
+  color: var(--muted);
+  font-size: .625rem; letter-spacing: .085em; text-transform: uppercase;
+  font-weight: 600;
+  padding: .6rem .75rem !important;
+  white-space: nowrap;
+}
+.tms-table table.dataTable tbody td {
+  border-top: none !important;
+  border-bottom: 1px solid var(--border-sub) !important;
+  padding: .62rem .75rem !important;
+  vertical-align: middle;
+  color: var(--ink);
+}
+.tms-table table.dataTable tbody tr:hover { background: #F8FAFC; }
+
+/* The deck highlights the row whose 360° panel is open. */
+.tms-table table.dataTable tbody tr.selected,
+.tms-table table.dataTable tbody tr.selected:hover {
+  background: var(--amber-soft) !important;
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+.tms-table table.dataTable tbody tr { cursor: pointer; }
+
+.tms-table .dataTables_wrapper .dataTables_info,
+.tms-table .dataTables_wrapper .dataTables_paginate { font-size: .75rem; color: var(--muted); padding-top: .6rem; }
+.tms-table .dataTables_wrapper .dataTables_filter { display: none; }
+.tms-table .dataTables_wrapper .paginate_button.current {
+  background: var(--navy-700) !important; color: #fff !important;
+  border-radius: 6px; border: none !important;
+}
+
+/* Two-line cell: strong primary over muted secondary (used in most list views). */
+.cell-2 .l1 { font-weight: 600; color: var(--navy-ink); }
+.cell-2 .l2 { font-size: .6875rem; color: var(--muted); margin-top: .05rem; }
+
+/* ------------------------------------------------------------------
+   Master–detail split
+   ------------------------------------------------------------------ */
+
+.split { display: grid; grid-template-columns: minmax(0,1fr) 420px; gap: 1rem; align-items: start; }
+@media (max-width: 1400px) { .split { grid-template-columns: 1fr; } }
+
+/* Definition list used throughout the 360° panels. */
+.dl { display: grid; grid-template-columns: auto 1fr; gap: .45rem 1rem; font-size: .8125rem; }
+.dl dt { color: var(--muted); font-weight: 400; white-space: nowrap; }
+.dl dd { margin: 0; text-align: right; color: var(--navy-ink); font-weight: 550; }
+
+/* ------------------------------------------------------------------
+   Kanban (Cargo Moto, Complaints)
+   ------------------------------------------------------------------ */
+
+.kanban { display: grid; gap: .875rem; align-items: start; }
+.kan-col { background: #F1F5F9; border-radius: 11px; padding: .75rem; min-height: 420px; }
+.kan-head {
+  display: flex; align-items: center; gap: .45rem;
+  font-size: .8125rem; font-weight: 650; color: var(--navy-ink);
+  padding: .1rem .25rem .7rem;
+}
+.kan-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.kan-head .count { margin-left: auto; color: var(--muted); font-weight: 600; font-size: .75rem; }
+
+.kan-card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 9px; padding: .7rem .8rem; margin-bottom: .6rem;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(16,35,56,.04);
+}
+.kan-card:hover { border-color: #CBD5E1; box-shadow: 0 2px 6px rgba(16,35,56,.07); }
+.kan-card .t  { font-size: .8125rem; font-weight: 650; color: var(--navy-ink); }
+.kan-card .m  { font-size: .6875rem; color: var(--muted); margin-top: .15rem; line-height: 1.45; }
+.kan-card .f  { display: flex; align-items: center; gap: .4rem; margin-top: .55rem; flex-wrap: wrap; }
+
+/* Left accent rail marking priority / completion, as on the deck. */
+.kan-card.rail-red   { border-left: 3px solid #C0392B; }
+.kan-card.rail-green { border-left: 3px solid #1A7F45; }
+.kan-card.rail-amber { border-left: 3px solid var(--amber); }
+
+/* ------------------------------------------------------------------
+   Timelines (shipment tracking, consignment status, payroll run)
+   ------------------------------------------------------------------ */
+
+.tl { position: relative; padding-left: 1.75rem; }
+.tl-item { position: relative; padding: 0 0 1.05rem; }
+/* Connector line between steps, stopped short on the last one. */
+.tl-item:not(:last-child)::before {
+  content: ""; position: absolute; left: -1.13rem; top: 1.25rem; bottom: -.15rem;
+  width: 2px; background: var(--border);
+}
+.tl-dot {
+  position: absolute; left: -1.75rem; top: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: .625rem; font-weight: 650;
+}
+.tl-dot.done    { background: #1A7F45; color: #fff; }
+.tl-dot.current { background: var(--amber); color: #fff; }
+.tl-dot.todo    { background: #fff; color: var(--faint); border: 1.5px solid var(--border); }
+.tl-title { font-size: .8125rem; font-weight: 620; color: var(--navy-ink); }
+.tl-sub   { font-size: .6875rem; color: var(--muted); margin-top: .1rem; }
+.tl-when  { font-size: .6875rem; color: var(--faint); white-space: nowrap; }
+
+/* ------------------------------------------------------------------
+   Callouts
+   ------------------------------------------------------------------ */
+
+.callout {
+  border-radius: 9px; padding: .7rem .85rem;
+  font-size: .75rem; line-height: 1.5;
+  display: flex; gap: .6rem; align-items: flex-start;
+}
+.callout .ttl {
+  font-size: .625rem; letter-spacing: .08em; text-transform: uppercase;
+  font-weight: 700; display: block; margin-bottom: .15rem;
+}
+.callout-info   { background: #EFF6FF; color: #1E4E8C; }
+.callout-warn   { background: #FDF6E7; color: #8A5B0A; }
+.callout-danger { background: #FDECEB; color: #94261A; }
+.callout-ok     { background: #E9F7EF; color: #145F34; }
+
+/* ------------------------------------------------------------------
+   Progress bars (complaint SLA, driver performance, load capacity)
+   ------------------------------------------------------------------ */
+
+.bar { height: 6px; background: var(--border-sub); border-radius: 999px; overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 999px; background: var(--amber); }
+.bar.green > i { background: #1A7F45; }
+.bar.blue  > i { background: #1667C7; }
+.bar.red   > i { background: #C0392B; }
+
+/* ------------------------------------------------------------------
+   Login
+   ------------------------------------------------------------------ */
+
+.login-wrap {
+  min-height: 100vh;
+  background: var(--navy-900);
+  background-image: radial-gradient(1100px 520px at 50% -8%, #16334F 0%, #0F2338 62%);
+  display: grid; place-items: center; padding: 2rem 1rem;
+}
+.login-card {
+  width: 100%; max-width: 420px;
+  background: #fff; border-radius: 13px; padding: 2rem;
+  box-shadow: 0 22px 55px rgba(0,0,0,.35);
+}
+.login-role-chip {
+  padding: .35rem .8rem; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.06);
+  color: #D7E1EC; font-size: .75rem; cursor: pointer;
+}
+.login-role-chip:hover { background: rgba(255,255,255,.13); color: #fff; }
+
+/* ------------------------------------------------------------------
+   Forms
+   ------------------------------------------------------------------ */
+
+.form-label { font-size: .75rem; font-weight: 600; color: var(--ink); margin-bottom: .25rem; }
+.req::after { content: " *"; color: #C0392B; }
+
+.form-control, .form-select, .selectize-input {
+  font-size: .8125rem !important;
+  border-radius: 8px !important;
+  border-color: #D6DEE8 !important;
+  min-height: 38px;
+}
+.shiny-input-container { width: 100% !important; }
+
+/* Read-only display field — same footprint as an input so form rows stay aligned. */
+.field-static {
+  background: #F8FAFC; border: 1px solid var(--border);
+  border-radius: 8px; padding: .5rem .7rem;
+  font-size: .8125rem; color: var(--muted); min-height: 38px;
+}
+
+/* Section label inside a form card. */
+.form-section {
+  font-size: .625rem; letter-spacing: .085em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700; margin: 0 0 .6rem;
+}
+
+/* ------------------------------------------------------------------
+   Document / POD tiles
+   ------------------------------------------------------------------ */
+
+.doc-tile {
+  border: 1px solid var(--border); border-radius: 10px;
+  background: #fff; overflow: hidden; cursor: pointer; height: 100%;
+}
+.doc-tile:hover { border-color: #CBD5E1; }
+.doc-thumb { height: 96px; background: #F1F5F9; display: grid; place-items: center; color: #A9B7C6; font-size: 1.4rem; }
+.doc-tile.empty .doc-thumb { background: #FAFCFE; border-bottom: 1px dashed var(--border); }
+.doc-meta { padding: .6rem .7rem; }
+
+/* ------------------------------------------------------------------
+   Misc
+   ------------------------------------------------------------------ */
+
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.tiny  { font-size: .6875rem; }
+.small-caps {
+  font-size: .625rem; letter-spacing: .085em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+
+hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
+
+/* Shiny's default validation/progress chrome clashes with the flat surfaces. */
+.shiny-notification { border-radius: 9px; font-size: .8125rem; }
+.shiny-output-error { color: #C0392B; font-size: .8125rem; }
+.shiny-output-error:before { content: "Something went wrong rendering this panel: "; }
+
+/* plotly leaves a focus outline on the drag layer that reads as a stray box. */
+.js-plotly-plot .plotly .modebar { display: none !important; }
+
+@media (max-width: 992px) {
+  .tms-sidebar { display: none; }
+  .tms-page { padding: 1rem; }
+  .tms-search { width: 100%; }
+}
+
+/* ------------------------------------------------------------------
+   Map basemap
+   ------------------------------------------------------------------ */
+
+/* The deck uses a pale Positron-style basemap, but CARTO and Stamen both now
+   require an API key. OpenStreetMap's keyless tiles are used instead and
+   desaturated here to get the same muted ground, so the coloured vehicle
+   markers stay the loudest thing on the map. Markers and controls sit in
+   sibling panes, so the filter does not touch them. */
+.leaflet-tile-pane {
+  filter: grayscale(88%) brightness(1.07) contrast(.92);
+}

@@ -1,0 +1,82 @@
+employee_id,name,mobile,designation,department,branch_id,joined,aadhaar,pan,bank_masked,salary_type,salary,is_driver,docs_status,status
+EMP-0001,Ramesh Yadav,+91 98559 33642,Driver,Fleet,BR-001,2025-03-22,xxxx xxxx 5808,RMKGH3351R,HDFC ···· 2228,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0002,Suresh Khan,+91 98400 41358,Driver,Fleet,BR-006,2025-03-28,xxxx xxxx 9764,NMICB1438J,ICICI ···· 4988,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0003,Prakash Singh,+91 98241 11620,Driver,Fleet,BR-001,2021-04-12,xxxx xxxx 3805,ICCYL6188E,SBI ···· 8234,per_trip,18000,TRUE,PAN pending,Active
+EMP-0004,Vikas Dubey,+91 98107 21253,Driver,Fleet,BR-014,2022-09-22,xxxx xxxx 9025,IESOC2465A,ICICI ···· 5499,per_trip,18000,TRUE,complete,Active
+EMP-0005,Anil Verma,+91 98971 46170,Driver,Fleet,BR-001,2025-09-05,xxxx xxxx 4317,PEAJF2852C,HDFC ···· 9749,per_trip,18000,TRUE,PAN pending,Active
+EMP-0006,Manoj Jha,+91 98977 20672,Driver,Fleet,BR-010,2022-07-02,xxxx xxxx 3830,VDDEH8184D,ICICI ···· 2221,per_trip,18000,TRUE,complete,Active
+EMP-0007,Gopal Kale,+91 98170 74360,Driver,Fleet,BR-008,2021-11-30,xxxx xxxx 5330,DKLSB7159Q,ICICI ···· 2980,per_trip,18000,TRUE,complete,Active
+EMP-0008,Santosh Pawar,+91 98415 78224,Driver,Fleet,BR-005,2024-08-19,xxxx xxxx 7150,OWPFP4271M,HDFC ···· 8723,per_trip,18000,TRUE,complete,Active
+EMP-0009,Rajesh Malhotra,+91 98950 63518,Driver,Fleet,BR-018,2024-07-07,xxxx xxxx 8108,ZMAWS3544T,ICICI ···· 2252,per_trip,18000,TRUE,complete,Active
+EMP-0010,Ravi Mehta,+91 98507 88926,Driver,Fleet,BR-001,2024-07-08,xxxx xxxx 2827,LTYLI6790I,Axis ···· 3346,per_trip,18000,TRUE,complete,Active
+EMP-0011,Ramesh Malhotra,+91 98369 29321,Driver,Fleet,BR-003,2025-01-06,xxxx xxxx 8756,NDOIN2470M,HDFC ···· 9561,per_trip,18000,TRUE,complete,Active
+EMP-0012,Arif Sharma,+91 98588 90484,Driver,Fleet,BR-007,2024-09-08,xxxx xxxx 2322,UGKKI3191D,SBI ···· 4420,per_trip,18000,TRUE,complete,Active
+EMP-0013,Farida Chavan,+91 98003 57693,Driver,Fleet,BR-008,2022-09-20,xxxx xxxx 3344,XFUWU1312A,Axis ···· 3853,per_trip,18000,TRUE,PAN pending,Active
+EMP-0014,Yogesh Kale,+91 98412 96902,Driver,Fleet,BR-006,2021-08-02,xxxx xxxx 5523,DEZQJ7568D,SBI ···· 2574,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0015,Anil Sinha,+91 98040 77301,Driver,Fleet,BR-005,2023-04-07,xxxx xxxx 4384,LAZCT3147Q,Axis ···· 1736,per_trip,18000,TRUE,complete,Active
+EMP-0016,Sunita Mehta,+91 98413 43676,Driver,Fleet,BR-003,2023-08-25,xxxx xxxx 5935,OWRTL2118X,HDFC ···· 8111,per_trip,18000,TRUE,complete,Active
+EMP-0017,Nandini Gupta,+91 98668 94568,Driver,Fleet,BR-007,2022-08-25,xxxx xxxx 2012,PDJSG5515K,SBI ···· 7035,per_trip,18000,TRUE,PAN pending,Active
+EMP-0018,Rajesh Nair,+91 98476 27933,Driver,Fleet,BR-009,2024-07-30,xxxx xxxx 9992,WQSXK1762T,Axis ···· 4151,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0019,Mahesh Yadav,+91 98983 11019,Driver,Fleet,BR-015,2023-07-23,xxxx xxxx 6514,YSQWY1693O,HDFC ···· 8691,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0020,Amardip Jain,+91 98450 47370,Driver,Fleet,BR-008,2022-03-09,xxxx xxxx 2951,UNPIV7415N,ICICI ···· 1082,per_trip,18000,TRUE,complete,Active
+EMP-0021,Imran Shaikh,+91 98808 69410,Driver,Fleet,BR-003,2024-08-09,xxxx xxxx 6123,ERNHQ1630I,Axis ···· 6121,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0022,Sanjay Kulkarni,+91 98876 61418,Driver,Fleet,BR-001,2025-10-27,xxxx xxxx 6920,LYLQV8678T,SBI ···· 1477,per_trip,18000,TRUE,complete,Active
+EMP-0023,Lata Sai,+91 98146 55411,Driver,Fleet,BR-005,2022-06-07,xxxx xxxx 6962,BZCIP8428Y,SBI ···· 7643,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0024,Tarun Patel,+91 98520 85080,Driver,Fleet,BR-001,2022-05-26,xxxx xxxx 9065,IVJRL6334W,Axis ···· 8268,per_trip,18000,TRUE,complete,Active
+EMP-0025,Yogesh Jha,+91 98120 33235,Driver,Fleet,BR-001,2021-05-10,xxxx xxxx 5732,DGOMX8879P,Axis ···· 9716,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0026,Tarun Rathod,+91 98883 97658,Driver,Fleet,BR-002,2022-12-24,xxxx xxxx 8651,SZQYK2913B,Axis ···· 1466,per_trip,18000,TRUE,complete,Active
+EMP-0027,Pooja Kulkarni,+91 98402 89505,Driver,Fleet,BR-001,2024-03-04,xxxx xxxx 3678,EXEJY9406K,Axis ···· 7533,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0028,Jaspreet Bhosale,+91 98035 76456,Driver,Fleet,BR-008,2023-05-28,xxxx xxxx 2265,JQMZU9585S,ICICI ···· 8691,per_trip,18000,TRUE,complete,Active
+EMP-0029,Rohit Wankhede,+91 98285 11652,Driver,Fleet,BR-005,2022-01-09,xxxx xxxx 9670,RLTLZ8389Q,SBI ···· 9891,per_trip,18000,TRUE,complete,Active
+EMP-0030,Tarun Dubey,+91 98525 85994,Driver,Fleet,BR-001,2023-10-27,xxxx xxxx 3582,YJUOK9085E,HDFC ···· 7192,per_trip,18000,TRUE,PAN pending,Active
+EMP-0031,Imran Sinha,+91 98128 61579,Driver,Fleet,BR-003,2025-03-13,xxxx xxxx 2156,EZADL3151S,ICICI ···· 6402,per_trip,18000,TRUE,complete,Active
+EMP-0032,Gopal More,+91 98558 46983,Driver,Fleet,BR-002,2025-07-18,xxxx xxxx 3022,DAOUV5504V,HDFC ···· 6592,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0033,Sanjay Khan,+91 98578 70611,Driver,Fleet,BR-001,2022-04-10,xxxx xxxx 3130,OCUKP3917U,Axis ···· 4872,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0034,Ramesh Joshi,+91 98251 77696,Driver,Fleet,BR-002,2023-11-12,xxxx xxxx 4202,BKEIH5806T,Axis ···· 8824,per_trip,18000,TRUE,complete,Active
+EMP-0035,Raghunath Jha,+91 98670 84973,Driver,Fleet,BR-010,2023-08-26,xxxx xxxx 8443,GSCRO8838L,HDFC ···· 4975,per_trip,18000,TRUE,complete,Active
+EMP-0036,Neha Deshmukh,+91 98329 31081,Driver,Fleet,BR-001,2025-04-01,xxxx xxxx 1557,MDRPQ9044H,Axis ···· 7320,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0037,Rahul Rathod,+91 98695 34253,Driver,Fleet,BR-002,2021-07-10,xxxx xxxx 5204,OPBBF2632D,SBI ···· 1072,per_trip,18000,TRUE,complete,Active
+EMP-0038,Prakash Mehta,+91 98434 69527,Driver,Fleet,BR-001,2022-05-14,xxxx xxxx 2536,AVALW7028B,SBI ···· 6327,per_trip,18000,TRUE,PAN pending,Active
+EMP-0039,Lata Kulkarni,+91 98296 77136,Driver,Fleet,BR-003,2025-08-06,xxxx xxxx 2831,DQTTD9611A,ICICI ···· 3340,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0040,Anil Sahu,+91 98098 37002,Driver,Fleet,BR-001,2021-12-06,xxxx xxxx 5555,QGLYI4445K,HDFC ···· 6393,per_trip,18000,TRUE,complete,Active
+EMP-0041,Mahesh Dubey,+91 98212 18604,Driver,Fleet,BR-001,2025-09-23,xxxx xxxx 4409,AWNIH5309T,ICICI ···· 4037,per_trip,18000,TRUE,complete,Active
+EMP-0042,Vikram Khan,+91 98636 86789,Driver,Fleet,BR-003,2023-12-17,xxxx xxxx 9300,SWKTU3354Z,HDFC ···· 4947,per_trip,18000,TRUE,complete,Active
+EMP-0043,Sameer Verma,+91 98241 42366,Driver,Fleet,BR-007,2025-12-20,xxxx xxxx 7790,YVNTW6253K,HDFC ···· 8347,per_trip,18000,TRUE,PAN pending,Active
+EMP-0044,Vikram Gupta,+91 98951 61688,Driver,Fleet,BR-017,2024-11-04,xxxx xxxx 3968,NQZVM8583M,ICICI ···· 8325,per_trip,18000,TRUE,PAN pending,Active
+EMP-0045,Sanjay Joshi,+91 98713 15611,Driver,Fleet,BR-003,2023-12-13,xxxx xxxx 7127,LYVRI4814Q,Axis ···· 8807,per_trip,18000,TRUE,complete,Active
+EMP-0046,Ramesh Verma,+91 98520 82120,Driver,Fleet,BR-001,2025-02-18,xxxx xxxx 1642,JZKLZ4019B,ICICI ···· 5189,per_trip,18000,TRUE,complete,Active
+EMP-0047,Jaspreet Bhosale,+91 98324 65896,Driver,Fleet,BR-008,2025-10-22,xxxx xxxx 4375,DLBFT7755F,HDFC ···· 6646,per_trip,18000,TRUE,complete,Active
+EMP-0048,Imran Singh,+91 98864 77431,Driver,Fleet,BR-005,2026-01-21,xxxx xxxx 2696,TGHNZ5672R,Axis ···· 2251,per_trip,18000,TRUE,ESIC card missing,Active
+EMP-0049,Amit Kulkarni,+91 98552 80212,Sales Executive,Sales,BR-003,2023-01-01,xxxx xxxx 8533,AQZEI3994V,SBI ···· 7419,monthly,34000,FALSE,complete,Active
+EMP-0050,Priya Joshi,+91 98730 84141,Sales Executive,Sales,BR-009,2024-11-13,xxxx xxxx 2632,QZGEZ9243W,Axis ···· 1187,monthly,38000,FALSE,complete,Active
+EMP-0051,Meena Rao,+91 98175 84042,Accountant,Accounts,BR-006,2021-10-05,xxxx xxxx 2467,BDCJV7154E,SBI ···· 3830,monthly,40000,FALSE,complete,Active
+EMP-0052,Lata Yadav,+91 98647 97533,Accountant,Accounts,BR-008,2025-05-28,xxxx xxxx 3128,GSFBU3149V,SBI ···· 3707,monthly,40000,FALSE,PAN pending,Active
+EMP-0053,Mahesh Kulkarni,+91 98344 49680,Accountant,Accounts,BR-001,2024-04-25,xxxx xxxx 2797,DWOSD3920G,SBI ···· 1830,monthly,42000,FALSE,PAN pending,Active
+EMP-0054,Kiran Nair,+91 98107 61943,HR Executive,Human Resources,BR-005,2025-03-11,xxxx xxxx 1685,MUCUF7516T,SBI ···· 5509,monthly,38000,FALSE,complete,Active
+EMP-0055,Rajesh Jha,+91 98863 88296,HR Executive,Human Resources,BR-002,2024-06-17,xxxx xxxx 7172,NQYZT2503T,SBI ···· 2669,monthly,34000,FALSE,complete,Active
+EMP-0056,Lata Kulkarni,+91 98240 12488,Sales Executive,Sales,BR-001,2024-08-19,xxxx xxxx 2202,USNRG4144N,ICICI ···· 6238,monthly,32000,FALSE,PAN pending,Active
+EMP-0057,Manoj Chavan,+91 98297 47241,Accountant,Accounts,BR-007,2026-02-10,xxxx xxxx 9395,RZIUP2939T,HDFC ···· 9824,monthly,28000,FALSE,complete,Active
+EMP-0058,Sanjay Kulkarni,+91 98443 12946,Sales Executive,Sales,BR-003,2025-10-25,xxxx xxxx 4998,HSLCS7542V,ICICI ···· 2570,monthly,24000,FALSE,complete,Active
+EMP-0059,Gopal Sharma,+91 98115 77785,Accountant,Accounts,BR-009,2024-12-03,xxxx xxxx 6160,TBNBD4746K,Axis ···· 1415,monthly,32000,FALSE,complete,Active
+EMP-0060,Anil Bhosale,+91 98330 20786,HR Executive,Human Resources,BR-012,2025-06-02,xxxx xxxx 4384,ZXIVG7916U,HDFC ···· 6506,monthly,28000,FALSE,complete,Active
+EMP-0061,Ramesh Bhosale,+91 98877 22484,Sales Executive,Sales,BR-001,2021-03-23,xxxx xxxx 8759,IOPSS3958P,ICICI ···· 5608,monthly,26000,FALSE,PAN pending,Active
+EMP-0062,Arif Wankhede,+91 98306 44158,Sales Executive,Sales,BR-003,2023-04-11,xxxx xxxx 5918,IRHJN6433J,HDFC ···· 3307,monthly,30000,FALSE,complete,Active
+EMP-0063,Sunita Singh,+91 98501 45944,Accountant,Accounts,BR-005,2022-06-23,xxxx xxxx 6987,TERGY8085M,SBI ···· 1274,monthly,26000,FALSE,complete,Active
+EMP-0064,Pooja Nair,+91 98643 33192,Ops Coordinator,Operations,BR-002,2021-09-18,xxxx xxxx 6072,BNKLG6302I,SBI ···· 9694,monthly,32000,FALSE,ESIC card missing,Active
+EMP-0065,Priya Agrawal,+91 98392 38883,Ops Coordinator,Operations,BR-015,2025-05-09,xxxx xxxx 6684,HPRYV5086Y,ICICI ···· 2467,monthly,32000,FALSE,ESIC card missing,Active
+EMP-0066,Neha Chauhan,+91 98319 92760,Booking Executive,Operations,BR-005,2022-09-20,xxxx xxxx 2886,LEEEZ5625F,HDFC ···· 5047,monthly,42000,FALSE,complete,Active
+EMP-0067,Pooja Wankhede,+91 98436 91862,Ops Coordinator,Operations,BR-011,2021-09-29,xxxx xxxx 4038,BZQFS6597Y,HDFC ···· 7911,monthly,28000,FALSE,complete,Active
+EMP-0068,Alok Kulkarni,+91 98216 77075,Dispatcher,Operations,BR-001,2023-08-25,xxxx xxxx 1361,ODYTU5881L,HDFC ···· 3707,monthly,42000,FALSE,complete,Active
+EMP-0069,Mahesh Kale,+91 98290 75257,Booking Executive,Operations,BR-006,2023-10-05,xxxx xxxx 2871,XBQSG5379G,HDFC ···· 8246,monthly,38000,FALSE,ESIC card missing,Active
+EMP-0070,Vikram Dubey,+91 98273 33382,Ops Coordinator,Operations,BR-003,2023-08-12,xxxx xxxx 4790,PECOO1585B,SBI ···· 2728,monthly,42000,FALSE,complete,Active
+EMP-0071,Raghunath Khan,+91 98236 33217,Ops Coordinator,Operations,BR-009,2025-01-31,xxxx xxxx 8243,BZWNI9108B,HDFC ···· 7012,monthly,42000,FALSE,complete,Active
+EMP-0072,Deepak Verma,+91 98464 51294,Dispatcher,Operations,BR-002,2023-01-03,xxxx xxxx 1181,IVNUM8176C,ICICI ···· 4626,monthly,24000,FALSE,complete,Active
+EMP-0073,Amit Khan,+91 98936 54077,Dispatcher,Operations,BR-001,2025-04-02,xxxx xxxx 4009,BDTAQ6315X,SBI ···· 3916,monthly,28000,FALSE,complete,Active
+EMP-0074,Meena Rao,+91 98241 41821,Dispatcher,Operations,BR-003,2022-12-07,xxxx xxxx 6277,BOBVZ9580U,SBI ···· 3474,monthly,40000,FALSE,ESIC card missing,Active
+EMP-0075,Alok Sinha,+91 98752 78725,Dispatcher,Operations,BR-002,2025-05-31,xxxx xxxx 5665,CNSAJ8780D,Axis ···· 1713,monthly,38000,FALSE,complete,Active
+EMP-0076,Mahesh Kamble,+91 98945 55739,Mechanic,Maintenance,BR-004,2026-02-08,xxxx xxxx 3904,BDBXL2364H,ICICI ···· 1974,monthly,22000,FALSE,ESIC card missing,Active
+EMP-0077,Lata Yadav,+91 98360 76759,Mechanic,Maintenance,BR-002,2024-11-19,xxxx xxxx 3379,HLACD3074N,ICICI ···· 8724,monthly,22000,FALSE,complete,Active
+EMP-0078,Rahul Jha,+91 98577 51189,Mechanic,Maintenance,BR-002,2022-04-08,xxxx xxxx 9589,FPWZR7176O,HDFC ···· 4575,monthly,22000,FALSE,complete,Active
+EMP-0079,Sameer Sai,+91 98745 20437,Mechanic,Maintenance,BR-002,2024-04-15,xxxx xxxx 7420,PAAHI7894I,HDFC ···· 5210,monthly,22000,FALSE,complete,Active
+EMP-0080,Rahul Singh,+91 98812 37377,Mechanic,Maintenance,BR-002,2025-08-18,xxxx xxxx 2389,OGKTD2367S,SBI ···· 7905,monthly,22000,FALSE,complete,Active
+EMP-0081,Suresh Patel,+91 98578 17702,Mechanic,Maintenance,BR-002,2022-01-15,xxxx xxxx 1039,JIZWP4618C,SBI ···· 8957,monthly,22000,FALSE,complete,Active
