@@ -1,1 +1,8 @@
 ts,user_id,action,module,detail
+2026-09-02 13:07:15,USR-0002,sign-in (demo),auth,role: Operations Manager
+2026-09-02 13:09:58,USR-0001,sign-in (demo),auth,role: Super Admin
+2026-09-02 13:10:39,USR-0001,sign-in (demo),auth,role: Super Admin
+2026-09-02 13:12:58,USR-0001,sign-in (demo),auth,role: Super Admin
+2026-09-02 13:13:46,USR-0002,sign-in (demo),auth,role: Operations Manager
+2026-09-02 13:14:36,USR-0001,sign-in (demo),auth,role: Super Admin
+2026-09-02 13:20:11,USR-0001,sign-in (demo),auth,role: Super Admin

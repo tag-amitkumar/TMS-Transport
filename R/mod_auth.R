@@ -65,8 +65,7 @@ auth_ui <- function(id) {
         div(class = "small-caps mb-2", style = "color:#7F93AB;", "Quick preview as"),
         div(
           class = "d-flex flex-wrap justify-content-center gap-2",
-          lapply(c("Super Admin", "Branch Admin", "Dispatcher", "Accountant",
-                   "HR Manager", "Vendor", "Customer"), function(r) {
+          lapply(DEMO_ROLES, function(r) {
             div(class = "login-role-chip",
                 onclick = sprintf("Shiny.setInputValue('%s', '%s', {priority:'event'})",
                                   ns("quick"), r),

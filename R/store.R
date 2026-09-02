@@ -126,9 +126,15 @@ as_dt  <- function(x) suppressWarnings(as.POSIXct(x, tz = "Asia/Kolkata"))
 as_dte <- function(x) suppressWarnings(as.Date(x))
 
 #' Read a table with named columns coerced to numeric / Date / datetime.
+#'
+#' Coercion runs even when the table has no rows. Returning early on an empty
+#' frame left declared-numeric columns as character, and an empty table is a
+#' perfectly ordinary state — nothing settled yet, or everything paid off — so
+#' the first `sum()` downstream failed with "invalid 'type' (character) of
+#' argument". An empty numeric column costs nothing; an empty character column
+#' pretending to be numeric costs a crashed screen.
 store_typed <- function(name, num = NULL, date = NULL, datetime = NULL) {
   df <- store_get(name)
-  if (!nrow(df)) return(df)
   for (c in intersect(num, names(df)))      df[[c]] <- as_num(df[[c]])
   for (c in intersect(date, names(df)))     df[[c]] <- as_dte(df[[c]])
   for (c in intersect(datetime, names(df))) df[[c]] <- as_dt(df[[c]])

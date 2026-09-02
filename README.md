@@ -4,8 +4,29 @@ A logistics ERP for a road-freight carrier, built in R/Shiny. Bookings,
 consignments, fleet, GST compliance, accounts, HRMS and self-service portals for
 customers and vendors.
 
+> ### You are on the `minimal-setup` branch
+>
+> Same application, every feature, but seeded for a clean start rather than a
+> showcase: **two logins and one sample record per entity**, instead of the
+> 148 accounts and 342 bookings on `main`.
+>
+> | | `main` | `minimal-setup` |
+> |---|---|---|
+> | Logins | 148 across 7 roles | **2** — Super Admin, Operations |
+> | Bookings | 342 | 2 (one delivered & paid, one in transit) |
+> | Customers | 214 | 2 |
+> | Vehicles / drivers | 62 / 48 | 2 / 2 |
+>
+> Use this branch to hand someone a working system they can put their own data
+> into. Use `main` to see the app under realistic volume.
+>
+> The switch is `SEED_PROFILE` in `global.R` (`"minimal"` here, `"demo"` on
+> `main`), overridable with `TMS_SEED_PROFILE`. Both profiles generate the same
+> tables with the same columns, so nothing downstream knows the difference.
+
 **▶ Live demo: <https://sendwave.shinyapps.io/tms-transport/>** — sign in with a
-**Quick preview** chip on the login screen to explore any role.
+**Quick preview** chip on the login screen to explore any role. *(That
+deployment runs the `demo` profile from `main`.)*
 
 **New here? Start with the [User Handbook](HANDBOOK.html)** — a screenshot-led
 walkthrough of every screen, the order you actually do things in, and what each
@@ -38,14 +59,20 @@ The app seeds itself on first run — no database, no configuration. Sign in wit
 any account below, or use the **Quick preview as** chips on the login screen to
 jump straight into a role.
 
-| Role | Email | Password |
-|---|---|---|
-| Super Admin | `amardip.singh@amardiptms.in` | `tms@2026` |
-| Branch Admin | `vikram.chauhan@amardiptms.in` | `tms@2026` |
-| Accountant | `ganesh.malhotra@amardiptms.in` | `tms@2026` |
-| HR Manager | `arif.kamble@amardiptms.in` | `tms@2026` |
+| Login | Email | Password | Reaches |
+|---|---|---|---|
+| **Super Admin** | `admin@amardiptms.in` | `tms@2026` | Everything — all 30 screens, all branches |
+| **Operations** | `operations@amardiptms.in` | `tms@2026` | Bookings, allocation, consignments, tracking, POD, fleet, complaints — 16 screens |
 
-Sign-in also accepts the local part alone — `amardip.singh` works.
+Sign-in also accepts the local part alone — `admin` works.
+
+The Operations login is the standard **Operations Manager** role: it does the
+bookings and follows them to delivery, but cannot reach Branches, Users,
+Invoices, Payments, Security or Settings. Those are Super Admin's.
+
+The other eight roles still exist in the permission matrix under **System →
+Security & Roles** — Super Admin can create accounts against any of them at any
+time. This branch simply ships with two.
 
 The demo password is shared across all seeded accounts. It is stored
 bcrypt-hashed, and this is public demo data — set `TMS_DEMO_LOGIN=false` to hide
@@ -147,10 +174,16 @@ storage API is deliberately database-shaped (a table name, a filter, a named
 list of values) rather than file-shaped. Moving to SQLite or Postgres is a
 rewrite of that one file, not of 31 screen modules.
 
-Regenerate the seed at any time:
+Regenerate the seed at any time — this resets `data/` to a clean state:
 
 ```bash
 Rscript R/seed.R
+```
+
+To load the full demo dataset on this branch instead, set the profile:
+
+```bash
+TMS_SEED_PROFILE=demo Rscript R/seed.R
 ```
 
 **All data is fictional.** Names, GSTINs, PANs, bank accounts, Aadhaar fragments

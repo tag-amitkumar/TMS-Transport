@@ -10,7 +10,8 @@
 
 suppressPackageStartupMessages({
   source("global.R"); source("R/store.R"); source("R/rbac.R")
-  source("R/seed.R"); source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
+  source("R/seed.R"); source("R/seed_minimal.R")
+  source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
 })
 
@@ -41,7 +42,18 @@ cl  <- get_clients();            bk <- get_bookings()
 tr  <- get_trips();              cn <- get_consignments()
 inv <- get_invoices();           pd <- get_pods()
 
-ok("branches seeded",           nrow(b)  == 18)
+MINIMAL <- identical(SEED_PROFILE, "minimal")
+cat("   profile:", SEED_PROFILE, "\n")
+
+# Volumes are the one thing that legitimately differs between profiles.
+# Everything below this block is an invariant and must hold for both.
+expect_n <- if (MINIMAL) {
+  list(branches = 2, employees = 3, vehicles = 2, clients = 2, bookings = 2)
+} else {
+  list(branches = 18, employees = 81, vehicles = 62, clients = 214, bookings = 342)
+}
+
+ok("branches seeded",           nrow(b)  == expect_n$branches)
 local({
   u <- store_get("users")
   ok("user emails unique",  !any(duplicated(tolower(u$email))))
@@ -50,10 +62,10 @@ local({
   ok("demo password verifies", bcrypt::checkpw("tms@2026", u$password_hash[1]))
   ok("no plaintext passwords stored", !"password" %in% names(u))
 })
-ok("employees seeded",          nrow(e)  == 81)
-ok("vehicles seeded",           nrow(v)  == 62)
-ok("clients seeded",            nrow(cl) == 214)
-ok("bookings seeded",           nrow(bk) == 342)
+ok("employees seeded",          nrow(e)  == expect_n$employees)
+ok("vehicles seeded",           nrow(v)  == expect_n$vehicles)
+ok("clients seeded",            nrow(cl) == expect_n$clients)
+ok("bookings seeded",           nrow(bk) == expect_n$bookings)
 
 # The one-record rule: every driver is an employee flagged as one.
 ok("every driver is an employee", all(d$driver_id %in% e$employee_id))
@@ -184,8 +196,32 @@ local({
   # The register must be mostly actionable, not a wall of dead rows.
   expired <- sum(ew$valid_to < Sys.time(), na.rm = TRUE)
   ok("most EWBs are still valid", nrow(ew) == 0 || expired / nrow(ew) < 0.25)
-  ok("some EWBs need attention",
-     any(ew$valid_to < Sys.time() + 24 * 3600, na.rm = TRUE))
+
+  # Only the demo profile manufactures an expiry queue. The minimal profile has
+  # a single bill and no reason to ship it half-expired.
+  if (!MINIMAL) {
+    ok("some EWBs need attention",
+       any(ew$valid_to < Sys.time() + 24 * 3600, na.rm = TRUE))
+  }
+})
+
+cat("\n== Empty-table typing ==\n")
+# An empty table must still come back with its numeric columns numeric. When
+# store_typed() short-circuited on zero rows they stayed character, and the
+# Payments screen died on sum() the moment a vendor had nothing outstanding —
+# which is the normal state right after everyone has been paid.
+local({
+  for (getter in c("get_vendor_payments", "get_payments", "get_invoices",
+                   "get_ewaybills", "get_gps", "get_payroll")) {
+    df <- get(getter)()
+    nums <- intersect(c("amount", "total", "net", "speed", "lat", "lon"), names(df))
+    bad <- nums[!vapply(nums, function(c) is.numeric(df[[c]]), logical(1))]
+    ok(paste(getter, "numeric columns are numeric"), length(bad) == 0)
+    # And the arithmetic the screens actually do must not error.
+    ok(paste(getter, "sums without error"),
+       !inherits(try(sum(df[[nums[1]]], na.rm = TRUE), silent = TRUE), "try-error") ||
+         length(nums) == 0)
+  }
 })
 
 cat("\n== Store round-trip ==\n")

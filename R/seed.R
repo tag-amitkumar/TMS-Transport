@@ -1054,9 +1054,13 @@ build_seed <- function() {
 }
 
 #' Write the seed to data/*.csv.
-seed_write <- function(overwrite = TRUE) {
+#'
+#' `profile` selects which dataset to generate — see SEED_PROFILE in global.R.
+#' Both profiles produce the same tables with the same columns, so nothing
+#' downstream has to know which one it is looking at.
+seed_write <- function(overwrite = TRUE, profile = SEED_PROFILE) {
   if (!dir.exists(DATA_DIR)) dir.create(DATA_DIR, recursive = TRUE)
-  d <- build_seed()
+  d <- if (identical(profile, "minimal")) build_seed_minimal() else build_seed()
   for (nm in names(d)) {
     p <- tbl_path(nm)
     if (!overwrite && file.exists(p)) next
@@ -1080,6 +1084,8 @@ if (sys.nframe() == 0 && !interactive()) {
   source("global.R")
   source("R/store.R")
   source("R/rbac.R")
+  source("R/seed_minimal.R")
+  cat("Seed profile:", SEED_PROFILE, "\n")
   counts <- seed_write()
   cat("\nSeeded tables:\n")
   print(counts)

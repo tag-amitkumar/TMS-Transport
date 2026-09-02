@@ -1,19 +1,3 @@
 branch_id,code,name,address,city,state,pincode,lat,lon,is_depot,manager,contact,gstin,since,status
-BR-001,BR-NAG,Nagpur (HQ),"Plot 14, MIDC, Hingna Rd",Nagpur,Maharashtra,440001,21.146,79.088,TRUE,Amardip Singh,+91 98168 52756,27AAACA1234F1Z1,2016-01-01,Active
-BR-002,BR-DEL,Delhi,"Okhla Industrial Area, Ph-2",Delhi,Delhi,110001,28.644,77.216,TRUE,Shalini Pawar,+91 98361 62170,07AAACA1234F1Z2,2016-06-01,Active
-BR-003,BR-MUM,Mumbai,Bhiwandi Logistics Park,Mumbai,Maharashtra,400001,19.076,72.877,TRUE,Nitin Chavan,+91 98242 26575,27AAACA1234F1Z3,2016-11-01,Active
-BR-004,BR-PUN,Pune,Chakan MIDC Phase 2,Pune,Maharashtra,411001,18.52,73.856,TRUE,Snehal Joshi,+91 98709 64196,27AAACA1234F1Z4,2017-04-01,Active
-BR-005,BR-IND,Indore,Sanwer Rd Transport Nagar,Indore,Madhya Pradesh,452001,22.72,75.857,TRUE,Kishor Malhotra,+91 98867 40654,23AAACA1234F1Z5,2017-09-01,Active
-BR-006,BR-RAI,Raipur,Urla Industrial Area,Raipur,Chhattisgarh,492001,21.251,81.63,TRUE,Nitin More,+91 98436 55801,22AAACA1234F1Z6,2018-02-01,Active
-BR-007,BR-JAI,Jaipur,Sitapura Industrial Area,Jaipur,Rajasthan,302001,26.912,75.787,TRUE,Jitendra Chauhan,+91 98935 12588,08AAACA1234F1Z7,2018-07-01,Inactive
-BR-008,BR-SUR,Surat,Sachin GIDC,Surat,Gujarat,395001,21.17,72.831,TRUE,Vikram Deshmukh,+91 98862 43386,24AAACA1234F1Z8,2018-12-01,Active
-BR-009,BR-KAN,Kanpur,"Transport Nagar, Dadanagar",Kanpur,Uttar Pradesh,208001,26.449,80.331,TRUE,Sunita Singh,+91 98410 85123,09AAACA1234F1Z9,2019-05-01,Active
-BR-010,BR-NAS,Nashik,Satpur MIDC,Nashik,Maharashtra,422001,19.997,73.789,FALSE,Kishor Sai,+91 98605 83191,27AAACA1234F1Z0,2019-10-01,Active
-BR-011,BR-BHO,Bhopal,Govindpura Industrial Area,Bhopal,Madhya Pradesh,462001,23.259,77.412,FALSE,Kavita Mehta,+91 98683 47847,23AAACA1234F1Z1,2020-03-01,Active
-BR-012,BR-LUC,Lucknow,Amausi Industrial Area,Lucknow,Uttar Pradesh,226001,26.846,80.946,FALSE,Nandini Joshi,+91 98868 45667,09AAACA1234F1Z2,2020-08-01,Active
-BR-013,BR-AHM,Ahmedabad,Naroda GIDC,Ahmedabad,Gujarat,380001,23.022,72.571,FALSE,Priya Rathod,+91 98825 58992,24AAACA1234F1Z3,2021-01-01,Active
-BR-014,BR-HYD,Hyderabad,Jeedimetla Ph-3,Hyderabad,Telangana,500001,17.385,78.486,FALSE,Mahesh Malhotra,+91 98574 78028,36AAACA1234F1Z4,2021-06-01,Active
-BR-015,BR-KOL,Kolkata,Howrah Transport Hub,Kolkata,West Bengal,700001,22.573,88.364,FALSE,Sunita Jha,+91 98276 12972,19AAACA1234F1Z5,2021-11-01,Active
-BR-016,BR-BEN,Bengaluru,Peenya Industrial Area,Bengaluru,Karnataka,560001,12.972,77.594,FALSE,Sunita Dubey,+91 98187 22971,29AAACA1234F1Z6,2022-04-01,Active
-BR-017,BR-GUR,Gurugram,Sector 34 Logistics Park,Gurugram,Haryana,122001,28.459,77.027,FALSE,Manoj Pawar,+91 98674 68124,06AAACA1234F1Z7,2022-09-01,Active
-BR-018,BR-MOR,Morbi,"Ceramic Zone, Lakhdhirpur Rd",Morbi,Gujarat,363641,22.812,70.837,FALSE,Suraj Sharma,+91 98981 33942,24AAACA1234F1Z8,2023-02-01,Active
+BR-001,BR-NGP,Nagpur (HQ),"Plot 14, MIDC, Hingna Rd",Nagpur,Maharashtra,440001,21.146,79.088,TRUE,Amardip Singh,+91 98230 11223,27AAACA1234F1Z1,2016-04-01,Active
+BR-002,BR-DEL,Delhi,"Okhla Industrial Area, Ph-2",Delhi,Delhi,110001,28.644,77.216,TRUE,Vikram Chauhan,+91 98110 44567,07AAACA1234F1Z2,2018-07-01,Active

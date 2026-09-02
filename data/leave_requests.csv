@@ -1,27 +1,2 @@
 lr_id,employee_id,leave_type,from_date,to_date,days,reason,applied_dt,status
-LVR-0001,EMP-0044,EL,2026-09-04,2026-09-04,1,regularisation · doctor note attached,2026-09-02,Approved
-LVR-0002,EMP-0030,SL,2026-08-28,2026-08-30,3,family function,2026-08-20,Approved
-LVR-0003,EMP-0010,CL,2026-09-11,2026-09-11,1,village visit,2026-09-10,Approved
-LVR-0004,EMP-0057,SL,2026-09-04,2026-09-04,1,family function,2026-08-29,Approved
-LVR-0005,EMP-0017,EL,2026-08-23,2026-08-26,4,regularisation · doctor note attached,2026-08-21,Approved
-LVR-0006,EMP-0006,EL,2026-09-06,2026-09-08,3,family function,2026-08-29,Approved
-LVR-0007,EMP-0004,CL,2026-08-24,2026-08-24,1,medical,2026-08-19,Rejected
-LVR-0008,EMP-0025,CL,2026-08-26,2026-08-29,4,personal work,2026-08-18,Approved
-LVR-0009,EMP-0009,CL,2026-08-31,2026-09-03,4,regularisation · doctor note attached,2026-08-27,Approved
-LVR-0010,EMP-0013,SL,2026-09-05,2026-09-07,3,personal work,2026-09-02,Approved
-LVR-0011,EMP-0045,SL,2026-09-10,2026-09-12,3,family function,2026-09-07,Approved
-LVR-0012,EMP-0006,CL,2026-09-05,2026-09-05,1,regularisation · doctor note attached,2026-09-02,Pending
-LVR-0013,EMP-0010,SL,2026-09-10,2026-09-13,4,family function,2026-09-09,Pending
-LVR-0014,EMP-0027,SL,2026-08-21,2026-08-21,1,medical,2026-08-13,Rejected
-LVR-0015,EMP-0043,CL,2026-08-22,2026-08-23,2,medical,2026-08-21,Approved
-LVR-0016,EMP-0012,CL,2026-09-02,2026-09-02,1,village visit,2026-08-29,Pending
-LVR-0017,EMP-0062,CL,2026-08-30,2026-08-31,2,village visit,2026-08-24,Approved
-LVR-0018,EMP-0051,CL,2026-09-12,2026-09-14,3,village visit,2026-09-06,Approved
-LVR-0019,EMP-0034,SL,2026-09-05,2026-09-07,3,village visit,2026-09-04,Approved
-LVR-0020,EMP-0044,SL,2026-09-15,2026-09-15,1,regularisation · doctor note attached,2026-09-14,Pending
-LVR-0021,EMP-0050,SL,2026-09-04,2026-09-04,1,regularisation · doctor note attached,2026-09-01,Approved
-LVR-0022,EMP-0009,EL,2026-09-04,2026-09-05,2,family function,2026-08-28,Pending
-LVR-0023,EMP-0066,CL,2026-09-12,2026-09-13,2,family function,2026-09-10,Approved
-LVR-0024,EMP-0076,CL,2026-09-03,2026-09-06,4,medical,2026-08-31,Pending
-LVR-0025,EMP-0061,SL,2026-08-27,2026-08-28,2,medical,2026-08-26,Approved
-LVR-0026,EMP-0053,EL,2026-09-01,2026-09-04,4,regularisation · doctor note attached,2026-08-24,Approved
+LVR-0001,EMP-0002,CL,2026-09-06,2026-09-07,2,family function,2026-09-01,Pending

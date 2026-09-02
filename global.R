@@ -51,6 +51,33 @@ CARTO_ATTR  <- "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStr
 # ------------------------------------------------------------------
 DATA_DIR <- "data"
 
+# ------------------------------------------------------------------
+# Seed profile
+#
+#   "minimal" — two logins (Super Admin + Operations) and one sample record per
+#               entity. For handing someone a clean system to put their own data
+#               into. This is the profile this branch ships.
+#   "demo"    — the full generated dataset (18 branches, 342 bookings, 214
+#               clients) that exercises the app at realistic volume.
+#
+# Override at runtime with TMS_SEED_PROFILE. Changing it only affects a *fresh*
+# seed: R/seed.R writes data/ once, and the app reads whatever is there.
+# ------------------------------------------------------------------
+SEED_PROFILE <- Sys.getenv("TMS_SEED_PROFILE", "minimal")
+
+# Roles offered as one-click previews on the login screen.
+#
+# Every chip needs something behind it — an active account for an internal role,
+# or a master record for Customer/Vendor — otherwise clicking it just produces
+# an error. The minimal profile has exactly two accounts, so it offers exactly
+# two chips.
+DEMO_ROLES <- if (identical(SEED_PROFILE, "minimal")) {
+  c("Super Admin", "Operations Manager")
+} else {
+  c("Super Admin", "Branch Admin", "Dispatcher", "Accountant",
+    "HR Manager", "Vendor", "Customer")
+}
+
 # Receipt/POD photos come off phone cameras, which routinely exceed Shiny's
 # 5 MB default request cap.
 options(shiny.maxRequestSize = 15 * 1024^2)
