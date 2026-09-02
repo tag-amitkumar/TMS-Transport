@@ -34,12 +34,20 @@ booking_new_ui <- function(id) {
         title = "Customer & Route",
         sub = textOutput(ns("f_no"), inline = TRUE),
         div(class = "row g-3",
+            # These four selectors are rendered server-side rather than declared
+            # with static choices. The page only exists while it is being
+            # viewed, so anything pushed by an update*Input() before then — at
+            # sign-in, say — is sent to an element that is not in the DOM and is
+            # silently dropped, leaving the form permanently empty. Rendering
+            # them here rebuilds the lists from the store every time the screen
+            # opens, which also means a customer added mid-session shows up
+            # without a reload.
             div(class = "col-md-5",
                 tags$label(class = "form-label req", "Customer"),
-                selectizeInput(ns("f_client"), NULL, choices = NULL, width = "100%")),
+                uiOutput(ns("sel_client"))),
             div(class = "col-md-4",
                 tags$label(class = "form-label req", "Branch"),
-                selectInput(ns("f_branch"), NULL, choices = NULL, width = "100%")),
+                uiOutput(ns("sel_branch"))),
             div(class = "col-md-3",
                 tags$label(class = "form-label", "Booking date"),
                 dateInput(ns("f_date"), NULL, value = Sys.Date(), width = "100%")),
@@ -51,10 +59,10 @@ booking_new_ui <- function(id) {
                 textInput(ns("f_drop"), NULL, width = "100%")),
             div(class = "col-md-4",
                 tags$label(class = "form-label", "Origin city"),
-                selectInput(ns("f_from"), NULL, choices = NULL, width = "100%")),
+                uiOutput(ns("sel_from"))),
             div(class = "col-md-4",
                 tags$label(class = "form-label", "Destination city"),
-                selectInput(ns("f_to"), NULL, choices = NULL, width = "100%")),
+                uiOutput(ns("sel_to"))),
             div(class = "col-md-4",
                 tags$label(class = "form-label", "Booking user"),
                 div(class = "field-static", textOutput(ns("f_user"), inline = TRUE)))),
@@ -208,21 +216,39 @@ bookings_server <- function(id, user, nav) {
 
     # ---------------- New booking form ----------------
 
-    # Populate selectors once the user is known, so branch choices respect scope.
-    observeEvent(user(), {
-      cl <- scope_branch(store_get("clients"), user())
-      br <- scope_branch(store_get("branches"), user())
-      cities <- sort(unique(store_get("branches")$city))
+    # Selectors are rendered, not updated. See the note in booking_new_ui():
+    # pushing choices from an observer that fires before the page is on screen
+    # sends them nowhere, which left the customer list empty and made the form
+    # impossible to submit.
+    booking_cities <- reactive(sort(unique(store_get("branches")$city)))
 
-      updateSelectizeInput(session, "f_client",
-                           choices = setNames(cl$client_id,
-                                              paste0(cl$name, " · ", cl$gstin)),
-                           server = TRUE)
-      updateSelectInput(session, "f_branch", choices = setNames(br$branch_id, br$name),
-                        selected = user()$branch_id)
-      updateSelectInput(session, "f_from", choices = cities)
-      updateSelectInput(session, "f_to", choices = cities,
-                        selected = if (length(cities) > 1) cities[2] else cities[1])
+    output$sel_client <- renderUI({
+      cl <- scope_branch(store_get("clients"), user())
+      if (!nrow(cl)) {
+        return(div(class = "field-static", "No customers on file — add one first"))
+      }
+      selectizeInput(ns("f_client"), NULL, width = "100%",
+                     choices = c("Select a customer…" = "",
+                                 setNames(cl$client_id, paste0(cl$name, " · ", cl$gstin))),
+                     selected = "")
+    })
+
+    output$sel_branch <- renderUI({
+      br <- scope_branch(store_get("branches"), user())
+      if (!nrow(br)) br <- store_get("branches")
+      selectInput(ns("f_branch"), NULL, width = "100%",
+                  choices = setNames(br$branch_id, br$name),
+                  selected = if (user()$branch_id %in% br$branch_id) user()$branch_id else br$branch_id[1])
+    })
+
+    output$sel_from <- renderUI({
+      selectInput(ns("f_from"), NULL, choices = booking_cities(), width = "100%")
+    })
+
+    output$sel_to <- renderUI({
+      ct <- booking_cities()
+      selectInput(ns("f_to"), NULL, choices = ct, width = "100%",
+                  selected = if (length(ct) > 1) ct[2] else ct[1])
     })
 
     output$f_no <- renderText({
@@ -239,15 +265,39 @@ bookings_server <- function(id, user, nav) {
       if (!nrow(r)) return()
       updateTextInput(session, "f_pickup", value = r$pickup_address[1])
       updateTextInput(session, "f_drop",   value = r$delivery_address[1])
-      if (r$city[1] %in% store_get("branches")$city) {
+
+      ct <- booking_cities()
+      if (r$city[1] %in% ct) {
         updateSelectInput(session, "f_from", selected = r$city[1])
+        # Moving the origin onto the customer's city can collide with whatever
+        # the destination happens to be sitting on, and the form then refuses
+        # to submit with "same origin and destination" before the user has
+        # touched anything. Step the destination aside.
+        if (identical(input$f_to %||% "", r$city[1])) {
+          alt <- setdiff(ct, r$city[1])
+          if (length(alt)) updateSelectInput(session, "f_to", selected = alt[1])
+        }
       }
     })
 
+    # Same guard in the other direction: if the user picks a destination equal
+    # to the origin, move the origin rather than leaving the form unsubmittable.
+    observeEvent(input$f_to, {
+      req(nzchar(input$f_to %||% ""), nzchar(input$f_from %||% ""))
+      if (identical(input$f_from, input$f_to)) {
+        alt <- setdiff(booking_cities(), input$f_to)
+        if (length(alt)) updateSelectInput(session, "f_from", selected = alt[1])
+      }
+    }, ignoreInit = TRUE)
+
+    # Returns NULL rather than req()-halting when nothing is picked yet. A
+    # halt here propagates through gst_pct/charges and blanks the whole Booking
+    # Summary card, so the form opens looking broken instead of empty.
     client_row <- reactive({
-      req(nzchar(input$f_client %||% ""))
+      cid <- input$f_client %||% ""
+      if (!nzchar(cid)) return(NULL)
       cl <- store_get("clients")
-      r <- cl[cl$client_id == input$f_client, ]
+      r <- cl[cl$client_id == cid, ]
       if (nrow(r)) r[1, ] else NULL
     })
 
@@ -293,21 +343,38 @@ bookings_server <- function(id, user, nav) {
 
     charges <- reactive({
       fr  <- as.numeric(input$f_freight %||% 0)
+      if (is.na(fr)) fr <- 0
       gp  <- gst_pct()
-      gst <- round(fr * gp / 100)
+      rcm <- identical(gst_mode(), "RCM")
+
+      # Under reverse charge the carrier collects nothing — the recipient
+      # discharges the tax directly. Charging it here would inflate the booking
+      # total against an invoice that will (correctly) show zero, and overstate
+      # revenue on every RCM job, which is most of the book.
+      gst <- if (rcm) 0 else round(fr * gp / 100)
+      gst_note <- if (rcm) round(fr * gp / 100) else 0   # shown, never charged
+
       # Insurance premium is 1.25% of the declared value, which the deck sets at
       # roughly 30x freight for a fully declared consignment.
       dv  <- if (identical(input$f_ins, "Insured")) round(fr * 30 / 1000) * 1000 else 0
       ins <- if (dv > 0) round(dv * 0.000125 / 10) * 10 else 0
-      list(freight = fr, gst = gst, gst_pct = gp, insurance = ins,
-           declared = dv, total = fr + gst + ins)
+
+      list(freight = fr, gst = gst, gst_pct = gp, rcm = rcm, gst_note = gst_note,
+           insurance = ins, declared = dv, total = fr + gst + ins)
     })
 
     output$summary <- renderUI({
       ch <- charges(); r <- client_row()
       # The GST row's label carries the rate and mode, so it is built as a
-      # named list and splatted rather than written inline.
-      charge_rows <- list(inr(ch$freight), inr(ch$gst), inr(ch$insurance))
+      # named list and splatted rather than written inline. Under reverse charge
+      # the amount is shown for information with a nil collected, because the
+      # customer still needs to see what they will be discharging themselves.
+      charge_rows <- list(
+        inr(ch$freight),
+        if (ch$rcm) HTML(paste0('<span class="muted">', inr(ch$gst_note),
+                                " payable by recipient</span>")) else inr(ch$gst),
+        inr(ch$insurance)
+      )
       names(charge_rows) <- c("Freight charges",
                               sprintf("GST (%s%% · %s)", ch$gst_pct, gst_mode()),
                               "Insurance")

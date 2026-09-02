@@ -256,6 +256,13 @@ cargo_moto_server <- function(id, user, nav) {
       div(class = "mt-3 d-grid gap-2", msgs)
     })
 
+    # This panel lives inside a modal. Shiny binds outputs as they enter the
+    # DOM, and a Bootstrap modal is still mid-fade (and therefore invisible) at
+    # that moment, so the default suspendWhenHidden left the pre-flight check
+    # permanently stuck on "recalculating" — the capacity, licence and document
+    # warnings never appeared at all.
+    outputOptions(output, "a_check", suspendWhenHidden = FALSE)
+
     observeEvent(input$a_save, {
       if (!require_perm(session, user()$role, "cargo_moto", "create")) return()
       req(input$a_booking, input$a_vehicle, input$a_driver)

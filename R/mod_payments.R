@@ -266,6 +266,11 @@ payments_server <- function(id, user) {
       }
     })
 
+    # Rendered inside a modal, which is invisible while it fades in — without
+    # this the reconciliation hint never computes and the operator gets no
+    # feedback on what the receipt will do to the invoice. See mod_cargo_moto.R.
+    outputOptions(output, "r_hint", suspendWhenHidden = FALSE)
+
     observeEvent(input$r_save, {
       if (!require_perm(session, user()$role, "payments", "create")) return()
       req(input$r_inv)

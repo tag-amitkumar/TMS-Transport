@@ -154,26 +154,36 @@ build_seed_minimal <- function() {
     )
 
   # ---------------- Bookings ----------------
-  # One completed and paid, one on the road. See the header note.
+  # Three, one per stage of the lifecycle, so every operational screen opens
+  # with something on it:
+  #   BKG-0001  Delivered and paid  → POD, Invoices, Payments
+  #   BKG-0002  In transit          → Live GPS, e-way bill, tracking
+  #   BKG-0003  Confirmed, no truck → Cargo Moto's Unassigned lane, and gives
+  #                                   Allocate Cargo something to act on.
+  #                                   Without it the dispatcher's main action
+  #                                   opens on "nothing awaiting allocation".
   out$bookings <- tibble::tribble(
-    ~booking_no, ~booking_date,                  ~client_id,  ~origin_city, ~dest_city, ~material,                     ~weight_t, ~quantity, ~freight, ~status,
+    ~booking_no, ~booking_date,                   ~client_id,  ~origin_city, ~dest_city, ~material,                     ~weight_t, ~quantity, ~freight, ~status,
     "BKG-0001",  as.character(done_dispatch - 1), "CUST-0001", "Nagpur",     "Delhi",    "Cement bags — OPC 53 grade",  24.0,      480,       27600,    "Delivered",
-    "BKG-0002",  as.character(TODAY - 2),         "CUST-0002", "Delhi",      "Nagpur",   "Construction hardware",       9.5,       120,       11600,    "In Transit"
+    "BKG-0002",  as.character(TODAY - 2),         "CUST-0002", "Delhi",      "Nagpur",   "Construction hardware",       9.5,       120,       11600,    "In Transit",
+    "BKG-0003",  as.character(TODAY),             "CUST-0001", "Nagpur",     "Delhi",    "Steel coils",                 15.0,      300,       22400,    "Confirmed"
   ) |>
     dplyr::mutate(
-      branch_id        = c("BR-001", "BR-002"),
-      pickup_address   = c("Plant Gate 2, Hingna Rd, Nagpur", "Okhla Depot, New Delhi"),
-      delivery_address = c("Okhla Depot, New Delhi", "MIDC Warehouse, Nagpur"),
-      packages         = c("480 bags", "120 pkgs"),
-      insurance        = c("Insured", "Not insured"),
-      declared_value   = c(864000, 0),
-      gst_mode         = c("RCM", "FCM"),
-      gst_pct          = c(5, 18),
+      branch_id        = c("BR-001", "BR-002", "BR-001"),
+      pickup_address   = c("Plant Gate 2, Hingna Rd, Nagpur", "Okhla Depot, New Delhi",
+                           "Plant Gate 2, Hingna Rd, Nagpur"),
+      delivery_address = c("Okhla Depot, New Delhi", "MIDC Warehouse, Nagpur",
+                           "Okhla Depot, New Delhi"),
+      packages         = c("480 bags", "120 pkgs", "300 coils"),
+      insurance        = c("Insured", "Not insured", "Not insured"),
+      declared_value   = c(864000, 0, 0),
+      gst_mode         = c("RCM", "FCM", "RCM"),
+      gst_pct          = c(5, 18, 5),
       # Reverse charge collects no tax: the recipient discharges it.
-      gst_amount       = c(0, round(11600 * 0.18)),
-      insurance_amt    = c(350, 0),
+      gst_amount       = c(0, round(11600 * 0.18), 0),
+      insurance_amt    = c(350, 0, 0),
       total            = freight + gst_amount + insurance_amt,
-      remarks          = c("Handle with care · fragile packaging", ""),
+      remarks          = c("Handle with care · fragile packaging", "", "Awaiting vehicle"),
       booking_user_id  = "USR-0002",
       priority         = "Normal"
     ) |>
@@ -266,20 +276,25 @@ build_seed_minimal <- function() {
   # ---------------- Invoice & receipt ----------------
   # Raised against the delivered consignment, whose POD is approved — the gate
   # the app enforces. RCM, so no tax is collected and the total is the freight.
+  # Left PARTIALLY paid on purpose. A fully settled book makes every money
+  # figure on the app read zero — Customer Outstanding, Top Outstanding
+  # Clients, the client 360° balance — and leaves Record Receipt with no
+  # invoice to act on, so the reconciliation behaviour cannot be shown at all.
+  # ₹15,000 received against ₹27,600 leaves a live balance to settle.
   out$invoices <- tibble::tibble(
     invoice_no = "INV-0001", invoice_date = as.character(done_deliver),
     client_id = "CUST-0001", branch_id = "BR-001",
     lr_no = "LR-0001", cn_no = "CN-00001",
     amount = 27600, gst_mode = "RCM", gst_pct = 5, gst_amount = 0,
-    total = 27600, paid_amount = 27600,
+    total = 27600, paid_amount = 15000,
     due_date = as.character(done_deliver + 14),
-    source = "auto", status = "Paid"
+    source = "auto", status = "Partially paid"
   )
 
   out$payments <- tibble::tibble(
     payment_id = "RCP-0001", date = as.character(done_deliver + 6),
     client_id = "CUST-0001", invoice_no = "INV-0001",
-    mode = "NEFT", reference = "UTR7712880", amount = 27600,
+    mode = "NEFT", reference = "UTR7712880", amount = 15000,
     received_by = "Amardip Singh"
   )
 

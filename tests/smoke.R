@@ -48,7 +48,7 @@ cat("   profile:", SEED_PROFILE, "\n")
 # Volumes are the one thing that legitimately differs between profiles.
 # Everything below this block is an invariant and must hold for both.
 expect_n <- if (MINIMAL) {
-  list(branches = 2, employees = 3, vehicles = 2, clients = 2, bookings = 2)
+  list(branches = 2, employees = 3, vehicles = 2, clients = 2, bookings = 3)
 } else {
   list(branches = 18, employees = 81, vehicles = 62, clients = 214, bookings = 342)
 }

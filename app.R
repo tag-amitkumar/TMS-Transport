@@ -127,6 +127,13 @@ server <- function(input, output, session) {
     render_nav(user()$role, page())
   })
 
+  # styles.css hides the sidebar below 992px. Shiny suspends outputs inside
+  # hidden elements and does not revisit that decision when a CSS media query
+  # later reveals them, so on a narrow window the navigation stayed empty even
+  # after the window was widened. Computing it regardless costs nothing and
+  # makes the rail appear the moment there is room for it.
+  outputOptions(output, "sidebar_nav", suspendWhenHidden = FALSE)
+
   output$topbar <- renderUI({
     req(user())
     u <- user()

@@ -1,2 +1,2 @@
 invoice_no,invoice_date,client_id,branch_id,lr_no,cn_no,amount,gst_mode,gst_pct,gst_amount,total,paid_amount,due_date,source,status
-INV-0001,2026-08-29,CUST-0001,BR-001,LR-0001,CN-00001,27600,RCM,5,0,27600,27600,2026-09-12,auto,Paid
+INV-0001,2026-08-29,CUST-0001,BR-001,LR-0001,CN-00001,27600,RCM,5,0,27600,15000,2026-09-12,auto,Partially paid
