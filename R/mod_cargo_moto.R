@@ -160,10 +160,113 @@ cargo_moto_server <- function(id, user, nav) {
         footer = tagList(
           modalButton("Close"),
           if (!nrow(t) && can(user()$role, "cargo_moto", "create"))
-            btn_primary(ns("alloc_this"), "Allocate vehicle")
+            btn_primary(ns("alloc_this"), "Allocate vehicle"),
+          # Advance the load along the chain. Until these existed a booking
+          # could be allocated a vehicle and then stayed there for ever —
+          # nothing moved it to Dispatched, so it never reached POD or billing.
+          if (identical(r$status, "Vehicle Allocated") &&
+              can(user()$role, "cargo_moto", "edit"))
+            btn_primary(ns("mark_dispatched"), "Mark Dispatched"),
+          if (identical(r$status, "In Transit") &&
+              can(user()$role, "cargo_moto", "edit"))
+            btn_primary(ns("mark_delivered"), "Mark Delivered")
         )
       ))
       session$userData$moto_booking <- no
+    })
+
+    # ---------------- Advancing a load ----------------
+    #
+    # Each step moves the booking, its consignment, its trip and the vehicle
+    # and driver together, and writes a timeline event. Moving any one of them
+    # alone is what makes two screens disagree about where a load is.
+
+    advance <- function(no, to) {
+      bk <- get_bookings(); r <- bk[bk$booking_no == no, ]
+      if (!nrow(r)) return(invisible(NULL))
+      r <- r[1, ]
+      cn <- get_consignments(); c1 <- cn[cn$booking_no == no, ]
+      tr <- get_trips();        t  <- tr[tr$booking_no == no, ]
+      if (!nrow(c1) || !nrow(t)) {
+        showNotification("That booking has no consignment yet — allocate a vehicle first.",
+                         type = "error")
+        return(invisible(NULL))
+      }
+      c1 <- c1[1, ]; t <- t[1, ]
+
+      if (identical(to, "Dispatched")) {
+        store_update("bookings",     list(booking_no = no),        list(status = "In Transit"))
+        store_update("consignments", list(cn_no = c1$cn_no),       list(status = "In Transit"))
+        store_update("trips",        list(trip_no = t$trip_no),
+                     list(status = "Running",
+                          dispatch_dt = format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+        store_update("vehicles", list(vehicle_id = t$vehicle_id), list(status = "In Transit"))
+        store_update("drivers",  list(driver_id  = t$driver_id),  list(status = "On trip"))
+
+        ev <- store_get("consignment_events")
+        n  <- sum(ev$cn_no == c1$cn_no)
+        for (i in seq_along(c("Picked Up", "In Transit"))) {
+          store_insert("consignment_events", list(
+            cn_no = c1$cn_no, seq = n + i,
+            event = c("Picked Up", "In Transit")[i],
+            detail = if (i == 1) c1$origin_addr else paste(c1$origin_city, "→", c1$dest_city),
+            event_dt = format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+        }
+        audit(user()$user_id, "dispatch", "cargo_moto", paste(no, "·", c1$lr_no))
+        showNotification(sprintf("%s dispatched · %s is on the road.", no, c1$lr_no),
+                         type = "message", duration = 6)
+
+      } else if (identical(to, "Delivered")) {
+        store_update("bookings",     list(booking_no = no),  list(status = "Delivered"))
+        store_update("consignments", list(cn_no = c1$cn_no),
+                     list(status = "Delivered",
+                          delivered_date = as.character(Sys.Date())))
+        store_update("trips", list(trip_no = t$trip_no), list(status = "Completed"))
+
+        # The truck and driver are free again. Without this they stayed marked
+        # out on a trip that had finished, and the fleet slowly ran out of
+        # anything allocatable.
+        store_update("vehicles", list(vehicle_id = t$vehicle_id), list(status = "Available"))
+        store_update("drivers",  list(driver_id  = t$driver_id),  list(status = "Available"))
+
+        ev <- store_get("consignment_events")
+        n  <- sum(ev$cn_no == c1$cn_no)
+        for (i in seq_along(c("Out For Delivery", "Delivered"))) {
+          store_insert("consignment_events", list(
+            cn_no = c1$cn_no, seq = n + i,
+            event = c("Out For Delivery", "Delivered")[i],
+            detail = c1$dest_addr,
+            event_dt = format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+        }
+
+        # Delivery opens the POD obligation, which is what gates invoicing.
+        pods <- get_pods()
+        if (!(c1$lr_no %in% pods$lr_no)) {
+          store_insert("pods", list(
+            pod_id = next_id(pods$pod_id, "POD-"),
+            lr_no = c1$lr_no, cn_no = c1$cn_no, client_id = c1$client_id,
+            branch_id = c1$branch_id, uploaded_by = "", file_name = "",
+            upload_dt = "", status = "Pending"))
+        }
+        audit(user()$user_id, "deliver", "cargo_moto", paste(no, "·", c1$lr_no))
+        showNotification(
+          sprintf("%s delivered. POD is now due for %s before it can be invoiced.",
+                  no, c1$lr_no),
+          type = "message", duration = 7)
+      }
+      invisible(NULL)
+    }
+
+    observeEvent(input$mark_dispatched, {
+      if (!require_perm(session, user()$role, "cargo_moto", "edit")) return()
+      removeModal()
+      advance(session$userData$moto_booking, "Dispatched")
+    })
+
+    observeEvent(input$mark_delivered, {
+      if (!require_perm(session, user()$role, "cargo_moto", "edit")) return()
+      removeModal()
+      advance(session$userData$moto_booking, "Delivered")
     })
 
     observeEvent(input$alloc_this, {
@@ -185,6 +288,40 @@ cargo_moto_server <- function(id, user, nav) {
       free <- v[v$status == "Available", ]
       dr <- get_drivers()
       avail_dr <- dr[dr$status == "Available", ]
+
+      # Opening the dialog with an empty vehicle or driver list is worse than
+      # not opening it: the selects render blank, the save handler's req() halts
+      # without a word, and the operator concludes that allocation is broken.
+      # Say what is actually missing.
+      if (!nrow(free) || !nrow(avail_dr)) {
+        busy_v <- v[v$status %in% c("Allocated", "In Transit"), ]
+        showModal(modalDialog(
+          title = "Nothing free to allocate", easyClose = TRUE,
+          callout(
+            if (!nrow(free)) "Every vehicle is committed" else "Every driver is on a trip",
+            paste0(
+              if (!nrow(free))
+                sprintf("All %d vehicles are already allocated or on the road. ", nrow(v))
+              else
+                sprintf("All %d drivers are already out. ", nrow(dr)),
+              "Mark a running load Delivered to release its vehicle and driver, ",
+              "or add another under Fleet & Drivers."),
+            "warn"),
+          if (nrow(busy_v)) div(
+            class = "mt-3",
+            div(class = "form-section", "Currently committed"),
+            div(class = "tms-table",
+                DT::datatable(
+                  tibble::tibble(
+                    VEHICLE = busy_v$reg_no,
+                    STATUS  = busy_v$status,
+                    DRIVER  = dr$name[match(busy_v$driver_id, dr$driver_id)]),
+                  rownames = FALSE, selection = "none",
+                  options = list(dom = "t", pageLength = 10)))),
+          footer = modalButton("Close")
+        ))
+        return()
+      }
 
       showModal(modalDialog(
         title = "Allocate cargo", size = "l", easyClose = TRUE,
@@ -265,12 +402,42 @@ cargo_moto_server <- function(id, user, nav) {
 
     observeEvent(input$a_save, {
       if (!require_perm(session, user()$role, "cargo_moto", "create")) return()
-      req(input$a_booking, input$a_vehicle, input$a_driver)
+
+      # req() here used to swallow an empty selection and do nothing at all,
+      # which is indistinguishable from a broken button. Refuse out loud.
+      if (!nzchar(input$a_booking %||% "") || !nzchar(input$a_vehicle %||% "") ||
+          !nzchar(input$a_driver %||% "")) {
+        showNotification("Pick a booking, a vehicle and a driver before allocating.",
+                         type = "error")
+        return()
+      }
 
       b <- get_bookings(); r <- b[b$booking_no == input$a_booking, ]
       v <- get_vehicles(); veh <- v[v$vehicle_id == input$a_vehicle, ]
-      req(nrow(r), nrow(veh))
+      if (!nrow(r) || !nrow(veh)) {
+        showNotification("That booking or vehicle no longer exists — reopen the dialog.",
+                         type = "error")
+        return()
+      }
       r <- r[1, ]; veh <- veh[1, ]
+
+      # A vehicle or driver already on a live trip cannot take another load.
+      # The status columns are meant to prevent this, but they have been wrong
+      # before, so the trip book is checked directly.
+      tr <- get_trips()
+      live <- tr[tr$status %in% c("Planned", "Loading", "Running", "At Hub"), ]
+      if (veh$vehicle_id %in% live$vehicle_id) {
+        showNotification(
+          sprintf("Cannot allocate: %s is already on trip %s.", veh$reg_no,
+                  live$trip_no[match(veh$vehicle_id, live$vehicle_id)]),
+          type = "error", duration = 7)
+        return()
+      }
+      if (input$a_driver %in% live$driver_id) {
+        showNotification("Cannot allocate: that driver is already on a trip.",
+                         type = "error", duration = 7)
+        return()
+      }
 
       if (r$weight_t > veh$capacity_t) {
         showNotification("Cannot allocate: load exceeds vehicle capacity.", type = "error")

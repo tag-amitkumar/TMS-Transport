@@ -60,15 +60,21 @@ build_seed_minimal <- function() {
   # Two drivers plus the operations coordinator, who is the same person as the
   # operations login — the app treats a driver as an employee with a licence,
   # and payroll reads this table, so the login needs a record here too.
+  # Three drivers, not two. With only as many drivers as there are live trips
+  # the fleet is fully committed the moment the seed loads, the allocation
+  # dialog opens on empty lists, and the dispatcher's main action cannot be
+  # demonstrated at all. One spare keeps the board workable.
   out$employees <- tibble::tribble(
     ~employee_id, ~name,           ~mobile,           ~designation,      ~department,  ~branch_id, ~joined,      ~pan,          ~salary_type, ~salary, ~is_driver,
     "EMP-0001",   "Ramesh Yadav",  "+91 98600 11223", "Driver",          "Fleet",      "BR-001",   "2022-03-14", "AKZPY1122M",  "per_trip",   18000,   "TRUE",
     "EMP-0002",   "Prakash Singh", "+91 98111 77880", "Driver",          "Fleet",      "BR-001",   "2023-01-09", "BLMPS3344Q",  "per_trip",   18000,   "TRUE",
+    "EMP-0004",   "Vikas Dubey",   "+91 90040 12987", "Driver",          "Fleet",      "BR-001",   "2023-06-21", "DRTPD7788S",  "per_trip",   18000,   "TRUE",
     "EMP-0003",   "Suresh Khan",   "+91 98901 22345", "Ops Coordinator", "Operations", "BR-001",   "2021-11-02", "CNQPK5566R",  "monthly",    32000,   "FALSE"
   ) |>
     dplyr::mutate(
-      aadhaar     = paste0("xxxx xxxx ", c("8814", "4471", "9026")),
-      bank_masked = paste0(c("SBI", "HDFC", "ICICI"), " ···· ", c("4471", "8829", "3310")),
+      aadhaar     = paste0("xxxx xxxx ", c("8814", "4471", "5590", "9026")),
+      bank_masked = paste0(c("SBI", "HDFC", "Axis", "ICICI"), " ···· ",
+                           c("4471", "8829", "6620", "3310")),
       docs_status = "complete",
       status      = "Active"
     ) |>
@@ -80,29 +86,34 @@ build_seed_minimal <- function() {
   out$vehicles <- tibble::tribble(
     ~vehicle_id, ~reg_no,          ~model,               ~body,        ~capacity_t, ~owner_type, ~vendor_id,  ~driver_id,  ~branch_id, ~rc_number,
     "VEH-001",   "MH-31 GH 6612",  "Tata Signa 3523.TK", "32 ft MXL",  25,          "Company",   "",          "EMP-0001",  "BR-001",   "MH31201845612",
-    "VEH-002",   "MH-31 KT 2210",  "Eicher Pro 6028",    "28 ft",      18,          "Vendor",    "VND-0001",  "EMP-0002",  "BR-001",   "MH31199033421"
+    "VEH-002",   "MH-31 KT 2210",  "Eicher Pro 6028",    "28 ft",      18,          "Vendor",    "VND-0001",  "EMP-0002",  "BR-001",   "MH31199033421",
+    "VEH-003",   "MH-31 AB 4590",  "Tata LPT 1618",      "24 ft",      16,          "Company",   "",          "EMP-0004",  "BR-001",   "MH31215567890"
   ) |>
     dplyr::mutate(
-      insurance_expiry = as.character(TODAY + c(240, 95)),
-      fitness_expiry   = as.character(TODAY + c(180, 60)),
-      permit_expiry    = as.character(TODAY + c(700, 520)),
+      insurance_expiry = as.character(TODAY + c(240, 95, 310)),
+      fitness_expiry   = as.character(TODAY + c(180, 60, 400)),
+      permit_expiry    = as.character(TODAY + c(700, 520, 880)),
       # One document deliberately close to expiry, so the amber badge and the
       # allocation warning are visible without having to manufacture one.
-      puc_expiry       = as.character(TODAY + c(150, 18)),
-      service_due_km   = c(120000, 90000),
-      joined_fleet     = as.character(TODAY - c(900, 480)),
-      status           = c("In Transit", "Available")
+      puc_expiry       = as.character(TODAY + c(150, 18, 260)),
+      service_due_km   = c(120000, 90000, 140000),
+      joined_fleet     = as.character(TODAY - c(900, 480, 260)),
+      # Placeholder. Real status is derived from the trips further down —
+      # hardcoding it here is what put a truck on a Running trip while the
+      # register called it Available, so it got allocated a second load.
+      status           = "Available"
     )
 
   # ---------------- Drivers ----------------
   out$drivers <- tibble::tribble(
     ~driver_id, ~name,           ~mobile,           ~licence_no,        ~licence_class, ~depot_branch_id, ~assigned_vehicle_id, ~emergency_contact, ~trips_lifetime, ~on_time_pct,
     "EMP-0001", "Ramesh Yadav",  "+91 98600 11223", "MH-31 0022214",    "HGV",          "BR-001",         "VEH-001",            "+91 98600 99887",  1,               100,
-    "EMP-0002", "Prakash Singh", "+91 98111 77880", "MP-09 0033391",    "HMV",          "BR-001",         "VEH-002",            "+91 98111 66554",  1,               100
+    "EMP-0002", "Prakash Singh", "+91 98111 77880", "MP-09 0033391",    "HMV",          "BR-001",         "VEH-002",            "+91 98111 66554",  1,               100,
+    "EMP-0004", "Vikas Dubey",   "+91 90040 12987", "UP-32 0044482",    "HGV",          "BR-001",         "VEH-003",            "+91 90040 55221",  0,               100
   ) |>
     dplyr::mutate(
-      licence_expiry = as.character(TODAY + c(420, 25)),   # one expiring soon
-      status         = c("On trip", "Available")
+      licence_expiry = as.character(TODAY + c(420, 25, 610)),  # one expiring soon
+      status         = "Available"                             # derived below
     )
 
   # ---------------- Clients ----------------
@@ -225,6 +236,18 @@ build_seed_minimal <- function() {
       # Tracks the allowance it funds, so recovering it never wipes out a wage.
       advance          = c(1600, 1500)
     )
+
+  # Fleet status is DERIVED from the trips, never asserted alongside them.
+  # Stating it twice is how a truck ended up marked Available while it was out
+  # on a Running trip — and then got allocated a second load on top of the one
+  # it was already carrying.
+  live <- out$trips[out$trips$status %in% c("Planned", "Loading", "Running", "At Hub"), ]
+  out$vehicles$status <- ifelse(
+    out$vehicles$vehicle_id %in% live$vehicle_id[live$status %in% c("Running", "At Hub")],
+    "In Transit",
+    ifelse(out$vehicles$vehicle_id %in% live$vehicle_id, "Allocated", "Available"))
+  out$drivers$status <- ifelse(out$drivers$driver_id %in% live$driver_id,
+                               "On trip", "Available")
 
   # ---------------- Consignments ----------------
   out$consignments <- tibble::tribble(

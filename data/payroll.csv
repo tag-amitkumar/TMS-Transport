@@ -1,4 +1,5 @@
 period,employee_id,basic,hra,da,incentive,ot,trip_allowance,advances,pf,esi,pt,net,status
 Aug 2026,EMP-0001,9000,5400,3600,0,0,1400,1600,1080,135,200,16385,Ready
 Aug 2026,EMP-0002,9000,5400,3600,0,0,0,0,1080,135,200,16585,Ready
+Aug 2026,EMP-0004,9000,5400,3600,0,0,0,0,1080,135,200,16585,Ready
 Aug 2026,EMP-0003,16000,9600,6400,0,0,0,0,1920,0,200,29880,Ready

@@ -48,7 +48,7 @@ cat("   profile:", SEED_PROFILE, "\n")
 # Volumes are the one thing that legitimately differs between profiles.
 # Everything below this block is an invariant and must hold for both.
 expect_n <- if (MINIMAL) {
-  list(branches = 2, employees = 3, vehicles = 2, clients = 2, bookings = 3)
+  list(branches = 2, employees = 4, vehicles = 3, clients = 2, bookings = 3)
 } else {
   list(branches = 18, employees = 81, vehicles = 62, clients = 214, bookings = 342)
 }
@@ -83,6 +83,41 @@ ok("bookings -> branches",     all(bk$branch_id  %in% b$branch_id))
 ok("LR numbers unique",        !any(duplicated(cn$lr_no)))
 ok("CN numbers unique",        !any(duplicated(cn$cn_no)))
 ok("booking numbers unique",   !any(duplicated(bk$booking_no)))
+
+cat("\n== Fleet consistency ==\n")
+# Vehicle and driver status must agree with the trip book. Asserting status
+# separately from the trips is what let a truck sit on a Running trip while the
+# register called it Available — so it was allocated a second load on top of
+# the one it was already carrying.
+local({
+  live <- tr[tr$status %in% c("Planned", "Loading", "Running", "At Hub"), ]
+
+  ok("no vehicle is on two live trips at once", !any(duplicated(live$vehicle_id)))
+  ok("no driver is on two live trips at once",  !any(duplicated(live$driver_id)))
+
+  busy_v <- unique(live$vehicle_id)
+  ok("vehicles on a live trip are not marked Available",
+     !any(v$status[v$vehicle_id %in% busy_v] == "Available"))
+  ok("vehicles with no live trip are not marked In Transit",
+     !any(v$status[!(v$vehicle_id %in% busy_v)] == "In Transit"))
+
+  busy_d <- unique(live$driver_id)
+  ok("drivers on a live trip are marked On trip",
+     all(d$status[d$driver_id %in% busy_d] == "On trip"))
+  ok("drivers with no live trip are not marked On trip",
+     !any(d$status[!(d$driver_id %in% busy_d)] == "On trip"))
+
+  # A completed trip must have released its vehicle and driver, or the fleet
+  # slowly runs out of anything allocatable.
+  done <- tr[tr$status == "Completed", ]
+  freed_v <- setdiff(done$vehicle_id, busy_v)
+  ok("completed trips release their vehicle",
+     all(v$status[v$vehicle_id %in% freed_v] %in% c("Available", "Maintenance", "Inactive")))
+
+  # The dispatcher must always have something to work with.
+  ok("at least one vehicle is allocatable", any(v$status == "Available"))
+  ok("at least one driver is allocatable",  any(d$status == "Available"))
+})
 
 cat("\n== Domain rules ==\n")
 
@@ -222,6 +257,32 @@ local({
        !inherits(try(sum(df[[nums[1]]], na.rm = TRUE), silent = TRUE), "try-error") ||
          length(nums) == 0)
   }
+})
+
+cat("\n== Blank fields survive coercion ==\n")
+# store_insert() writes "" for omitted fields, while a CSV read yields NA. A
+# typed read then hit as.POSIXct("") — which throws rather than warns — so a
+# single insert with an empty date poisoned every later read of that table for
+# the rest of the session.
+local({
+  ok("empty string coerces to NA date",     is.na(as_dte("")))
+  ok("empty string coerces to NA datetime", is.na(as_dt("")))
+  ok("whitespace coerces to NA datetime",   is.na(as_dt("   ")))
+  ok("empty string coerces to NA number",   is.na(as_num("")))
+  ok("real values still parse",
+     !is.na(as_dt("2026-09-04 08:00:00")) && !is.na(as_dte("2026-09-04")))
+
+  # And the round trip that actually broke: insert a row with blank dates,
+  # then read the table back through its typed accessor.
+  before <- nrow(store_get("pods"))
+  store_insert("pods", list(pod_id = "POD-BLANK", lr_no = "LR-BLANK",
+                            cn_no = "CN-BLANK", client_id = "", branch_id = "",
+                            uploaded_by = "", file_name = "", upload_dt = "",
+                            status = "Pending"))
+  ok("typed read survives a blank datetime",
+     !inherits(try(get_pods(), silent = TRUE), "try-error"))
+  store_delete("pods", list(pod_id = "POD-BLANK"))
+  ok("blank-field probe cleaned up", nrow(store_get("pods")) == before)
 })
 
 cat("\n== Store round-trip ==\n")

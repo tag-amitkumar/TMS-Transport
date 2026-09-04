@@ -159,9 +159,24 @@ store_delete <- function(name, where) {
 # without scattering as.numeric() through every pipeline.
 # ------------------------------------------------------------------
 
-as_num <- function(x) suppressWarnings(as.numeric(x))
-as_dt  <- function(x) suppressWarnings(as.POSIXct(x, tz = "Asia/Kolkata"))
-as_dte <- function(x) suppressWarnings(as.Date(x))
+# Empty strings must become NA *before* coercion.
+#
+# readr turns a blank CSV field into NA on read, but store_insert() writes ""
+# into the in-memory cache for any field the caller omitted. So a row inserted
+# during a session carries "" where a freshly-read row carries NA — and
+# as.POSIXct("") does not warn, it throws "character string is not in a
+# standard unambiguous format". Marking a delivery (which creates a POD with no
+# upload time yet) therefore broke every later read of that table until the app
+# was restarted.
+.blank_na <- function(x) {
+  if (!is.character(x)) return(x)
+  x[!nzchar(trimws(x))] <- NA_character_
+  x
+}
+
+as_num <- function(x) suppressWarnings(as.numeric(.blank_na(x)))
+as_dt  <- function(x) suppressWarnings(as.POSIXct(.blank_na(x), tz = "Asia/Kolkata"))
+as_dte <- function(x) suppressWarnings(as.Date(.blank_na(x)))
 
 #' Read a table with named columns coerced to numeric / Date / datetime.
 #'

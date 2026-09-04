@@ -307,6 +307,98 @@ testServer(cargo_moto_server, args = list(user = usr(), nav = noop), {
 })
 
 # ==================================================================
+section("Dispatch and delivery move the whole chain")
+
+testServer(cargo_moto_server, args = list(user = usr(), nav = noop), {
+  bk <- get_bookings()
+  alloc <- bk[bk$status == "Vehicle Allocated", ]
+  ok("an allocated booking is waiting to dispatch", nrow(alloc) > 0)
+
+  if (nrow(alloc)) {
+    no <- alloc$booking_no[1]
+    cn0 <- get_consignments(); c0 <- cn0[cn0$booking_no == no, ][1, ]
+    tr0 <- get_trips();        t0 <- tr0[tr0$booking_no == no, ][1, ]
+
+    # ---- dispatch ----
+    session$userData$moto_booking <- no
+    session$setInputs(mark_dispatched = 1)
+
+    bk1 <- get_bookings(); cn1 <- get_consignments(); tr1 <- get_trips()
+    v1 <- get_vehicles();  d1 <- get_drivers()
+    ok("dispatch moves the booking to In Transit",
+       identical(bk1$status[bk1$booking_no == no], "In Transit"))
+    ok("dispatch moves the consignment to In Transit",
+       identical(cn1$status[cn1$cn_no == c0$cn_no], "In Transit"))
+    ok("dispatch sets the trip Running",
+       identical(tr1$status[tr1$trip_no == t0$trip_no], "Running"))
+    ok("dispatch puts the vehicle In Transit",
+       identical(v1$status[v1$vehicle_id == t0$vehicle_id], "In Transit"))
+    ok("dispatch puts the driver On trip",
+       identical(d1$status[d1$driver_id == t0$driver_id], "On trip"))
+    ev1 <- store_get("consignment_events")
+    ok("dispatch writes timeline events",
+       any(ev1$cn_no == c0$cn_no & ev1$event == "In Transit"))
+
+    # ---- delivery ----
+    n_pod <- nrow(get_pods())
+    session$setInputs(mark_delivered = 1)
+
+    bk2 <- get_bookings(); cn2 <- get_consignments(); tr2 <- get_trips()
+    v2 <- get_vehicles();  d2 <- get_drivers()
+    ok("delivery moves the booking to Delivered",
+       identical(bk2$status[bk2$booking_no == no], "Delivered"))
+    ok("delivery moves the consignment to Delivered",
+       identical(cn2$status[cn2$cn_no == c0$cn_no], "Delivered"))
+    ok("delivery stamps the delivered date",
+       nzchar(cn2$delivered_date[cn2$cn_no == c0$cn_no] %||% ""))
+    ok("delivery completes the trip",
+       identical(tr2$status[tr2$trip_no == t0$trip_no], "Completed"))
+
+    # The whole point of completing a trip: the fleet gets its capacity back.
+    ok("delivery releases the vehicle",
+       identical(v2$status[v2$vehicle_id == t0$vehicle_id], "Available"))
+    ok("delivery releases the driver",
+       identical(d2$status[d2$driver_id == t0$driver_id], "Available"))
+
+    # Delivery opens the POD obligation that gates invoicing.
+    pods <- get_pods()
+    ok("delivery raises a POD to collect", nrow(pods) == n_pod + 1)
+    ok("the new POD starts Pending",
+       identical(pods$status[pods$lr_no == c0$lr_no][1], "Pending"))
+    ok("delivery writes its timeline events",
+       any(store_get("consignment_events")$cn_no == c0$cn_no &
+             store_get("consignment_events")$event == "Delivered"))
+  } else {
+    for (l in c("dispatch moves the booking to In Transit",
+                "delivery releases the vehicle")) ok(paste(l, "(nothing allocated)"), TRUE)
+  }
+})
+
+testServer(cargo_moto_server, args = list(user = usr(), nav = noop), {
+  # A vehicle already on a live trip must not take a second load, whatever its
+  # status column happens to say.
+  tr <- get_trips()
+  live <- tr[tr$status %in% c("Planned", "Loading", "Running", "At Hub"), ]
+  bk <- get_bookings(); pend <- bk[bk$status == "Confirmed", ]
+  if (nrow(live) && nrow(pend)) {
+    n <- nrow(get_trips())
+    session$setInputs(a_booking = pend$booking_no[1],
+                      a_vehicle = live$vehicle_id[1],
+                      a_driver  = get_drivers()$driver_id[1],
+                      a_save = 1)
+    ok("a vehicle on a live trip cannot be double-booked",
+       nrow(get_trips()) == n)
+  } else {
+    ok("a vehicle on a live trip cannot be double-booked (no live trip)", TRUE)
+  }
+
+  # An empty selection must be refused out loud, not swallowed by req().
+  n2 <- nrow(get_trips())
+  session$setInputs(a_booking = "", a_vehicle = "", a_driver = "", a_save = 2)
+  ok("empty allocation refused", nrow(get_trips()) == n2)
+})
+
+# ==================================================================
 section("POD gate — no invoice without proof of delivery")
 
 testServer(invoices_server, args = list(user = usr(), nav = noop), {
