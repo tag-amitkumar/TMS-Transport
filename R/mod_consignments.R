@@ -157,7 +157,49 @@ consignments_server <- function(id, user, nav) {
 
     observeEvent(input$print_lr, {
       c <- sel(); req(c)
-      showNotification(paste("LR", c$lr_no, "sent to the print queue."), type = "message")
+      cl <- store_get("clients"); br <- store_get("branches")
+      v  <- store_get("vehicles"); dr <- store_get("drivers")
+      bk <- get_bookings(); b <- bk[bk$booking_no == c$booking_no, ]
+      cr <- cl[cl$client_id == c$client_id, ]
+
+      # Terms live on the consignment, but fall back to the booking for rows
+      # created before the column existed.
+      pay <- c$payment_mode %||% (if (nrow(b)) b$payment_mode[1] else "Credit")
+      if (!nzchar(pay %||% "")) pay <- "Credit"
+      bill_at <- c$bill_at_branch_id %||% (if (nrow(b)) b$bill_at_branch_id[1] else "")
+
+      show_lr_print(list(
+        company   = setting("company_name", "Amardip Road Carriers"),
+        office    = setting("registered_office", ""),
+        lr_no     = c$lr_no, cn_no = c$cn_no,
+        date      = fmt_date(c$dispatch_date),
+        consignor = if (nrow(cr)) cr$name[1] else "—",
+        consignee = c$dest_city,
+        from_addr = c$origin_addr, to_addr = c$dest_addr,
+        from = c$origin_city, to = c$dest_city,
+        vehicle = v$reg_no[match(c$vehicle_id, v$vehicle_id)] %||% "—",
+        driver  = dr$name[match(c$driver_id, dr$driver_id)] %||% "—",
+        material = if (nrow(b)) b$material[1] else "—",
+        weight = fmt_wt(c$weight_t),
+        packages = if (nrow(b)) (b$packages[1] %||% "—") else "—",
+        gstin = if (nrow(cr)) cr$gstin[1] else "—",
+        payment = pay,
+        pay_colour = unname(PAYMENT_COLOUR[pay] %||% "grey"),
+        pay_note = switch(pay,
+          "To Pay" = "Collect from consignee before release",
+          "Paid"   = "Settled at booking — collect nothing",
+          "TBB"    = paste("Bill at", br$name[match(bill_at, br$branch_id)] %||% "—"),
+          "Monthly account"),
+        freight = inr(c$freight),
+        gst_mode = if (nrow(b)) b$gst_mode[1] else "RCM",
+        gst = if (nrow(b) && identical(b$gst_mode[1], "RCM")) "Payable by recipient"
+              else if (nrow(b)) inr(b$gst_amount[1]) else "—",
+        insurance = if (nrow(b)) inr(b$insurance_amt[1]) else inr(0),
+        total = if (nrow(b)) inr(b$total[1]) else inr(c$freight),
+        manual_note = if (nrow(b) && identical(b$entry_mode[1] %||% "", "Manual"))
+          paste0("Entered manually from paper reference ", b$manual_ref[1],
+                 " · load accepted ", fmt_dt(b$manual_dt[1])) else ""
+      ), title = paste("Lorry receipt —", c$lr_no))
       audit(user()$user_id, "print", "consignments", c$lr_no)
     })
     observeEvent(input$link_ewb, nav("ewaybill"))

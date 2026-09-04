@@ -575,8 +575,32 @@ build_seed <- function() {
                            "Deliver before 18:00", "Tarpaulin required"), n_bk),
     booking_user_id = pick(users$user_id[users$role %in% c("Booking Executive","Dispatcher")], n_bk),
     priority      = pick(c("Normal","Normal","Normal","Priority"), n_bk),
+
+    # Freight terms. Credit dominates a real book — most volume moves on
+    # account — with To Pay next, then cash-at-booking, then the handful billed
+    # by whichever branch holds the customer's account.
+    payment_mode  = pick(c("Credit","Credit","Credit","Credit","Credit",
+                           "To Pay","To Pay","To Pay","Paid","Paid","TBB"), n_bk),
     status        = status
   )
+
+  # TBB only means anything if the billing branch differs from the booking one.
+  tbb <- bookings$payment_mode == "TBB"
+  bookings$bill_at_branch_id <- ""
+  bookings$bill_at_branch_id[tbb] <- vapply(bookings$branch_id[tbb], function(b) {
+    sample(setdiff(bid, b), 1)
+  }, character(1), USE.NAMES = FALSE)
+
+  # A small slice were written on paper during an outage and keyed in later.
+  manual <- rep(FALSE, n_bk); manual[sample(n_bk, round(n_bk * 0.04))] <- TRUE
+  bookings$entry_mode <- ifelse(manual, "Manual", "Online")
+  bookings$manual_ref <- ifelse(
+    manual,
+    paste0(toupper(substr(bookings$origin_city, 1, 3)), "/LR/",
+           sprintf("%04d", sample(1000:9999, n_bk, TRUE))), "")
+  bookings$manual_dt <- ifelse(
+    manual, paste(bookings$booking_date, "07:40:00"), "")
+
   out$bookings <- bookings
 
   # ---------------- Trips ----------------
@@ -660,6 +684,9 @@ build_seed <- function() {
     delivered_date    = ifelse(moving$status %in% c("Delivered","Closed"),
                                as.character(as.Date(trips$eta)), ""),
     parent_cn_no= "",
+    # Payment terms travel with the load — the driver reads them off the LR.
+    payment_mode      = bookings$payment_mode[match(moving$booking_no, bookings$booking_no)],
+    bill_at_branch_id = bookings$bill_at_branch_id[match(moving$booking_no, bookings$booking_no)],
     status      = dplyr::case_when(
       moving$status == "Vehicle Allocated" ~ "In Prep",
       moving$status == "In Transit"        ~ pick(c("Dispatched","In Transit","At Hub","Out for Delivery"), n_trip),
@@ -869,6 +896,7 @@ build_seed <- function() {
     paid_amount = paid_amt,
     due_date    = as.character(due),
     source      = "auto",
+    payment_mode = bookings$payment_mode[match(billed$booking_no, bookings$booking_no)],
     status      = inv_status
   )
   out$invoices <- invoices

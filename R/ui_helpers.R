@@ -393,6 +393,113 @@ empty_panel <- function(msg = "Select a row to see details", icon = "\U0001F4C4"
 # Buttons
 # ------------------------------------------------------------------
 
+# ------------------------------------------------------------------
+# Printable consignment note
+#
+# Indian road freight moves on a paper LR, and the same details are needed by
+# three different people at once: the consignor keeps one, the consignee signs
+# one, and one rides in the cab. So the sheet is three identical slips on a
+# single A4 with cut lines between them, not three separate pages.
+#
+# Rendered as HTML and printed by the browser rather than generated as a PDF:
+# no LaTeX or headless-Chrome dependency, and the operator gets the familiar
+# print dialog with their own paper size and printer already selected.
+# ------------------------------------------------------------------
+
+#' One slip. `copy` is the label along the top ("Consignor Copy" etc).
+lr_slip <- function(copy, d) {
+  div(
+    class = "lr-slip",
+    div(class = "lr-head",
+        div(class = "lr-brand",
+            div(class = "lr-tile", "A"),
+            div(div(class = "lr-co", d$company),
+                div(class = "lr-sub", d$office))),
+        div(class = "lr-title",
+            div(class = "lr-doc", "LORRY RECEIPT"),
+            div(class = "lr-copy", copy)),
+        div(class = "lr-nos",
+            div(tags$b(d$lr_no)),
+            div(class = "lr-sub", d$cn_no),
+            div(class = "lr-sub", paste("Date", d$date)))),
+
+    div(class = "lr-grid",
+        div(class = "lr-cell",
+            div(class = "lr-lbl", "Consignor"),
+            div(class = "lr-val", d$consignor),
+            div(class = "lr-sm", d$from_addr)),
+        div(class = "lr-cell",
+            div(class = "lr-lbl", "Consignee"),
+            div(class = "lr-val", d$consignee),
+            div(class = "lr-sm", d$to_addr))),
+
+    div(class = "lr-grid4",
+        div(class = "lr-cell", div(class = "lr-lbl", "From"),    div(class = "lr-val", d$from)),
+        div(class = "lr-cell", div(class = "lr-lbl", "To"),      div(class = "lr-val", d$to)),
+        div(class = "lr-cell", div(class = "lr-lbl", "Vehicle"), div(class = "lr-val lr-mono", d$vehicle)),
+        div(class = "lr-cell", div(class = "lr-lbl", "Driver"),  div(class = "lr-val", d$driver))),
+
+    div(class = "lr-grid4",
+        div(class = "lr-cell", div(class = "lr-lbl", "Material"), div(class = "lr-val", d$material)),
+        div(class = "lr-cell", div(class = "lr-lbl", "Weight"),   div(class = "lr-val", d$weight)),
+        div(class = "lr-cell", div(class = "lr-lbl", "Packages"), div(class = "lr-val", d$packages)),
+        div(class = "lr-cell", div(class = "lr-lbl", "GSTIN"),    div(class = "lr-val lr-mono", d$gstin))),
+
+    div(class = "lr-foot",
+        # Payment terms are the loudest thing on the slip: the driver decides
+        # whether to release the goods on the strength of it.
+        div(class = paste0("lr-pay lr-pay-", d$pay_colour),
+            div(class = "lr-lbl", "Payment"),
+            div(class = "lr-pay-val", d$payment),
+            if (nzchar(d$pay_note)) div(class = "lr-sm", d$pay_note)),
+        div(class = "lr-charges",
+            div(span("Freight"), span(d$freight)),
+            div(span(paste0("GST (", d$gst_mode, ")")), span(d$gst)),
+            div(span("Insurance"), span(d$insurance)),
+            div(class = "lr-total", span("Total"), span(d$total))),
+        div(class = "lr-sign",
+            div(class = "lr-sm", "Received the goods in good condition"),
+            div(class = "lr-sigline"),
+            div(class = "lr-lbl", "Consignee signature & stamp"))),
+
+    if (nzchar(d$manual_note)) div(class = "lr-manual", d$manual_note)
+  )
+}
+
+#' The full A4 sheet: three slips, cut lines between.
+lr_print_sheet <- function(d) {
+  copies <- c("Consignor Copy", "Consignee Copy", "Driver Copy")
+  div(
+    id = "tms-print",
+    div(class = "lr-sheet",
+        lapply(seq_along(copies), function(i) {
+          tagList(
+            lr_slip(copies[i], d),
+            if (i < length(copies)) div(class = "lr-cut")
+          )
+        }))
+  )
+}
+
+#' Show the sheet in a modal with a Print button.
+show_lr_print <- function(d, title = "Print consignment note") {
+  showModal(modalDialog(
+    # xl, because the preview is a full A4 sheet — anything narrower crops the
+    # slips and the operator cannot check the paperwork before committing it
+    # to paper.
+    title = title, size = "xl", easyClose = TRUE,
+    div(class = "tiny muted mb-2",
+        "Three copies on one A4 sheet — consignor, consignee and driver. ",
+        "Cut along the dashed lines."),
+    lr_print_sheet(d),
+    footer = tagList(
+      modalButton("Close"),
+      tags$button(class = "btn btn-tms-primary", onclick = "window.print()",
+                  "Print / Save as PDF")
+    )
+  ))
+}
+
 btn_primary <- function(id, label, icon = NULL, class = "") {
   actionButton(id, tagList(icon, label), class = paste("btn-tms-primary", class))
 }

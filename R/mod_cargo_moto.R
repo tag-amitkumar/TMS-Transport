@@ -312,7 +312,12 @@ cargo_moto_server <- function(id, user, nav) {
         weight_t = r$weight_t, freight = r$freight,
         dispatch_date = as.character(Sys.Date()),
         expected_delivery = as.character(Sys.Date() + transit),
-        delivered_date = "", parent_cn_no = "", status = "In Prep"
+        delivered_date = "", parent_cn_no = "",
+        # Carried onto the consignment so the printed LR can state the terms —
+        # the driver decides whether to collect on the strength of it.
+        payment_mode = r$payment_mode %||% "Credit",
+        bill_at_branch_id = r$bill_at_branch_id %||% "",
+        status = "In Prep"
       ))
 
       for (i in seq_along(c("Booking Created", "Vehicle Allocated"))) {

@@ -602,3 +602,160 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 .leaflet-tile-pane {
   filter: grayscale(88%) brightness(1.07) contrast(.92);
 }
+
+/* ==================================================================
+   Printable consignment note — three copies to an A4 sheet.
+
+   The same markup serves the on-screen preview and the printed page. On
+   screen it is scaled down inside a modal; on paper the @media print block
+   hides the entire application and promotes the sheet to the page.
+   ================================================================== */
+
+.lr-sheet {
+  width: 190mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  font-size: 8.5pt;
+  line-height: 1.35;
+}
+
+.lr-slip {
+  border: 1px solid #333;
+  padding: 4mm 5mm;
+  margin: 0;
+}
+
+.lr-cut {
+  border-top: 1px dashed #999;
+  margin: 2.4mm 0;
+  position: relative;
+}
+.lr-cut::after {
+  content: "\2702";                 /* scissors, so the cut line reads as one */
+  position: absolute; left: 0; top: -7px;
+  font-size: 9px; color: #999; background: #fff; padding-right: 3px;
+}
+
+/* ---- header ---- */
+
+.lr-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 4mm;
+  border-bottom: 1px solid #333;
+  padding-bottom: 2mm; margin-bottom: 2mm;
+}
+.lr-brand { display: flex; gap: 2mm; align-items: center; }
+.lr-tile {
+  width: 8mm; height: 8mm; border-radius: 1.5mm;
+  background: #EFA31D; color: #fff;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 11pt; flex: 0 0 8mm;
+}
+.lr-co    { font-weight: 700; font-size: 10pt; }
+.lr-sub   { font-size: 7pt; color: #555; }
+.lr-title { text-align: center; }
+.lr-doc   { font-weight: 700; letter-spacing: .12em; font-size: 9pt; }
+.lr-copy  {
+  font-size: 7pt; letter-spacing: .08em; text-transform: uppercase;
+  color: #fff; background: #12263F;
+  display: inline-block; padding: .4mm 2mm; border-radius: 1mm; margin-top: .8mm;
+}
+.lr-nos { text-align: right; font-size: 8pt; }
+
+/* ---- body grids ---- */
+
+.lr-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.lr-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.lr-grid, .lr-grid4 { border-top: 1px solid #ccc; }
+
+.lr-cell {
+  padding: 1.4mm 2mm 1.4mm 0;
+  border-right: 1px solid #eee;
+  min-width: 0;
+}
+.lr-cell:last-child { border-right: none; }
+
+.lr-lbl {
+  font-size: 6.2pt; letter-spacing: .07em; text-transform: uppercase;
+  color: #777; font-weight: 600;
+}
+.lr-val  { font-weight: 600; font-size: 8.5pt; word-break: break-word; }
+.lr-sm   { font-size: 7pt; color: #555; word-break: break-word; }
+.lr-mono { font-family: "JetBrains Mono", ui-monospace, monospace; letter-spacing: .03em; }
+
+/* ---- footer: payment, charges, signature ---- */
+
+.lr-foot {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 3mm;
+  border-top: 1px solid #333;
+  margin-top: 2mm; padding-top: 2mm;
+  align-items: start;
+}
+
+.lr-pay { border: 1.2px solid #333; border-radius: 1.5mm; padding: 1.4mm 2mm; }
+.lr-pay-val { font-weight: 700; font-size: 11pt; line-height: 1.1; }
+.lr-pay-green  { border-color: #1A7F45; color: #1A7F45; background: #F2FAF5; }
+.lr-pay-orange { border-color: #B3701A; color: #B3701A; background: #FEF9F0; }
+.lr-pay-blue   { border-color: #1667C7; color: #1667C7; background: #F3F8FE; }
+.lr-pay-purple { border-color: #6F42C1; color: #6F42C1; background: #F8F5FD; }
+
+.lr-charges > div {
+  display: flex; justify-content: space-between; gap: 3mm;
+  padding: .5mm 0;
+}
+.lr-total {
+  border-top: 1px solid #333; margin-top: .8mm; padding-top: .8mm !important;
+  font-weight: 700;
+}
+
+.lr-sign { text-align: center; }
+.lr-sigline { border-bottom: 1px solid #333; height: 9mm; margin-bottom: 1mm; }
+
+/* A booking keyed in after the fact has to say so on its own paperwork. */
+.lr-manual {
+  margin-top: 1.6mm; padding: 1mm 2mm;
+  border: 1px dashed #B3701A; border-radius: 1mm;
+  font-size: 6.8pt; color: #8A5B0A; background: #FEF9F0;
+}
+
+/* Preview inside the modal: shrink to fit without changing the print size. */
+.modal-body #tms-print {
+  transform: scale(.82);
+  transform-origin: top center;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 8mm; }
+
+  /* Hide the application, show only the sheet. Visibility rather than display
+     so the sheet keeps its position in the flow. */
+  body * { visibility: hidden !important; }
+  #tms-print, #tms-print * { visibility: visible !important; }
+
+  #tms-print {
+    position: absolute !important;
+    left: 0; top: 0; width: 100%;
+    transform: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Bootstrap's modal chrome must not print around the slips. */
+  .modal, .modal-dialog, .modal-content, .modal-body {
+    position: static !important;
+    overflow: visible !important;
+    border: none !important; box-shadow: none !important;
+    background: #fff !important;
+    max-width: none !important; width: auto !important;
+    margin: 0 !important; padding: 0 !important;
+  }
+  .modal-header, .modal-footer, .modal-backdrop { display: none !important; }
+
+  .lr-sheet  { width: 100%; }
+  .lr-slip   { page-break-inside: avoid; }
+}

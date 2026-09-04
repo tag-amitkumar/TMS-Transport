@@ -20,6 +20,33 @@
 # readers never see a stale value within a session.
 .store <- new.env(parent = emptyenv())
 
+# Reactivity bridge.
+#
+# The cache above is a plain environment, so nothing downstream can tell when
+# it changes. Screens re-read the store on every render, but a render only
+# happens when a *reactive* dependency invalidates — so a row written by a
+# handler sat in the file while the table on screen kept showing the old data.
+# Creating a booking looked like it had failed.
+#
+# Every mutating call bumps this counter, and store_get() takes a dependency on
+# it whenever it is called inside a reactive context. One global counter rather
+# than one per table: writes are rare, tables are small, and a booking insert
+# legitimately changes what the dashboard, the kanban and the consignment
+# register should show.
+.store_version <- NULL
+
+.store_bump <- function() {
+  if (is.null(.store_version)) return(invisible(NULL))
+  shiny::isolate(.store_version(.store_version() + 1))
+  invisible(NULL)
+}
+
+#' Create the version signal. Called once from app.R, after Shiny is loaded.
+store_init_reactivity <- function() {
+  if (is.null(.store_version)) .store_version <<- shiny::reactiveVal(0L)
+  invisible(TRUE)
+}
+
 # Reading with an explicit column spec would mean maintaining 30 schemas by
 # hand. Instead everything is read as character and coerced at the point of use
 # — flat files have no types anyway, and readr's guesser is the main source of
@@ -41,7 +68,14 @@
 }
 
 #' Read a whole table (cached).
+#'
+#' Inside a reactive context this also takes a dependency on the store version,
+#' so a screen re-renders when anything is written. Outside one — tests, the
+#' seed, startup — it is an ordinary read.
 store_get <- function(name) {
+  if (!is.null(.store_version) && !is.null(shiny::getDefaultReactiveDomain())) {
+    .store_version()
+  }
   if (is.null(.store[[name]])) .store[[name]] <- .read_tbl(name)
   .store[[name]]
 }
@@ -50,6 +84,7 @@ store_get <- function(name) {
 store_set <- function(name, df) {
   .store[[name]] <- df
   .write_tbl(name, df)
+  .store_bump()
   invisible(df)
 }
 
@@ -63,6 +98,9 @@ store_refresh <- function(name = NULL) {
   } else {
     if (!is.null(.store[[name]])) rm(list = name, envir = .store)
   }
+  # Dropping the cache changes what every reader will see next, so it counts as
+  # a mutation for reactivity purposes.
+  .store_bump()
   invisible(TRUE)
 }
 

@@ -1,3 +1,3 @@
-cn_no,lr_no,booking_no,trip_no,client_id,vehicle_id,driver_id,branch_id,origin_city,dest_city,weight_t,freight,status,origin_addr,dest_addr,dispatch_date,expected_delivery,delivered_date,parent_cn_no
-CN-00001,LR-0001,BKG-0001,TRP-0001,CUST-0001,VEH-001,EMP-0001,BR-001,Nagpur,Delhi,24,27600,Delivered,"Plant Gate 2, Hingna Rd, Nagpur","Okhla Depot, New Delhi",2026-08-27,2026-08-29,2026-08-29,
-CN-00002,LR-0002,BKG-0002,TRP-0002,CUST-0002,VEH-002,EMP-0002,BR-002,Delhi,Nagpur,9.5,11600,In Transit,"Okhla Depot, New Delhi","MIDC Warehouse, Nagpur",2026-09-01,2026-09-04,,
+cn_no,lr_no,booking_no,trip_no,client_id,vehicle_id,driver_id,branch_id,origin_city,dest_city,weight_t,freight,status,origin_addr,dest_addr,dispatch_date,expected_delivery,delivered_date,parent_cn_no,payment_mode,bill_at_branch_id
+CN-00001,LR-0001,BKG-0001,TRP-0001,CUST-0001,VEH-001,EMP-0001,BR-001,Nagpur,Delhi,24,27600,Delivered,"Plant Gate 2, Hingna Rd, Nagpur","Okhla Depot, New Delhi",2026-08-27,2026-08-29,2026-08-29,,Credit,
+CN-00002,LR-0002,BKG-0002,TRP-0002,CUST-0002,VEH-002,EMP-0002,BR-002,Delhi,Nagpur,9.5,11600,In Transit,"Okhla Depot, New Delhi","MIDC Warehouse, Nagpur",2026-09-03,2026-09-06,,,To Pay,

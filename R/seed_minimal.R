@@ -185,13 +185,30 @@ build_seed_minimal <- function() {
       total            = freight + gst_amount + insurance_amt,
       remarks          = c("Handle with care · fragile packaging", "", "Awaiting vehicle"),
       booking_user_id  = "USR-0002",
-      priority         = "Normal"
+      priority         = "Normal",
+
+      # One of each term that can be shown standing still. "Paid" is left for
+      # the operator to create live, since a new booking is the natural place
+      # to demonstrate it.
+      #   Credit → the ordinary monthly-billing flow, already invoiced
+      #   To Pay → driver collects on delivery, so it shouts on the LR
+      #   TBB    → customer's account sits at Delhi, so Delhi raises the bill
+      payment_mode      = c("Credit", "To Pay", "TBB"),
+      bill_at_branch_id = c("", "", "BR-002"),
+
+      # BKG-0002 was written in the paper LR book while TMS was unreachable and
+      # keyed in afterwards, so it carries the original reference and the time
+      # the load was actually accepted — not the time someone typed it up.
+      entry_mode = c("Online", "Manual", "Online"),
+      manual_ref = c("", "DEL/LR/4471", ""),
+      manual_dt  = c("", paste(TODAY - 2, "07:40:00"), "")
     ) |>
     dplyr::select(booking_no, booking_date, branch_id, client_id, pickup_address,
                   delivery_address, origin_city, dest_city, material, weight_t,
                   quantity, packages, insurance, declared_value, freight, gst_mode,
                   gst_pct, gst_amount, insurance_amt, total, remarks,
-                  booking_user_id, priority, status)
+                  booking_user_id, priority, payment_mode, bill_at_branch_id,
+                  entry_mode, manual_ref, manual_dt, status)
 
   # ---------------- Trips ----------------
   out$trips <- tibble::tribble(
@@ -221,7 +238,12 @@ build_seed_minimal <- function() {
       dispatch_date     = as.character(c(done_dispatch, TODAY - 1)),
       expected_delivery = as.character(c(done_deliver, TODAY + 2)),
       delivered_date    = c(as.character(done_deliver), ""),
-      parent_cn_no      = ""
+      parent_cn_no      = "",
+      # Payment terms travel with the load. The driver reads them off the LR to
+      # know whether to collect before releasing the goods, so they are copied
+      # onto the consignment rather than looked up through the booking.
+      payment_mode      = c("Credit", "To Pay"),
+      bill_at_branch_id = c("", "")
     )
 
   # Timeline: the delivered one has run the full course, the live one is midway.
@@ -288,7 +310,7 @@ build_seed_minimal <- function() {
     amount = 27600, gst_mode = "RCM", gst_pct = 5, gst_amount = 0,
     total = 27600, paid_amount = 15000,
     due_date = as.character(done_deliver + 14),
-    source = "auto", status = "Partially paid"
+    source = "auto", payment_mode = "Credit", status = "Partially paid"
   )
 
   out$payments <- tibble::tibble(

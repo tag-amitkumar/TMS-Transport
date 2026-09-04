@@ -149,6 +149,41 @@ ROLE_LEVELS <- c("Super Admin", "Branch Admin", "Operations Manager",
 GST_MODES <- c("RCM", "FCM")
 
 # ------------------------------------------------------------------
+# Freight payment terms
+#
+# Who settles the freight, and when. This is not the same thing as GST
+# treatment: a To-Pay consignment can still be reverse charge. It rides on the
+# LR because the driver has to know whether to collect at the door.
+#
+#   Paid    — consignor settled it at booking; nothing to collect on delivery.
+#   To Pay  — consignee pays before the goods are released.
+#   Credit  — booked to the customer's account and billed on the monthly cycle.
+#   TBB     — To Be Billed: the customer holds their account at another branch,
+#             so the paperwork travels with the load but the invoice is raised
+#             by that branch against their existing account.
+# ------------------------------------------------------------------
+PAYMENT_MODES <- c("Paid", "To Pay", "Credit", "TBB")
+
+PAYMENT_LABEL <- c(
+  "Paid"   = "Paid (100% at booking)",
+  "To Pay" = "To Pay (collect from consignee)",
+  "Credit" = "Credit (monthly billing)",
+  "TBB"    = "TBB (bill at another branch)"
+)
+
+# The colour each term carries on the LR and in every list. Money already in
+# hand reads green; money to be chased on the doorstep reads amber.
+PAYMENT_COLOUR <- c("Paid" = "green", "To Pay" = "orange",
+                    "Credit" = "blue", "TBB" = "purple")
+
+# How a booking got into the system. Manual entries are the ones written on a
+# paper LR book while TMS was unreachable and keyed in afterwards — they carry
+# the original paper reference and the time the load was actually accepted, so
+# the audit trail does not silently claim the booking was taken when it was
+# merely typed up.
+ENTRY_MODES <- c("Online", "Manual")
+
+# ------------------------------------------------------------------
 # Formatting helpers
 #
 # Indian numbering (lakh/crore) is used throughout the deck's KPI cards, and

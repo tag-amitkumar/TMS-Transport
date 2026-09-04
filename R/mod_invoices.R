@@ -262,17 +262,37 @@ invoices_server <- function(id, user, nav) {
       gm <- cc$gst_mode; gp <- as.numeric(cc$gst_pct)
       # Reverse charge: carrier collects nothing.
       gst <- if (identical(gm, "RCM")) 0 else round(c1$freight * gp / 100)
+      total <- c1$freight + gst
       no <- next_id(get_invoices()$invoice_no, PREFIX$invoice)
+
+      # Payment terms decide two things the invoice cannot work out for itself:
+      # which branch raises it, and whether anything is still owed.
+      bk <- get_bookings(); b <- bk[bk$booking_no == c1$booking_no, ]
+      pay <- c1$payment_mode %||% (if (nrow(b)) b$payment_mode[1] else "Credit")
+      if (!nzchar(pay %||% "")) pay <- "Credit"
+      bill_at <- c1$bill_at_branch_id %||% (if (nrow(b)) b$bill_at_branch_id[1] else "")
+
+      # TBB: the customer's account sits at another branch, so that branch owns
+      # the receivable. Booking it against the despatching branch would put the
+      # debt on the wrong ledger.
+      branch <- if (identical(pay, "TBB") && nzchar(bill_at %||% "")) bill_at else c1$branch_id
+
+      # Paid: the money changed hands at booking, so the invoice is a record of
+      # a settled transaction, not a request for payment.
+      paid   <- if (identical(pay, "Paid")) total else 0
+      status <- if (identical(pay, "Paid")) "Paid" else "Draft"
 
       store_insert("invoices", list(
         invoice_no = no, invoice_date = as.character(Sys.Date()),
-        client_id = c1$client_id, branch_id = c1$branch_id,
+        client_id = c1$client_id, branch_id = branch,
         lr_no = c1$lr_no, cn_no = c1$cn_no,
         amount = c1$freight, gst_mode = gm, gst_pct = gp, gst_amount = gst,
-        total = c1$freight + gst, paid_amount = 0,
-        due_date = as.character(Sys.Date() + 14), source = "auto", status = "Draft"
+        total = total, paid_amount = paid,
+        due_date = as.character(Sys.Date() + 14), source = "auto",
+        payment_mode = pay, status = status
       ))
-      audit(user()$user_id, "create", "invoices", paste(no, "from", c1$lr_no))
+      audit(user()$user_id, "create", "invoices",
+            paste(no, "from", c1$lr_no, "·", pay))
       no
     }
 

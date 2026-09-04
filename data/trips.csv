@@ -1,3 +1,3 @@
 trip_no,booking_no,vehicle_id,driver_id,vendor_id,branch_id,route_from,route_to,status,distance_km,dispatch_dt,eta,border_allowance,food_allowance,advance
 TRP-0001,BKG-0001,VEH-001,EMP-0001,,BR-001,Nagpur,Delhi,Completed,1035,2026-08-27 06:10:00,2026-08-29 14:30:00,1000,400,1600
-TRP-0002,BKG-0002,VEH-002,EMP-0002,VND-0001,BR-002,Delhi,Nagpur,Running,1035,2026-09-01 18:00:00,2026-09-04 09:00:00,1000,400,1500
+TRP-0002,BKG-0002,VEH-002,EMP-0002,VND-0001,BR-002,Delhi,Nagpur,Running,1035,2026-09-03 18:00:00,2026-09-06 09:00:00,1000,400,1500

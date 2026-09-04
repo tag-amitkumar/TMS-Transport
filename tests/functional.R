@@ -160,6 +160,92 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
 })
 
 # ==================================================================
+section("Payment terms")
+
+testServer(bookings_server, args = list(user = usr(), nav = noop), {
+  cl <- store_get("clients"); br <- store_get("branches")
+  base <- list(f_client = cl$client_id[1], f_pickup = "A", f_drop = "B",
+               f_material = "Terms check", f_weight = 8, f_qty = 10, f_pkg = "10",
+               f_ins = "Not insured", f_remarks = "", f_freight = 12000,
+               f_from = "Nagpur", f_to = "Delhi",
+               f_branch = admin$branch_id, f_date = Sys.Date())
+
+  # Each term must land on the booking as chosen.
+  for (m in c("Paid", "To Pay", "Credit")) {
+    do.call(session$setInputs, base)
+    session$setInputs(f_pay = m)
+    session$setInputs(save_draft = paste0("t", m))
+    bk <- get_bookings()
+    ok(paste("payment mode saved:", m),
+       identical(bk$payment_mode[nrow(bk)], m))
+  }
+
+  # TBB is meaningless without the branch that will raise the bill.
+  n <- nrow(get_bookings())
+  do.call(session$setInputs, base)
+  session$setInputs(f_pay = "TBB", f_bill_branch = "")
+  session$setInputs(save_draft = "tbb-bad")
+  ok("TBB without a billing branch refused", nrow(get_bookings()) == n)
+
+  other <- br$branch_id[br$branch_id != admin$branch_id][1]
+  session$setInputs(f_bill_branch = other)
+  session$setInputs(save_draft = "tbb-good")
+  bk <- get_bookings()
+  ok("TBB saves with a billing branch", nrow(bk) == n + 1)
+  ok("TBB records the billing branch",
+     identical(bk$bill_at_branch_id[nrow(bk)], other))
+
+  # Everything created through the form is an online entry.
+  ok("form bookings are marked Online",
+     identical(bk$entry_mode[nrow(bk)], "Online"))
+})
+
+# ==================================================================
+section("Manual entry — loads booked while the system was down")
+
+testServer(bookings_server, args = list(user = usr(), nav = noop), {
+  cl <- store_get("clients")
+  n <- nrow(get_bookings())
+  m <- list(m_ref = "QA/LR/9001", m_date = Sys.Date() - 1, m_time = "07:30",
+            m_client = cl$client_id[1], m_branch = admin$branch_id,
+            m_pay = "To Pay", m_from = "Nagpur", m_to = "Delhi",
+            m_material = "Offline load", m_weight = 11, m_freight = 18000,
+            m_remarks = "")
+
+  # Paper reference is what ties the row back to the book it came from.
+  do.call(session$setInputs, modifyList(m, list(m_ref = "")))
+  session$setInputs(m_save = 1)
+  ok("manual entry without a paper reference refused", nrow(get_bookings()) == n)
+
+  do.call(session$setInputs, m)
+  session$setInputs(m_save = 2)
+  bk <- get_bookings()
+  ok("manual entry creates a booking", nrow(bk) == n + 1)
+
+  new <- bk[nrow(bk), ]
+  ok("manual entry marked Manual",     identical(new$entry_mode, "Manual"))
+  ok("paper reference retained",       identical(new$manual_ref, "QA/LR/9001"))
+  ok("time the load was taken kept",   grepl("07:30", new$manual_dt, fixed = TRUE))
+  ok("manual entry carries its terms", identical(new$payment_mode, "To Pay"))
+  # A load already accepted must reach dispatch, not sit in Draft.
+  ok("manual entry enters Confirmed",  identical(new$status, "Confirmed"))
+  ok("manual entry gets a normal booking number", grepl("^BKG-", new$booking_no))
+
+  # GST still comes from the client master, not from whoever is keying it in.
+  cli <- get_clients(); cr <- cli[cli$client_id == cl$client_id[1], ]
+  if (identical(cr$gst_mode[1], "RCM")) {
+    ok("manual RCM collects no GST", new$gst_amount == 0)
+  } else {
+    ok("manual FCM charges GST", new$gst_amount > 0)
+  }
+
+  # The same paper slip must not be entered twice.
+  n2 <- nrow(get_bookings())
+  session$setInputs(m_save = 3)
+  ok("duplicate paper reference refused", nrow(get_bookings()) == n2)
+})
+
+# ==================================================================
 section("Allocation — booking becomes a trip, an LR and a consignment")
 
 alloc_bk <- NULL
@@ -212,6 +298,12 @@ testServer(cargo_moto_server, args = list(user = usr(), nav = noop), {
 
   ev <- store_get("consignment_events")
   ok("timeline seeded", sum(ev$cn_no == c1$cn_no[1]) >= 2)
+
+  # Terms must ride along, or the printed LR cannot tell the driver whether to
+  # collect on delivery.
+  bkr <- bk[bk$booking_no == alloc_bk, ]
+  ok("payment mode carried onto the consignment",
+     identical(c1$payment_mode[1], bkr$payment_mode[1]))
 })
 
 # ==================================================================
@@ -256,6 +348,23 @@ testServer(invoices_server, args = list(user = usr(), nav = noop), {
     n2 <- nrow(get_invoices())
     session$setInputs(bill_one = good$cn_no[1])
     ok("double-invoicing refused", nrow(get_invoices()) == n2)
+
+    # Payment terms decide who raises the invoice and whether anything is owed.
+    pay <- r$payment_mode[1]
+    if (identical(pay, "Paid")) {
+      ok("Paid invoice opens settled", abs(r$paid_amount[1] - r$total[1]) < 1)
+      ok("Paid invoice status is Paid", identical(r$status[1], "Paid"))
+    } else if (identical(pay, "TBB")) {
+      # The receivable belongs to the branch holding the customer's account,
+      # not the one that despatched the load.
+      ok("TBB invoice is raised by the billing branch",
+         identical(r$branch_id[1], good$bill_at_branch_id[1]))
+      ok("TBB invoice is not pre-settled", r$paid_amount[1] == 0)
+    } else {
+      ok("credit/to-pay invoice opens unpaid", r$paid_amount[1] == 0)
+      ok("credit/to-pay invoice starts Draft", identical(r$status[1], "Draft"))
+    }
+    ok("invoice records the payment term", identical(r$payment_mode[1], pay))
   } else {
     ok("invoice raised against verified POD (nothing billable)", TRUE)
   }

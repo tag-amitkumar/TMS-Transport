@@ -21,6 +21,11 @@ source("R/nav.R")
 # always starts into a working state rather than an empty one.
 seed_if_empty()
 
+# Wire the store's change signal now that Shiny is loaded, so a row written by
+# any handler re-renders every view that reads it. Without this a booking
+# created from a dialog stayed invisible until the user navigated away and back.
+store_init_reactivity()
+
 # Screen modules.
 for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
 
