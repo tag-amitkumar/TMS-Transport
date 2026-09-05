@@ -175,8 +175,34 @@ store_delete <- function(name, where) {
 }
 
 as_num <- function(x) suppressWarnings(as.numeric(.blank_na(x)))
-as_dt  <- function(x) suppressWarnings(as.POSIXct(.blank_na(x), tz = "Asia/Kolkata"))
 as_dte <- function(x) suppressWarnings(as.Date(.blank_na(x)))
+
+# Datetimes are parsed per element, not per column.
+#
+# as.POSIXct() on a character vector picks ONE format for the whole vector, and
+# accepts a candidate only if *every* element parses with it. So a single
+# date-only value — "2026-08-28" among eleven full timestamps — knocks the
+# detection down to "%Y-%m-%d", and strptime then applies that to the full
+# timestamps too, parsing the date prefix and discarding the time without a
+# word. Twelve consignment events all reported 00:00 because one of them had
+# no clock on it.
+#
+# It is silent, it is data-dependent, and it reaches every datetime column in
+# the app: trip dispatch and ETA, POD upload, GPS pings, e-way bill validity.
+# A validity window that quietly loses its time of day is six hours of
+# argument at a check-post.
+#
+# parse_date_time tries each order against each element separately, so a mixed
+# column keeps the times it has, and a value with no time lands at midnight —
+# the only honest reading of a timestamp nobody recorded an hour for.
+as_dt <- function(x) {
+  if (inherits(x, "POSIXct")) return(x)
+  x <- .blank_na(x)
+  suppressWarnings(lubridate::parse_date_time(
+    as.character(x),
+    orders = c("Ymd HMS", "Ymd HM", "Ymd"),
+    tz = "Asia/Kolkata", quiet = TRUE))
+}
 
 #' Read a table with named columns coerced to numeric / Date / datetime.
 #'

@@ -89,7 +89,7 @@ TABLES <- c(
   "clients", "vendors", "vendor_documents",
   "vehicles", "employees", "drivers", "pincode_routes",
   "bookings", "trips", "consignments", "consignment_events",
-  "ewaybills", "pods", "gps_pings",
+  "ewaybills", "ewaybill_partb", "pods", "gps_pings",
   "complaints", "invoices", "payments", "vendor_payments",
   "attendance", "leave_types", "leave_requests", "payroll",
   "settings", "notification_events", "integrations", "audit_log"
@@ -272,6 +272,39 @@ next_id <- function(existing, prefix, width = 4) {
   nums <- nums[!is.na(nums)]
   n <- if (length(nums)) max(nums) + 1L else 1L
   paste0(prefix, formatC(n, width = width, flag = "0", format = "d"))
+}
+
+# ------------------------------------------------------------------
+# References that get read off a screen and typed into another system
+# ------------------------------------------------------------------
+
+# An e-way bill number is read aloud at a check-post, copied onto a paper LR
+# and keyed into another system, usually in a hurry and often in bad light.
+# Every character with a lookalike is a transcription error waiting to happen,
+# so the alphabet drops them:
+#
+#   0 / O       indistinguishable in most sans-serif faces
+#   1 / I / L   the same problem, and worse in handwriting
+#
+# What is left is 2-9 and 23 letters — 31 characters, so a 12-character
+# reference still spans 7.9 x 10^17 combinations. No separators either: a hyphen or a space invites "was
+# that a dash?" and gets dropped or doubled on re-entry.
+REF_ALPHABET <- c(as.character(2:9), setdiff(LETTERS, c("O", "I", "L")))
+
+#' A hand-transcribable reference of `n` characters, unique against `existing`.
+#'
+#' Deliberately not the 12-digit numeric format the GST portal issues. Nothing
+#' in this app talks to the GSP (see DESIGN-REVIEW.md, gap #12), and a
+#' reference that cannot be mistaken for a real government e-way bill number is
+#' the honest way to say so.
+safe_ref <- function(n = 12, existing = character(0)) {
+  for (i in seq_len(50)) {
+    r <- paste(sample(REF_ALPHABET, n, replace = TRUE), collapse = "")
+    if (!r %in% existing) return(r)
+  }
+  # 31^12 makes this unreachable in practice. Falling through silently and
+  # handing back a duplicate would not be.
+  stop("Could not allocate a unique reference after 50 attempts")
 }
 
 # Start of the rolling window used by the "recent activity" KPI cards.

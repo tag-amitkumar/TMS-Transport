@@ -63,10 +63,18 @@ booking_new_ui <- function(id) {
             # and the PIN drops to that city's head office. Which one the clerk
             # reaches for depends on what the consignor gave them — a printed
             # address carries a PIN, a phone call carries a city name.
+            # Rendered server-side, not declared with a value and updated
+            # afterwards. The branch's PIN is pushed by the city→PIN binding
+            # the moment the origin city selector reports "Nagpur", and that
+            # can land in the same flush as the page insertion — the update
+            # goes to an element not yet in the DOM and Shiny drops it. The
+            # field then sits empty showing its placeholder, which looks
+            # filled, and the form refuses to save with "Origin PIN code is
+            # not a valid Indian pincode" pointing at a PIN the clerk can
+            # plainly see. Same lesson as the customer dropdown above.
             div(class = "col-md-2",
                 tags$label(class = "form-label req", "Origin PIN"),
-                textInput(ns("f_from_pin"), NULL, width = "100%",
-                          placeholder = "440001")),
+                uiOutput(ns("sel_from_pin"))),
             div(class = "col-md-4",
                 tags$label(class = "form-label req", "Origin city"),
                 uiOutput(ns("sel_from")),
@@ -383,6 +391,16 @@ bookings_server <- function(id, user, nav) {
     output$sel_from <- renderUI(city_selector("f_from", home_city()))
     output$sel_to   <- renderUI(city_selector("f_to", NULL))
 
+    # The origin PIN carries its value from the first render, so the form is
+    # submittable the moment it opens rather than one round-trip later.
+    output$sel_from_pin <- renderUI({
+      hc <- home_city()
+      g  <- if (is.na(hc)) NULL else geo_city(hc)
+      textInput(ns("f_from_pin"), NULL, width = "100%",
+                value = if (is.null(g)) "" else g$pincode,
+                placeholder = "440001")
+    })
+
     # What the PIN actually resolved to. The city selector shows a district —
     # "Gautam Buddha Nagar" — which is not what the clerk typed or what the
     # consignor wrote, so echo the locality and state underneath to confirm the
@@ -536,14 +554,17 @@ bookings_server <- function(id, user, nav) {
       req(nzchar(input$f_from %||% ""), nzchar(input$f_to %||% ""))
       fp <- geo_pin(input$f_from_pin); tp <- geo_pin(input$f_to_pin)
 
-      # The PIN pair is the lane. Two ends in the same city is an ordinary
-      # local booking — cross-town cartage — and only an identical PIN at both
-      # ends is actually meaningless.
+      # Same PIN at both ends is a legitimate booking — a pickup and a drop
+      # inside one PIN code area — so it is reported, not refused. There is no
+      # distance to quote: the two ends resolve to one point by definition.
       if (!is.null(fp) && !is.null(tp) && identical(fp$pincode, tp$pincode)) {
-        return(callout("Same origin and destination PIN",
-                       paste0("Both ends resolve to ", fp$pincode, " · ", fp$locality,
-                              ". Give the delivery PIN, even for a local booking."),
-                       "warn"))
+        return(callout(
+          "Local delivery · within one PIN code",
+          HTML(paste0(
+            htmlEscape(fp$pincode), " · ", htmlEscape(fp$locality), ", ",
+            htmlEscape(fp$city), " at both ends.<br/>",
+            '<span class="tiny muted">Pickup and delivery are inside the same PIN code area, so there is no lane distance to quote. The pickup and delivery addresses are what separate the two ends; price it from your local rate card.</span>')),
+          "info"))
       }
       ln <- lane()
       if (is.null(ln)) {
@@ -671,11 +692,15 @@ bookings_server <- function(id, user, nav) {
       fp <- geo_pin(input$f_from_pin); tp <- geo_pin(input$f_to_pin)
       if (is.null(fp)) msgs <- c(msgs, "Origin PIN code is not a valid Indian pincode.")
       if (is.null(tp)) msgs <- c(msgs, "Destination PIN code is not a valid Indian pincode.")
-      # The PIN pair is what has to differ, not the city. Local cartage inside
-      # one city is ordinary freight, and refusing it because both ends read
-      # "Mumbai" would block a whole class of real bookings.
-      if (!is.null(fp) && !is.null(tp) && identical(fp$pincode, tp$pincode)) {
-        msgs <- c(msgs, "Origin and destination PIN codes must differ.")
+      # Nothing about the geography has to differ. A delivery from one address
+      # to another inside a single PIN code area is ordinary local cartage —
+      # two gates on the same industrial estate, two buildings on one street —
+      # and it is the pickup and delivery *addresses* that distinguish the ends
+      # of that job, not the PIN. Both are already required above.
+      if (nzchar(input$f_pickup %||% "") &&
+          identical(trimws(tolower(input$f_pickup %||% "")),
+                    trimws(tolower(input$f_drop %||% "")))) {
+        msgs <- c(msgs, "Pickup and delivery addresses are identical — one of them is wrong.")
       }
       # TBB without a billing branch is meaningless — the whole point of the
       # term is that some *other* branch raises the invoice.
@@ -832,11 +857,8 @@ bookings_server <- function(id, user, nav) {
       mfp <- geo_pin(input$m_from_pin); mtp <- geo_pin(input$m_to_pin)
       if (is.null(mfp)) msgs <- c(msgs, "Origin PIN code is not a valid Indian pincode.")
       if (is.null(mtp)) msgs <- c(msgs, "Destination PIN code is not a valid Indian pincode.")
-      # Same rule as the online form: the PIN pair is the lane, so a local
-      # booking with one city at both ends is perfectly valid.
-      if (!is.null(mfp) && !is.null(mtp) && identical(mfp$pincode, mtp$pincode)) {
-        msgs <- c(msgs, "Origin and destination PIN codes must differ.")
-      }
+      # Same rule as the online form: geography may repeat. A local job inside
+      # one PIN code is ordinary freight and the paper LR will show it.
       # A paper reference is the only thing tying this row back to the book it
       # came from, so it has to stay unique.
       if (nzchar(input$m_ref %||% "") &&

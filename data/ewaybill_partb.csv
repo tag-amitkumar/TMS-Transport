@@ -1,0 +1,2 @@
+partb_id,ewb_no,seq,vehicle_id,reg_no,entered_dt,valid_from,valid_to,reason,mode,entered_by
+PB-0001,K7M4XQ9T2WB5,1,VEH-002,MH-31 KT 2210,2026-09-04 18:00:00,2026-09-04 18:00:00,2026-09-10 18:00:00,First Part-B entered at generation,Manual,USR-0002

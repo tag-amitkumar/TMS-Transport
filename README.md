@@ -153,6 +153,7 @@ tools/             capture-screenshots.js, build-pincodes.R
 R/
   store.R          storage layer — the only code that touches files
   geo.R            India PIN code / city master, lane distance and transit
+  ewb.R            e-way bill validity and automatic Part-B re-entry
   seed.R           synthetic data generator
   rbac.R           roles, permission matrix, branch & owner scoping
   nav.R            sidebar tree, breadcrumbs, landing pages
@@ -160,8 +161,8 @@ R/
   ui_helpers.R     stat cards, pills, kanban, timelines, tables
   mod_*.R          one module per screen
 www/styles.css     shell, cards, kanban, pills, tables
-tests/smoke.R      257 data and invariant checks
-tests/functional.R 132 checks that drive the module servers
+tests/smoke.R      291 data and invariant checks
+tests/functional.R 174 checks that drive the module servers
 data/*.csv         seeded data
 data/reference/    India PIN code master — read-only, never written to
 ```
@@ -227,10 +228,10 @@ Rscript tests/smoke.R
 Rscript tests/functional.R
 ```
 
-**257 + 132 = 389 checks.** `smoke.R` covers module wiring, seed referential
+**291 + 174 = 465 checks.** `smoke.R` covers module wiring, seed referential
 integrity, the domain rules above, RBAC denials for every role, branch and
 owner scoping, the storage round-trip, the PIN code master and lane estimation,
-and the formatting helpers. `functional.R` drives the module servers through
+datetime coercion, e-way bill validity, and the formatting helpers. `functional.R` drives the module servers through
 `shiny::testServer` and asserts on what actually landed in the store — it
 exists because render-only tests once let an unsubmittable booking form ship.
 

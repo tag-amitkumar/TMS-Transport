@@ -9,7 +9,7 @@
 # ==================================================================
 
 suppressPackageStartupMessages({
-  source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/rbac.R")
+  source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
@@ -514,6 +514,99 @@ cat("\n== Booking geography ==\n")
      all(mapply(function(p, s) identical(geo_pin(p)$state, s),
                 bk$origin_pincode, bk$origin_state)))
   ok("distance is recorded",          all(as_num(bk$distance_km) > 0))
+}
+
+cat("\n== Datetimes survive a mixed column ==\n")
+{
+  # as.POSIXct() picks one format for a whole character vector and accepts a
+  # candidate only if every element parses with it, so one date-only value
+  # drags the column down to "%Y-%m-%d" and strptime silently drops the time
+  # off all the rest. Twelve consignment events read 00:00 on the tracking
+  # screen because one of them had no clock on it.
+  mixed <- c("2026-08-27 15:00:00", "2026-08-28", "2026-08-29 07:45:00")
+  got <- as_dt(mixed)
+  ok("a time survives alongside a date-only value",
+     format(got[1], "%H:%M") == "15:00")
+  ok("the later time survives too",  format(got[3], "%H:%M") == "07:45")
+  ok("a date with no time is midnight, not NA",
+     !is.na(got[2]) && format(got[2], "%H:%M") == "00:00")
+  ok("minutes-only timestamps parse",
+     format(as_dt("2026-08-27 15:30"), "%H:%M") == "15:30")
+  ok("blank becomes NA",             is.na(as_dt("")))
+  ok("nonsense becomes NA",          is.na(as_dt("not a date")))
+  ok("POSIXct passes through unchanged",
+     format(as_dt(as.POSIXct("2026-08-27 15:00:00", tz = "Asia/Kolkata")),
+            "%H:%M") == "15:00")
+  ok("result is POSIXct",            inherits(got, "POSIXct"))
+  ok("timezone is IST",              identical(attr(got, "tzone"), "Asia/Kolkata"))
+
+  # And the real tables must carry their times, which is what was visibly broken.
+  evs <- store_typed("consignment_events", num = "seq", datetime = "event_dt")
+  ok("seeded events are not all midnight",
+     !nrow(evs) || any(format(evs$event_dt, "%H:%M") != "00:00"))
+  # A live consignment whose latest movement is dated tomorrow reads as a
+  # broken clock to whoever is tracking it.
+  ok("no event is in the future",
+     !nrow(evs) || all(evs$event_dt <= Sys.time() + 60))
+  ok("events run in sequence order",
+     !nrow(evs) || all(vapply(split(evs, evs$cn_no), function(g) {
+       g <- g[order(g$seq), ]; all(diff(as.numeric(g$event_dt)) >= 0)
+     }, logical(1))))
+}
+
+cat("\n== References that get typed by hand ==\n")
+{
+  r <- vapply(seq_len(2000), function(i) safe_ref(12), character(1))
+  ok("reference is the requested length", all(nchar(r) == 12))
+  # The whole point of the alphabet: nothing that can be misread off a paper
+  # LR or a check-post screen.
+  ok("no zero or capital O",     !any(grepl("[0O]", r)))
+  ok("no one, I or L",           !any(grepl("[1IL]", r)))
+  ok("no separators or symbols", !any(grepl("[^A-Z2-9]", r)))
+  ok("alphabet is 8 digits and 23 letters", length(REF_ALPHABET) == 31)
+  ok("references are unique",    length(unique(r)) == length(r))
+  ok("uniqueness is enforced against existing",
+     !safe_ref(4, existing = "AAAA") %in% "AAAA")
+
+  # And the seeded bills must already be in that shape, or the demo shows the
+  # old format on screen while the code claims the new one.
+  e <- get_ewaybills()
+  ok("seeded EWB numbers use the safe alphabet",
+     !nrow(e) || !any(grepl("[^A-Z2-9]", e$ewb_no)))
+  ok("seeded EWB numbers carry no separator",
+     !nrow(e) || !any(grepl("[ -]", e$ewb_no)))
+}
+
+cat("\n== E-way bill validity ==\n")
+{
+  # One day per 200 km or part thereof — the statutory rule. A short lane is
+  # therefore a 24-hour window, which is the case that actually bites.
+  ok("200 km is one day",     ewb_validity_days(200) == 1)
+  ok("a local lane is one day", ewb_validity_days(12) == 1)
+  ok("201 km is two days",    ewb_validity_days(201) == 2)
+  ok("1035 km is six days",   ewb_validity_days(1035) == 6)
+  ok("a missing distance falls back to one day",
+     ewb_validity_days(NA) == 1)
+  ok("zero distance does not give zero days", ewb_validity_days(0) == 1)
+
+  # The seed must obey the same rule it documents, or the first person to check
+  # the arithmetic finds a contradiction.
+  e <- get_ewaybills(); pb <- ewb_partb()
+  if (nrow(e) && nrow(pb)) {
+    ok("bill mirrors its latest Part-B",
+       all(vapply(e$ewb_no, function(no) {
+         p <- ewb_partb(no)
+         !nrow(p) || identical(as.character(e$valid_to[e$ewb_no == no][1]),
+                               as.character(p$valid_to[nrow(p)]))
+       }, logical(1))))
+    ok("every Part-B entry belongs to a real bill", all(pb$ewb_no %in% e$ewb_no))
+    ok("Part-B sequence starts at 1",  min(pb$seq) == 1)
+    ok("Part-B ids are unique",        !any(duplicated(pb$partb_id)))
+    ok("every Part-B records its source", all(pb$mode %in% c("Manual", "Auto")))
+    ok("every Part-B gives a reason",  all(nzchar(pb$reason)))
+    ok("Part-B window matches the distance rule",
+       all(round(as.numeric(difftime(pb$valid_to, pb$valid_from, units = "days"))) >= 1))
+  }
 }
 cat(sprintf("\n%s  %d passed, %d failed\n\n",
             if (fail == 0) "PASS" else "FAIL", pass, fail))

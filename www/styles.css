@@ -759,3 +759,27 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
   .lr-sheet  { width: 100%; }
   .lr-slip   { page-break-inside: avoid; }
 }
+
+/* Small static tables inside modals.
+   A DataTable never initialises in a modal — its JS runs at page load — so
+   trails like the e-way bill Part-B history are plain markup and need the
+   register's typography applied by hand. */
+.tms-plain-table { width: 100%; border-collapse: collapse; margin: .25rem 0 0; }
+.tms-plain-table th {
+  text-align: left;
+  font-size: .625rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #7F93AB;
+  font-weight: 650;
+  border-bottom: 1px solid #E4EAF1;
+  padding: .4rem .55rem;
+  white-space: nowrap;
+}
+.tms-plain-table td {
+  border-bottom: 1px solid #F1F5F9;
+  padding: .45rem .55rem;
+  font-size: .8125rem;
+  vertical-align: middle;
+}
+.tms-plain-table tbody tr:last-child td { border-bottom: none; }

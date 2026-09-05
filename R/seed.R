@@ -733,9 +733,8 @@ build_seed <- function() {
     runif(n_ewb, -6, 6) * 3600
 
   out$ewaybills <- tibble::tibble(
-    ewb_no     = paste(sprintf("%04d", sample(7211:7299, n_ewb, TRUE)),
-                       sprintf("%04d", sample(1000:9999, n_ewb, TRUE)),
-                       sprintf("%04d", sample(1000:9999, n_ewb, TRUE))),
+    # Unambiguous alphabet, no separators — see safe_ref() in global.R.
+    ewb_no     = vapply(seq_len(n_ewb), function(i) safe_ref(12), character(1)),
     invoice_no = paste0(toupper(substr(gsub("[^A-Za-z]", "", clients$name[match(ewb_src$client_id, clients$client_id)]), 1, 2)),
                         "/26-27/", sprintf("%04d", sample(1000:9999, n_ewb, TRUE))),
     cn_no      = ewb_src$cn_no,

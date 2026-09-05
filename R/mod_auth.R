@@ -60,6 +60,12 @@ auth_ui <- function(id) {
         div(class = "text-center tiny muted", "Need help signing in? Contact your branch admin")
       ),
 
+      # Tracking sits outside the sign-in box on purpose. A consignee is not a
+      # user of this system and never will be — offering them a password field
+      # first, and a way to answer their actual question second, has it
+      # backwards.
+      public_track_ui("track"),
+
       if (DEMO_LOGIN) div(
         class = "text-center mt-4",
         div(class = "small-caps mb-2", style = "color:#7F93AB;", "Quick preview as"),

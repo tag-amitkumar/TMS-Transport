@@ -321,11 +321,104 @@ locality-level data; it is not solvable from the free dataset.
 
 ---
 
+---
+
+## Public shipment tracking
+
+The deck drew Shipment Tracking as an internal screen. A consignee is not an
+internal user — they have no account, they will never have one, and the only
+question they have is where the goods are. Phoning the branch to find out is
+the thing this replaces.
+
+**Decision:** a tracking lookup on the login page, outside the sign-in box,
+reachable without an account (`R/mod_public_track.R`).
+
+It shows the least that answers the question: LR number, the two cities, the
+status, the four dates and the movement trail. It does **not** show the
+customer name, either address, the consignor or consignee, the freight, the
+GST treatment, the invoice, the GSTIN, the vehicle registration or the driver.
+Those identify people and expose commercial terms, and none of them tell a
+consignee anything about where their goods are.
+
+**It asks for the delivery PIN as well as the LR number.** LR numbers run in
+sequence, so a lookup keyed on the LR alone would let anyone walk the register
+and read the movements of every customer the company has. Requiring the PIN is
+the pattern the parcel carriers use: something the consignee always knows and
+an enumerator almost never does. A wrong PIN and an LR that does not exist
+return the *same* message, deliberately — different messages would confirm
+which LR numbers are real. This is not authentication and does not pretend to
+be; it is the difference between a door on the latch and a door standing open.
+
+## E-way bill references, and Part-B
+
+### The number is built to be transcribed by hand
+
+An e-way bill number is read aloud at a check-post, copied onto a paper LR and
+keyed into another system, usually in a hurry and often in bad light. The
+generated reference therefore drops every character with a lookalike — `0`/`O`
+and `1`/`I`/`L` — and carries no separators, because a hyphen or a space
+invites "was that a dash?" and gets dropped or doubled on re-entry. What is
+left is `2-9` plus 23 letters: 31 characters, so a 12-character reference still
+spans 7.9 × 10¹⁷ combinations. `safe_ref()` in `global.R`.
+
+It is deliberately not the 12-digit numeric format the GST portal issues.
+Nothing here files against the real portal, and a reference that cannot be
+mistaken for a government e-way bill number is the honest way to say so.
+
+### Part-B is re-entered automatically when validity lapses in transit
+
+An e-way bill has two halves: Part-A is the consignment, Part-B is the vehicle.
+Validity does not start when Part-A is filed — it starts when Part-B is
+entered, and it runs **one day per 200 km**, so a short lane is a 24-hour
+window and a local one always is.
+
+When that window closes with the goods still on the road the bill is dead, and
+a vehicle stopped at a check-post with a lapsed e-way bill is detained. The
+remedy in the rules is to enter Part-B again, which opens a fresh window — and
+that is something a human has to remember to do, at 2am, for a truck they are
+not looking at.
+
+**Decision — deviates from the deck:** `ewb_autorenew()` in `R/ewb.R` finds
+every bill whose validity has lapsed while its consignment is still moving and
+files a new Part-B against it. It runs at startup and then on a timer in the
+main server, so it happens whichever screen anyone is on. Delivered, cancelled
+and returned consignments are left alone: renewing those would keep a dead
+document alive and hide the fact that the load has landed.
+
+Each entry is a row in `ewaybill_partb`, never an overwrite. The sequence of
+vehicle entries is the audit trail a GST officer would ask for, and collapsing
+it into a single `valid_to` would destroy the only evidence of why the bill is
+still alive. Manual extension goes through the same path — extending a bill
+*is* filing a fresh Part-B, there is no other mechanism in the rules — and the
+detail modal shows the whole trail with each entry marked Manual or Auto. Past
+three entries the bill is flagged: that is a load that is stuck, not moving.
+
+Shiny has no scheduler, so the sweep only runs while a session is open. A
+deployment that must renew round the clock wants a cron job calling
+`ewb_autorenew()`; the function is standalone and idempotent so that is a
+one-line script.
+
+## Same PIN at both ends is a booking, not an error
+
+Origin and destination were first keyed on the city, then on the PIN pair, and
+both were wrong. A pickup and a drop inside one PIN code area is ordinary local
+cartage — two gates on one industrial estate, two buildings on one street — and
+refusing it because the numbers match blocks a whole class of real freight.
+
+**Decision:** geography may repeat freely. What distinguishes the two ends of a
+job is the pickup and delivery **address**, both already required, and the only
+thing now refused is the same address at both ends. A same-PIN booking is
+reported as `Local delivery · within one PIN code` and carries no distance,
+because there is none to compute: the two ends resolve to one point by
+definition. Freight comes off the local rate card.
+
+---
+
 ## What this is, and is not
 
 This is a **working prototype**: all 31 screens navigable, real reactive data,
 CRUD on the master tables, and the booking → allocation → LR → POD → invoice →
-payment chain actually functioning end to end. 389 automated checks cover
+payment chain actually functioning end to end. 465 automated checks cover
 referential integrity, the domain rules above, RBAC and scoping.
 
 It is **not** a production ERP. Not built: fuel and expense management,

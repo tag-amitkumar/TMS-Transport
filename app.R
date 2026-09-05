@@ -10,6 +10,7 @@
 source("global.R")
 source("R/store.R")
 source("R/geo.R")
+source("R/ewb.R")
 source("R/rbac.R")
 source("R/seed.R")
 source("R/seed_minimal.R")
@@ -26,6 +27,11 @@ seed_if_empty()
 # any handler re-renders every view that reads it. Without this a booking
 # created from a dialog stayed invisible until the user navigated away and back.
 store_init_reactivity()
+
+# Any e-way bill that lapsed while the app was down gets a fresh Part-B before
+# the first screen renders, so nobody opens the register onto a truck that has
+# been running on a dead bill overnight.
+ewb_autorenew()
 
 # Screen modules.
 for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
@@ -56,6 +62,33 @@ server <- function(input, output, session) {
 
   user <- auth_server("auth")
   page <- reactiveVal("dashboard")
+
+  # Public tracking. Wired unconditionally, before any sign-in: it is the one
+  # capability that exists for people who will never have an account.
+  public_track_server("track")
+
+  # Part-B renewal, on a timer rather than inside the E-Way Bill module.
+  #
+  # A validity window closes at whatever hour it closes, and the person who
+  # needs it renewed is a driver at a check-post, not someone sitting on the
+  # e-way bill register. Running it here means it happens for as long as the
+  # app is up, whichever screen anyone is looking at.
+  #
+  # Shiny has no scheduler, so this only runs while at least one session is
+  # open. A deployment that must renew round the clock wants a cron job calling
+  # ewb_autorenew() — the function is deliberately standalone and idempotent so
+  # that is a one-line script, not a rewrite.
+  observe({
+    invalidateLater(EWB_RENEW_INTERVAL_MS)
+    done <- ewb_autorenew()
+    if (!is.null(done) && NROW(done)) {
+      showNotification(
+        sprintf("Part-B re-entered automatically on %d e-way bill%s still in transit: %s.",
+                NROW(done), if (NROW(done) == 1) "" else "s",
+                paste(done$lr_no, collapse = ", ")),
+        type = "warning", duration = 12)
+    }
+  })
 
   # Land each role somewhere it is actually allowed to be.
   observeEvent(user(), {

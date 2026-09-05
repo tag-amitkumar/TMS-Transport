@@ -1,2 +1,2 @@
-ewb_no,invoice_no,cn_no,lr_no,gstin,vehicle_id,transporter_id,valid_from,valid_to,status
-7213 4456 8890,BM/26-27/0002,CN-00002,LR-0002,07AABCB9922K1Z8,VEH-002,27AAACA1234F1ZT,2026-09-04 18:00:00,2026-09-07 09:49:22,Valid
+ewb_no,invoice_no,cn_no,lr_no,gstin,vehicle_id,transporter_id,valid_from,valid_to,part_b_seq,status
+K7M4XQ9T2WB5,BM/26-27/0002,CN-00002,LR-0002,07AABCB9922K1Z8,VEH-002,27AAACA1234F1ZT,2026-09-04 18:00:00,2026-09-10 18:00:00,1,Valid

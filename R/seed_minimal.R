@@ -284,32 +284,84 @@ build_seed_minimal <- function() {
   # Timeline: the delivered one has run the full course, the live one is midway.
   steps <- c("Booking Created", "Vehicle Allocated", "Picked Up", "In Transit",
              "At Hub", "Out For Delivery", "Delivered", "POD Uploaded")
-  ev <- function(cn, n, start) {
+  #
+  # Events are spread evenly between the two ends of the journey rather than
+  # stepped forward by a fixed interval. Fixed steps put the first event nine
+  # hours *after* the load was booked and marched the last one past today —
+  # a live consignment whose most recent movement is dated tomorrow, which
+  # reads as a broken clock on the tracking screen.
+  ev <- function(cn, n, start, end) {
+    t0 <- as.POSIXct(start, tz = "Asia/Kolkata")
+    t1 <- as.POSIXct(end,   tz = "Asia/Kolkata")
+    at <- t0 + seq(0, 1, length.out = n) * as.numeric(difftime(t1, t0, units = "secs"))
     tibble::tibble(
       cn_no    = cn,
       seq      = seq_len(n),
       event    = steps[seq_len(n)],
       detail   = "",
-      event_dt = as.character(as.POSIXct(start, tz = "Asia/Kolkata") +
-                                cumsum(rep(9, n)) * 3600)
+      # Whole minutes: a timeline reading 14:37:22 implies a precision no
+      # depot clerk ever entered.
+      event_dt = format(at, "%Y-%m-%d %H:%M:00")
     )
   }
   out$consignment_events <- dplyr::bind_rows(
-    ev("CN-00001", 8, paste(done_dispatch, "06:00:00")),
-    ev("CN-00002", 4, paste(TODAY - 1, "18:00:00"))
+    # Booked, run, delivered, POD in — the whole course, all of it behind us.
+    ev("CN-00001", 8, paste(done_dispatch - 1, "10:00:00"),
+                      paste(done_deliver, "16:00:00")),
+    # Still on the road: the trail starts at dispatch and ends at the last
+    # movement, which is now.
+    ev("CN-00002", 4, paste(TODAY - 1, "18:00:00"),
+                      format(NOW, "%Y-%m-%d %H:%M:%S"))
   )
 
   # ---------------- E-way bill ----------------
   # Only the consignment actually on the road carries one; a delivered
   # consignment's bill is spent and drops out of the register.
+  #
+  # The reference uses the unambiguous alphabet (no 0/O, no 1/I/L, no
+  # separators) because this number gets read aloud at a check-post and keyed
+  # in again by hand. It is deliberately not the 12-digit numeric format the
+  # GST portal issues — nothing here files against the real portal.
+  ewb_ref <- "K7M4XQ9T2WB5"
+  # Validity is derived, not typed: one day per 200 km on the 1,035 km lane,
+  # counted from when the load actually left. Hard-coding a window here would
+  # let the seed drift away from the rule the app enforces.
+  ewb_from <- paste(TODAY - 1, "18:00:00")
+  ewb_to   <- format(as.POSIXct(ewb_from, tz = "Asia/Kolkata") +
+                       ewb_validity_days(1035) * 86400, "%Y-%m-%d %H:%M:%S")
   out$ewaybills <- tibble::tibble(
-    ewb_no = "7213 4456 8890", invoice_no = "BM/26-27/0002",
+    ewb_no = ewb_ref, invoice_no = "BM/26-27/0002",
     cn_no = "CN-00002", lr_no = "LR-0002",
     gstin = "07AABCB9922K1Z8", vehicle_id = "VEH-002",
     transporter_id = "27AAACA1234F1ZT",
-    valid_from = paste(TODAY - 1, "18:00:00"),
-    valid_to   = format(NOW + 2 * 86400, "%Y-%m-%d %H:%M:%S"),
+    valid_from = ewb_from,
+    valid_to   = ewb_to,
+    part_b_seq = 1,
     status     = "Valid"
+  )
+
+  # ---------------- E-way bill Part-B trail ----------------
+  # Validity runs from the latest Part-B entry, not from Part-A, so this trail
+  # is the only record of why a bill is still alive and who kept it alive.
+  #
+  # One entry, because the window on this lane has not closed yet. The 1,035 km
+  # Delhi–Nagpur run earns six days under the one-day-per-200-km rule, and the
+  # load went out yesterday. Writing a lapse-and-renewal into the seed would
+  # have meant a stored validity that contradicts the rule the code applies —
+  # the sort of seeded fiction that reads as a bug the first time somebody
+  # checks the arithmetic.
+  out$ewaybill_partb <- tibble::tibble(
+    partb_id   = "PB-0001",
+    ewb_no     = ewb_ref,
+    seq        = 1,
+    vehicle_id = "VEH-002",
+    reg_no     = "MH-31 KT 2210",
+    entered_dt = ewb_from,
+    valid_from = ewb_from,
+    valid_to   = ewb_to,
+    reason     = "First Part-B entered at generation",
+    mode       = "Manual",
+    entered_by = "USR-0002"
   )
 
   # ---------------- POD ----------------

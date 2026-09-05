@@ -16,7 +16,7 @@
 
 suppressPackageStartupMessages({
   library(shiny)
-  source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/rbac.R")
+  source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
@@ -87,6 +87,18 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
   fhtml <- as.character(output$sel_from$html %||% output$sel_from)
   ok("origin selector renders", nchar(fhtml) > 50)
 
+  # The origin PIN must arrive with a value, not just a placeholder. Pushing it
+  # from an observer after render raced the page insertion: the update landed
+  # on an element that was not in the DOM yet and was dropped, so the field sat
+  # empty while *displaying* the placeholder "440001" in grey — and the form
+  # then refused to save, citing an invalid PIN the clerk could see on screen.
+  phtml <- as.character(output$sel_from_pin$html %||% output$sel_from_pin)
+  br1 <- store_get("branches")
+  home_pin <- br1$pincode[match(admin$branch_id, br1$branch_id)]
+  ok("origin PIN field renders", nchar(phtml) > 20)
+  ok("origin PIN carries a real value, not only a placeholder",
+     grepl(paste0('value="', home_pin, '"'), phtml, fixed = TRUE))
+
   before <- nrow(store_get("bookings"))
 
   # Empty form must be refused, not silently saved.
@@ -99,31 +111,30 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
   session$setInputs(confirm = 1)
   ok("empty form is refused", nrow(store_get("bookings")) == before)
 
-  # The same PIN at both ends is meaningless and must be refused.
-  session$setInputs(f_client = cl$client_id[1], f_pickup = "A", f_drop = "B",
+  # Geography may repeat. A pickup and a drop inside one PIN code area is
+  # ordinary local cartage — two gates on one industrial estate — and refusing
+  # it because the numbers match would block a whole class of real bookings.
+  # What separates the two ends of that job is the address, not the PIN.
+  session$setInputs(f_client = cl$client_id[1],
+                    f_pickup = "Gate 2, Hingna MIDC", f_drop = "Gate 7, Hingna MIDC",
                     f_material = "Cement", f_from = "Nagpur", f_to = "Nagpur",
-                    f_from_pin = "440016", f_to_pin = "440016")
+                    f_from_pin = "440016", f_to_pin = "440016",
+                    f_weight = 6, f_freight = 3500)
   session$setInputs(confirm = 2)
-  ok("identical origin/destination PIN refused",
-     nrow(store_get("bookings")) == before)
-
-  # The same *city* at both ends, though, is an ordinary local booking —
-  # cross-town cartage — and must go through as long as the PINs differ.
-  session$setInputs(f_to_pin = "440001", f_weight = 6, f_freight = 3500)
-  session$setInputs(confirm = 21)
   local_ok <- nrow(store_get("bookings")) == before + 1
-  ok("same city with different PINs is allowed", local_ok)
+  ok("same PIN at both ends is allowed", local_ok)
   if (local_ok) {
     lb <- get_bookings(); lb <- lb[nrow(lb), ]
     ok("local booking keeps both PINs",
        identical(lb$origin_pincode, "440016") &&
-       identical(lb$dest_pincode, "440001"))
+       identical(lb$dest_pincode, "440016"))
     ok("local booking is one city at both ends",
        identical(lb$origin_city, lb$dest_city))
+    ok("the two addresses are what differ",
+       !identical(lb$pickup_address, lb$delivery_address))
     # Cross-town, not a trunk lane: the mapped Nagpur→Delhi distance must not
-    # be applied just because a city matched at one end. Both Nagpur codes are
-    # graded 1 in the reference data and share a coordinate, so the distance is
-    # deliberately left blank rather than recorded as zero.
+    # be applied just because a city matched at one end. Two ends on one point
+    # have no distance at all, so it is left blank rather than stored as zero.
     ok("trunk distance is not applied to a local booking",
        is.na(as_num(lb$distance_km)) || as_num(lb$distance_km) < 60)
     ok("unknown local distance stored blank, not zero",
@@ -131,6 +142,13 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
     store_delete("bookings", list(booking_no = lb$booking_no))
   }
   before <- nrow(store_get("bookings"))
+
+  # The one thing here that really is a mistake: the same address at both ends.
+  session$setInputs(f_pickup = "Gate 2, Hingna MIDC", f_drop = "  gate 2, hingna midc ")
+  session$setInputs(confirm = 22)
+  ok("identical pickup and delivery addresses refused",
+     nrow(store_get("bookings")) == before)
+  session$setInputs(f_pickup = "A", f_drop = "B")
 
   # Zero weight must be refused.
   session$setInputs(f_to = "Delhi", f_to_pin = "110020", f_weight = 0)
@@ -840,6 +858,155 @@ testServer(tracking_server, args = list(user = usr()), {
   ok("tracking reports a miss cleanly", grepl("No shipment found", html2, fixed = TRUE))
 })
 
+# ==================================================================
+section("E-way bill Part-B renews itself when validity lapses in transit")
+
+local({
+  e <- get_ewaybills()
+  ok("a bill exists to test", nrow(e) > 0)
+  no <- e$ewb_no[1]
+  cn_no <- e$cn_no[1]
+  before <- nrow(ewb_partb(no))
+
+  lapse <- function() store_update("ewaybills", list(ewb_no = no),
+    list(valid_to = format(Sys.time() - 3600, "%Y-%m-%d %H:%M:%S")))
+
+  # A live bill must be left alone. Renewing one that has not expired would
+  # reset a window that is doing its job.
+  ok("a valid bill is not touched", NROW(ewb_autorenew()) == 0)
+  ok("no Part-B added",             nrow(ewb_partb(no)) == before)
+
+  # Lapsed, goods still moving: this is the case the feature exists for.
+  store_update("consignments", list(cn_no = cn_no), list(status = "In Transit"))
+  lapse()
+  done <- ewb_autorenew()
+  ok("lapsed bill in transit is renewed", NROW(done) == 1)
+  ok("a Part-B entry is filed",           nrow(ewb_partb(no)) == before + 1)
+
+  pb <- ewb_partb(no); last <- pb[nrow(pb), ]
+  ok("the new entry is marked automatic", identical(last$mode, "Auto"))
+  ok("the new entry records why",         grepl("lapsed", last$reason))
+  ok("the new entry is attributed to the system",
+     identical(last$entered_by, "system"))
+  ok("the sequence increments",           last$seq == before + 1)
+  ok("validity now runs into the future", last$valid_to > Sys.time())
+
+  # The bill itself has to mirror the latest Part-B, or every existing reader
+  # of valid_to keeps seeing the dead window.
+  e2 <- get_ewaybills(); r2 <- e2[e2$ewb_no == no, ]
+  ok("bill mirrors the new window",
+     identical(as.character(r2$valid_to[1]), as.character(last$valid_to)))
+  ok("bill is Valid again", identical(r2$status[1], "Valid"))
+
+  # Running the sweep again must be a no-op — it is on a timer, so it will be
+  # called far more often than anything actually expires.
+  n_after <- nrow(ewb_partb(no))
+  ok("sweep is idempotent",     NROW(ewb_autorenew()) == 0)
+  ok("no duplicate Part-B row", nrow(ewb_partb(no)) == n_after)
+
+  # Delivered goods do not need a live e-way bill. Renewing one would keep a
+  # dead document alive and hide the fact that the load has landed.
+  store_update("consignments", list(cn_no = cn_no), list(status = "Delivered"))
+  lapse()
+  ok("a delivered consignment is not renewed", NROW(ewb_autorenew()) == 0)
+  ok("still no extra Part-B row", nrow(ewb_partb(no)) == n_after)
+
+  # An audit row is what makes an automatic change defensible after the fact.
+  al <- store_get("audit_log")
+  ok("automatic renewal is audited",
+     any(al$action == "part-b-auto" & grepl(no, al$detail, fixed = TRUE)))
+})
+
+# ==================================================================
+section("Public tracking — what an unauthenticated visitor can and cannot see")
+
+testServer(public_track_server, {
+  cn <- get_consignments()
+  bk <- get_bookings()
+  c1 <- cn[1, ]
+  pin <- bk$dest_pincode[bk$booking_no == c1$booking_no][1]
+  ok("the sample consignment has a delivery PIN", nzchar(pin %||% ""))
+
+  # Nothing at all until asked.
+  ok("nothing is shown before a lookup", is.null(result()))
+
+  # Both fields are required.
+  session$setInputs(lr = c1$lr_no, pin = "")
+  session$setInputs(go = 1)
+  ok("PIN is required", !is.null(result()$err))
+
+  # Right LR, wrong PIN — must be refused. This is the whole protection.
+  session$setInputs(lr = c1$lr_no, pin = "999999")
+  session$setInputs(go = 2)
+  ok("wrong PIN is refused", !is.null(result()$err))
+  ok("wrong PIN returns no consignment", is.null(result()$cn))
+
+  # An LR that does not exist must give the *same* answer as a wrong PIN, or
+  # the difference between the two messages tells an enumerator which LR
+  # numbers are real.
+  wrong_pin_msg <- result()$err
+  session$setInputs(lr = "LR-999999", pin = pin)
+  session$setInputs(go = 3)
+  ok("unknown LR is refused", !is.null(result()$err))
+  ok("unknown LR is indistinguishable from a wrong PIN",
+     identical(result()$err, wrong_pin_msg))
+
+  # The right pair opens it.
+  session$setInputs(lr = c1$lr_no, pin = pin)
+  session$setInputs(go = 4)
+  r <- result()
+  ok("correct LR and PIN resolve",  is.null(r$err) && !is.null(r$cn))
+  ok("it is the right consignment", identical(r$cn$lr_no, c1$lr_no))
+
+  # Case and the LR- prefix should not stand between a consignee and an answer.
+  session$setInputs(lr = tolower(c1$lr_no), pin = pin)
+  session$setInputs(go = 5)
+  ok("lookup is case-insensitive", !is.null(result()$cn))
+
+  session$setInputs(lr = sub("^LR-", "", c1$lr_no), pin = pin)
+  session$setInputs(go = 6)
+  ok("the LR- prefix is optional", !is.null(result()$cn))
+
+  # The CN number is printed on the same paper, so it must work too.
+  session$setInputs(lr = c1$cn_no, pin = pin)
+  session$setInputs(go = 7)
+  ok("the CN number also resolves", !is.null(result()$cn))
+
+  # And the rendered output must not carry commercial or personal detail.
+  session$setInputs(lr = c1$lr_no, pin = pin)
+  session$setInputs(go = 8)
+  html <- paste(as.character(output$out$html %||% output$out), collapse = " ")
+  ok("tracking renders something", nchar(html) > 100)
+  ok("the status is shown",        grepl(c1$status, html, fixed = TRUE))
+  ok("the route is shown",         grepl(c1$origin_city, html, fixed = TRUE))
+
+  cust <- get_clients()$name[get_clients()$client_id == c1$client_id][1]
+  ok("the customer is not named",   !grepl(cust, html, fixed = TRUE))
+  ok("the pickup address is hidden",
+     !nzchar(c1$origin_addr %||% "") || !grepl(c1$origin_addr, html, fixed = TRUE))
+  ok("the delivery address is hidden",
+     !nzchar(c1$dest_addr %||% "") || !grepl(c1$dest_addr, html, fixed = TRUE))
+
+  gstin <- get_clients()$gstin[get_clients()$client_id == c1$client_id][1]
+  ok("the GSTIN is hidden", !grepl(gstin, html, fixed = TRUE))
+
+  v <- store_get("vehicles")
+  reg <- v$reg_no[v$vehicle_id == c1$vehicle_id][1]
+  ok("the vehicle registration is hidden",
+     is.na(reg) || !grepl(reg, html, fixed = TRUE))
+
+  d <- get_drivers(); emp <- get_employees()
+  drv <- emp$name[emp$employee_id == c1$driver_id][1]
+  ok("the driver is not named", is.na(drv) || !grepl(drv, html, fixed = TRUE))
+
+  # Freight is the commercially sensitive number on the row.
+  ok("the freight amount is hidden",
+     is.na(c1$freight) || !grepl(format(round(c1$freight)), html, fixed = TRUE))
+})
+
+# Every section above this line writes for real. The restore has to come after
+# the last of them, not the middle — sections appended below an earlier
+# restore ran against live data and left it mutated.
 restore_data()
 
 # The whole point of the scratch copy is that the suite leaves no trace. Prove

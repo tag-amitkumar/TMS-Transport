@@ -151,6 +151,40 @@ ewaybill_server <- function(id, user, nav) {
               "Valid from" = fmt_dt(e$valid_from),
               "Valid to"   = fmt_dt(e$valid_to),
               "Status"     = pill(e$status)))),
+
+        # The Part-B trail. Validity runs from the latest entry, so the only way
+        # to see why a bill is still alive — and who or what kept it alive — is
+        # to show every entry rather than the current window alone.
+        # A plain table, not a DT. A DataTable inside a modal never gets
+        # initialised — the widget's JS runs on page load, so the markup goes in
+        # and nothing draws it, leaving a heading over an empty gap. For a trail
+        # that is rarely more than three rows the paging and search were never
+        # worth anything anyway.
+        {
+          pb <- ewb_partb(e$ewb_no)
+          if (!nrow(pb)) NULL else div(
+            class = "mt-3",
+            tags$label(class = "form-label", "Part-B entries"),
+            tags$table(
+              class = "table tms-plain-table",
+              tags$thead(tags$tr(lapply(
+                c("#", "ENTERED", "VEHICLE", "VALID TO", "SOURCE", "REASON"),
+                function(h) tags$th(h)))),
+              tags$tbody(lapply(seq_len(nrow(pb)), function(i) {
+                r <- pb[i, ]
+                tags$tr(
+                  tags$td(r$seq),
+                  tags$td(fmt_dt(r$entered_dt)),
+                  tags$td(span(class = "mono", r$reg_no)),
+                  tags$td(fmt_dt(r$valid_to)),
+                  tags$td(pill(r$mode, if (identical(r$mode, "Auto")) "blue" else "grey")),
+                  tags$td(class = "tiny muted", r$reason))
+              }))),
+            if (nrow(pb) >= EWB_RENEW_ALERT_AFTER) callout(
+              paste(nrow(pb), "Part-B entries on one consignment"),
+              "Validity has been reopened this many times, which usually means the load is stuck rather than moving. Worth a look before it is renewed again.",
+              "warn") else NULL)
+        },
         if (e$status != "Valid") div(class = "mt-3",
           callout(if (e$status == "Expired") "Dispatch blocked" else "Expiring soon",
                   if (e$status == "Expired")
@@ -159,29 +193,28 @@ ewaybill_server <- function(id, user, nav) {
                   if (e$status == "Expired") "danger" else "warn")),
         footer = tagList(
           modalButton("Close"),
-          if (e$status != "Valid" && can(user()$role, "ewaybill", "edit"))
-            btn_primary(ns("extend_one"), "Extend validity")
+          # Available whatever the status. Re-entering Part-B is not only a
+          # rescue for a lapsed bill — it is also what a transporter files on a
+          # vehicle change or a transhipment, and the window reopening is a
+          # side effect of that, not the point of it.
+          if (can(user()$role, "ewaybill", "edit"))
+            btn_primary(ns("extend_one"),
+                        if (e$status == "Valid") "Re-enter Part-B" else "Re-enter Part-B and extend")
         )
       ))
       session$userData$ewb_sel <- e$ewb_no
     })
 
-    # Extension adds 24h per 200 km of remaining distance, which is how the
-    # statutory validity rule works.
+    # Extending a bill *is* filing a fresh Part-B — there is no other mechanism
+    # in the rules — so it goes through the same path the automatic sweep uses
+    # and leaves the same audit trail. It used to overwrite valid_to in place,
+    # which produced a bill that was demonstrably still alive with nothing on
+    # record to say why.
     extend <- function(ewb_nos) {
-      e <- get_ewaybills()
-      tr <- get_trips(); cn <- get_consignments()
       n <- 0
       for (no in ewb_nos) {
-        row <- e[e$ewb_no == no, ]
-        if (!nrow(row)) next
-        t <- tr[tr$trip_no %in% cn$trip_no[cn$cn_no == row$cn_no[1]], ]
-        km <- if (nrow(t)) as.numeric(t$distance_km[1]) else 200
-        add <- max(1, ceiling(km / 200))
-        store_update("ewaybills", list(ewb_no = no), list(
-          valid_to = format(Sys.time() + add * 86400, "%Y-%m-%d %H:%M:%S"),
-          status = "Valid"
-        ))
+        if (is.null(ewb_partb_add(no, reason = "Validity extended by operator",
+                                  mode = "Manual", user_id = user()$user_id))) next
         n <- n + 1
       }
       audit(user()$user_id, "extend", "ewaybill", paste(n, "bills"))
@@ -192,7 +225,8 @@ ewaybill_server <- function(id, user, nav) {
       if (!require_perm(session, user()$role, "ewaybill", "edit")) return()
       n <- extend(session$userData$ewb_sel)
       removeModal()
-      showNotification(sprintf("%d e-way bill extended.", n), type = "message")
+      showNotification(sprintf("Part-B re-entered on %d e-way bill. Validity restarts from now.", n),
+                       type = "message")
     })
 
     observeEvent(input$renew_all, {
@@ -230,14 +264,8 @@ ewaybill_server <- function(id, user, nav) {
       req(input$g_cn)
       cn <- get_consignments(); c1 <- cn[cn$cn_no == input$g_cn, ]
       req(nrow(c1)); c1 <- c1[1, ]
-      cl <- store_get("clients"); tr <- get_trips()
-      t <- tr[tr$trip_no == c1$trip_no, ]
-      km <- if (nrow(t)) as.numeric(t$distance_km[1]) else 200
-      add <- max(1, ceiling(km / 200))
-
-      ref <- paste(sprintf("%04d", sample(7211:7299, 1)),
-                   sprintf("%04d", sample(1000:9999, 1)),
-                   sprintf("%04d", sample(1000:9999, 1)))
+      cl <- store_get("clients")
+      ref <- safe_ref(12, existing = get_ewaybills()$ewb_no)
 
       store_insert("ewaybills", list(
         ewb_no = ref,
@@ -246,10 +274,14 @@ ewaybill_server <- function(id, user, nav) {
         gstin = cl$gstin[match(c1$client_id, cl$client_id)],
         vehicle_id = c1$vehicle_id,
         transporter_id = paste0(substr(setting("company_gstin", ""), 1, 13), "ZT"),
-        valid_from = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-        valid_to   = format(Sys.time() + add * 86400, "%Y-%m-%d %H:%M:%S"),
         status = "Valid"
       ))
+      # Validity does not start with Part-A — filing the first Part-B is what
+      # starts the clock. Setting the window there rather than duplicating the
+      # arithmetic here keeps one rule in one place for generation and renewal.
+      ewb_partb_add(ref, vehicle_id = c1$vehicle_id,
+                    reason  = "First Part-B entered at generation",
+                    mode    = "Manual", user_id = user()$user_id)
       audit(user()$user_id, "generate", "ewaybill", paste(ref, "for", c1$lr_no))
       removeModal()
       showNotification(paste("Reference", ref, "generated for", c1$lr_no), type = "message")
