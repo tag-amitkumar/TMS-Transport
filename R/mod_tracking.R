@@ -172,7 +172,7 @@ tracking_server <- function(id, user) {
       showModal(modalDialog(
         title = "Share tracking link", easyClose = TRUE,
         p("Send the consignee a read-only link that shows the timeline without a sign-in:"),
-        div(class = "field-static mono", paste0("https://track.amardiptms.in/", track_id(c$lr_no))),
+        div(class = "field-static mono", paste0("https://track.", BRAND$domain, "/", track_id(c$lr_no))),
         callout("Read-only",
                 "The link exposes status and ETA only — no pricing, no other consignments.",
                 "info"),

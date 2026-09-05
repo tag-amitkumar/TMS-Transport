@@ -340,7 +340,20 @@ tms_table <- function(df, colnames = NULL, page = 12, selection = "single",
       lengthChange = FALSE,
       ordering     = !is.null(order),
       order        = order %||% list(),
-      scrollX      = TRUE,
+      # scrollX is deliberately off.
+      #
+      # DataTables' horizontal scrolling is not CSS overflow. It splits the
+      # header into a second table and keeps the two aligned by measuring and
+      # writing inline column widths on every draw. Against the
+      # `width: 100% !important` this stylesheet sets, the two fight: DT writes
+      # widths, the stylesheet overrides them, DT re-measures on the next
+      # redraw — and the table visibly stretches out to the right every time
+      # it renders or anything reactive touches it.
+      #
+      # Wide tables still scroll: `.tms-table` carries `overflow-x: auto`, which
+      # is the browser's own scrolling. No measuring pass, no width rewriting,
+      # nothing that moves.
+      scrollX      = FALSE,
       scrollY      = height,
       columnDefs   = c(
         list(list(className = "dt-head-left", targets = "_all")),

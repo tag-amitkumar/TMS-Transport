@@ -351,6 +351,12 @@ body {
    Tables (DT)
    ------------------------------------------------------------------ */
 
+/* Wide tables scroll natively. DataTables own scrollX is off (see tms_table)
+   because its width-syncing pass stretched the table sideways on every redraw;
+   this is plain browser overflow, which does not animate and does not
+   re-measure anything. */
+.tms-table { overflow-x: auto; }
+
 .tms-table table.dataTable {
   border-collapse: collapse !important;
   font-size: .8125rem;

@@ -161,7 +161,7 @@ R/
   ui_helpers.R     stat cards, pills, kanban, timelines, tables
   mod_*.R          one module per screen
 www/styles.css     shell, cards, kanban, pills, tables
-tests/smoke.R      291 data and invariant checks
+tests/smoke.R      300 data and invariant checks
 tests/functional.R 174 checks that drive the module servers
 data/*.csv         seeded data
 data/reference/    India PIN code master — read-only, never written to
@@ -221,6 +221,37 @@ Rscript tools/build-pincodes.R path/to/IN.txt
 > whose two ends share a point, rather than quoting a figure it cannot
 > support. See DESIGN-REVIEW.md.
 
+
+## Branding
+
+Everything the operator's identity touches — the page title, the sidebar, the
+login card, printed lorry receipts and invoices, generated email addresses and
+the support contact — reads from the `BRAND` block at the top of `global.R`.
+Rebranding is that block plus one image; there is nothing to chase through the
+screen modules.
+
+```r
+BRAND <- list(
+  company = "MoveWing Logistics Pvt. Ltd.",
+  short   = "MoveWing",
+  unit    = "Logistics Pvt. Ltd.",
+  product = "Transport Management System",
+  domain  = "movewinglogistics.in",
+  logo    = "logo.png",
+  navy    = "#12275C",
+  orange  = "#E9631A"
+)
+```
+
+**The logo.** Save the artwork as `www/logo.png` and it appears on the login
+card and on printed documents — the white surfaces the lock-up was drawn for.
+Until that file exists the app draws an "MW" monogram in the brand colours
+instead, so a fresh clone is never showing a broken image.
+
+The navy sidebar keeps the monogram either way: the supplied lock-up is a wide
+mark on a white ground, and dropping it into a dark rail would put a white slab
+down the side of every screen.
+
 ## Tests
 
 ```bash
@@ -228,7 +259,7 @@ Rscript tests/smoke.R
 Rscript tests/functional.R
 ```
 
-**291 + 174 = 465 checks.** `smoke.R` covers module wiring, seed referential
+**300 + 174 = 474 checks.** `smoke.R` covers module wiring, seed referential
 integrity, the domain rules above, RBAC denials for every role, branch and
 owner scoping, the storage round-trip, the PIN code master and lane estimation,
 datetime coercion, e-way bill validity, and the formatting helpers. `functional.R` drives the module servers through

@@ -437,7 +437,7 @@ build_seed <- function() {
   handle <- gsub(" ", ".", handle)
   # De-duplicate the local part, not the finished address — appending to the
   # whole string lands the counter after the TLD and yields "…@domain.in1".
-  email  <- paste0(make.unique(handle, sep = "."), "@amardiptms.in")
+  email  <- paste0(make.unique(handle, sep = "."), "@", BRAND$domain)
 
   users <- tibble::tibble(
     user_id      = sprintf("USR-%04d", seq_len(n_usr)),
@@ -1030,10 +1030,10 @@ build_seed <- function() {
   # ---------------- Settings ----------------
   out$settings <- tibble::tribble(
     ~key, ~value,
-    "company_name",    "Amardip Road Carriers",
+    "company_name",    BRAND$company,
     "company_gstin",   branches$gstin[1],
     "registered_office","Plot 14, MIDC, Hingna Rd, Nagpur 440016",
-    "support_email",   "support@amardiptms.in",
+    "support_email",   paste0("support@", BRAND$domain),
     "support_phone",   "+91 98230 11223",
     "base_currency",   "INR",
     "timezone",        "Asia/Kolkata",

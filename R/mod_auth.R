@@ -23,19 +23,24 @@ auth_ui <- function(id) {
     div(
       div(
         class = "login-card",
+        # The login card is white, so it gets the full artwork. That lock-up
+        # already carries the company name, so the wordmark below it is dropped
+        # when the file is present — otherwise the card says MoveWing twice.
         div(
           class = "text-center mb-4",
-          div(class = "tms-brand-tile mx-auto mb-3",
-              style = "width:52px;height:52px;font-size:1.5rem;border-radius:12px;", "T"),
-          h4(class = "mb-0", style = "font-weight:700;color:#12263F;letter-spacing:-.01em;", "TMS"),
-          div(class = "small-caps mt-1", "Transport Management System")
+          div(class = "d-flex justify-content-center mb-3",
+              brand_logo(if (brand_has_logo()) 86 else 52)),
+          if (!brand_has_logo())
+            h4(class = "mb-0", style = "font-weight:700;color:#12263F;letter-spacing:-.01em;",
+               BRAND$short),
+          div(class = "small-caps mt-1", BRAND$product)
         ),
 
         div(
           class = "mb-3",
           tags$label(class = "form-label req", "Email or Username"),
           textInput(ns("email"), NULL, value = "", width = "100%",
-                    placeholder = "you@amardiptms.in")
+                    placeholder = paste0("you@", BRAND$domain))
         ),
         div(
           class = "mb-2",

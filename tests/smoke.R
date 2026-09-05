@@ -554,6 +554,33 @@ cat("\n== Datetimes survive a mixed column ==\n")
      }, logical(1))))
 }
 
+cat("\n== Brand is wired from one place ==\n")
+{
+  ok("company name is set",       nzchar(BRAND$company))
+  ok("settings carry the company", identical(setting("company_name"), BRAND$company))
+  ok("support email uses the brand domain",
+     grepl(paste0("@", BRAND$domain), setting("support_email"), fixed = TRUE))
+  ok("every user email is on the brand domain",
+     all(grepl(paste0("@", BRAND$domain, "$"), store_get("users")$email)))
+  # A rebrand that leaves the previous operator's name in the seed is the kind
+  # of thing nobody notices until it is on a customer's lorry receipt.
+  ok("no trace of the previous brand in the data",
+     !any(grepl("amardip", unlist(lapply(TABLES, function(t) {
+       d <- store_get(t); if (nrow(d)) as.character(unlist(d)) else character(0)
+     })), ignore.case = TRUE)))
+  ok("page title names the company and the product",
+     grepl(BRAND$short, BRAND$title, fixed = TRUE) &&
+     grepl(BRAND$product, BRAND$title, fixed = TRUE))
+
+  # The mark must render whether or not the artwork file is present — a missing
+  # logo should degrade to a monogram, never to a broken image.
+  ok("mark renders", nchar(as.character(brand_mark(38))) > 20)
+  ok("logo renders with or without the file",
+     nchar(as.character(brand_logo(56))) > 20)
+  ok("brand_has_logo agrees with the filesystem",
+     brand_has_logo() == file.exists(file.path("www", BRAND$logo)))
+}
+
 cat("\n== References that get typed by hand ==\n")
 {
   r <- vapply(seq_len(2000), function(i) safe_ref(12), character(1))

@@ -49,8 +49,8 @@ build_seed_minimal <- function() {
   # ---------------- Users — the two logins ----------------
   out$users <- tibble::tribble(
     ~user_id,   ~name,           ~email,                         ~role,                ~branch_id, ~department,  ~mobile,            ~cross_branch,
-    "USR-0001", "Krishna Singh", "admin@amardiptms.in",          "Super Admin",        "BR-001",   "Management", "+91 98230 11223",  "TRUE",
-    "USR-0002", "Amit Kumar",    "operations@amardiptms.in",     "Operations Manager", "BR-001",   "Operations", "+91 98901 22345",  "FALSE"
+    "USR-0001", "Krishna Singh", paste0("admin@", BRAND$domain),          "Super Admin",        "BR-001",   "Management", "+91 98230 11223",  "TRUE",
+    "USR-0002", "Amit Kumar",    paste0("operations@", BRAND$domain),     "Operations Manager", "BR-001",   "Operations", "+91 98901 22345",  "FALSE"
   ) |>
     dplyr::mutate(password_hash = pw, client_id = "", vendor_id = "", status = "Active") |>
     dplyr::select(user_id, name, email, password_hash, role, branch_id,
@@ -509,10 +509,10 @@ build_seed_minimal <- function() {
 
   out$settings <- tibble::tribble(
     ~key,                    ~value,
-    "company_name",          "Amardip Road Carriers",
+    "company_name",          BRAND$company,
     "company_gstin",         "27AAACA1234F1Z1",
     "registered_office",     "Plot 14, MIDC, Hingna Rd, Nagpur 440016",
-    "support_email",         "support@amardiptms.in",
+    "support_email",         paste0("support@", BRAND$domain),
     "support_phone",         "+91 98230 11223",
     "base_currency",         "INR",
     "timezone",              "Asia/Kolkata",

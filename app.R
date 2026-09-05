@@ -1,5 +1,5 @@
 # ==================================================================
-# TMS — Transport Management System
+# MoveWing Logistics Pvt. Ltd. — Transport Management System
 # Logistics ERP: bookings · consignments · fleet · compliance ·
 # accounts · HRMS · portals
 #
@@ -45,7 +45,7 @@ for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f
 ui <- fluidPage(
   theme = app_theme(),
   tags$head(
-    tags$title("TMS — Transport Management System"),
+    tags$title(BRAND$title),
     tags$link(rel = "stylesheet", href = "styles.css"),
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
     # Strip fluidPage's gutters — the shell manages its own spacing.
@@ -131,9 +131,9 @@ server <- function(input, output, session) {
         class = "tms-sidebar",
         div(
           class = "tms-brand",
-          div(class = "tms-brand-tile", "T"),
-          div(div(class = "tms-brand-name", "TMS"),
-              div(class = "tms-brand-sub", "Logistics ERP"))
+          brand_mark(38),
+          div(div(class = "tms-brand-name", BRAND$short),
+              div(class = "tms-brand-sub", BRAND$unit))
         ),
         uiOutput("sidebar_nav"),
         div(
@@ -176,7 +176,7 @@ server <- function(input, output, session) {
   output$topbar <- renderUI({
     req(user())
     u <- user()
-    meta <- NAV_PAGES[[page()]] %||% list(title = "TMS", crumb = c("Home"))
+    meta <- NAV_PAGES[[page()]] %||% list(title = BRAND$short, crumb = c("Home"))
 
     crumb <- meta$crumb
     div(

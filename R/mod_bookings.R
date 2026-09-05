@@ -292,7 +292,7 @@ bookings_server <- function(id, user, nav) {
 
       pay <- b$payment_mode %||% "Credit"
       show_lr_print(list(
-        company   = setting("company_name", "Amardip Road Carriers"),
+        company   = setting("company_name", BRAND$company),
         office    = setting("registered_office", ""),
         lr_no     = if (nrow(c1)) c1$lr_no[1] else paste0("(LR on allocation) ", b$booking_no),
         cn_no     = if (nrow(c1)) c1$cn_no[1] else b$booking_no,

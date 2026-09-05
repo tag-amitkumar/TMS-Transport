@@ -107,7 +107,7 @@ consignments_server <- function(id, user, nav) {
         div(
           style = "border:1px solid #E4EAF1;border-radius:10px;padding:1rem;",
           div(class = "d-flex align-items-center gap-2 mb-3",
-              div(class = "tms-brand-tile", style = "width:26px;height:26px;font-size:.8rem;border-radius:6px;", "A"),
+              brand_mark(26),
               span(class = "small-caps", style = "letter-spacing:.1em;", "Lorry Receipt"),
               span(class = "ms-auto mono", style = "font-weight:650;", c$lr_no)),
           dl_rows(
@@ -169,7 +169,7 @@ consignments_server <- function(id, user, nav) {
       bill_at <- c$bill_at_branch_id %||% (if (nrow(b)) b$bill_at_branch_id[1] else "")
 
       show_lr_print(list(
-        company   = setting("company_name", "Amardip Road Carriers"),
+        company   = setting("company_name", BRAND$company),
         office    = setting("registered_office", ""),
         lr_no     = c$lr_no, cn_no = c$cn_no,
         date      = fmt_date(c$dispatch_date),

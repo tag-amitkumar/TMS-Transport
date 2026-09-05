@@ -1,5 +1,5 @@
 # ==================================================================
-# TMS — Transport Management System
+# MoveWing Logistics Pvt. Ltd. — Transport Management System
 # Global configuration, libraries, storage paths and shared helpers.
 # ==================================================================
 
@@ -45,6 +45,72 @@ HAS_LEAFLET <- requireNamespace("leaflet", quietly = TRUE)
 # get the same muted look without a credential.
 CARTO_LIGHT <- "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 CARTO_ATTR  <- "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+
+# ------------------------------------------------------------------
+# Brand
+#
+# One place for the operator's identity. Every screen, printed document and
+# generated email address reads from here, so rebranding is this block and a
+# logo file — not a search across thirty modules.
+# ------------------------------------------------------------------
+BRAND <- list(
+  company = "MoveWing Logistics Pvt. Ltd.",
+  # The company name without the legal suffix. Used where the full form is too
+  # long to sit well — the sidebar rail, the login card, a document header.
+  short   = "MoveWing",
+  unit    = "Logistics Pvt. Ltd.",
+  # The system, as distinct from the company that runs it.
+  product = "Transport Management System",
+  domain  = "movewinglogistics.in",
+  # Dropped into www/. The app falls back to a drawn monogram when it is
+  # absent, so a fresh clone without the artwork still looks finished.
+  logo    = "logo.png",
+  navy    = "#12275C",
+  orange  = "#E9631A"
+)
+
+BRAND$title <- paste(BRAND$short, "—", BRAND$product)
+
+#' The square mark — an "MW" monogram in the brand colours.
+#'
+#' Used wherever the surface is dark or the space is small: the sidebar rail,
+#' a document header, a favicon-sized slot. The supplied artwork is a wide
+#' lock-up on a white ground, so dropping it into the navy rail would put a
+#' white slab down the side of every screen; a mark is the right shape there
+#' regardless of whether the file exists.
+brand_mark <- function(size = 38) {
+  # nowrap and a conservative type size: "MW" is two wide glyphs, and at the
+  # ratio a single letter would take they broke onto two lines inside the tile.
+  div(class = "tms-brand-tile",
+      style = sprintf(paste0("width:%1$dpx;height:%1$dpx;border-radius:%2$dpx;",
+                             "background:%3$s;font-size:%4$.2fpx;font-weight:800;",
+                             "letter-spacing:-.04em;white-space:nowrap;line-height:1;"),
+                      size, max(6, round(size / 4.2)), BRAND$navy, size * 0.34),
+      HTML(sprintf('<span style="color:#fff;">M</span><span style="color:%s;">W</span>',
+                   BRAND$orange)))
+}
+
+#' The full logo lock-up, for white surfaces — the login card, printed
+#' documents, anything that goes to a customer.
+#'
+#' Falls back to the mark when www/logo.png is absent, because the artwork is a
+#' binary asset that cannot live in this file: without the fallback a fresh
+#' clone would render a broken-image icon on the login screen and on every
+#' lorry receipt.
+brand_logo <- function(height = 56, alt = BRAND$company) {
+  p <- file.path("www", BRAND$logo)
+  if (file.exists(p)) {
+    return(tags$img(src = BRAND$logo, alt = alt, height = paste0(height, "px"),
+                    style = "display:block;width:auto;max-width:100%;"))
+  }
+  brand_mark(height)
+}
+
+#' TRUE when the real artwork is in place.
+#'
+#' Layout differs: the artwork already contains the company name, so printing
+#' the wordmark beside it would say everything twice.
+brand_has_logo <- function() file.exists(file.path("www", BRAND$logo))
 
 # ------------------------------------------------------------------
 # Paths

@@ -183,8 +183,7 @@ invoices_server <- function(id, user, nav) {
         div(
           style = "border:1px solid #E4EAF1;border-radius:10px;padding:1rem;",
           div(class = "d-flex align-items-center gap-2 mb-3",
-              div(class = "tms-brand-tile",
-                  style = "width:26px;height:26px;font-size:.8rem;border-radius:6px;", "T"),
+              brand_mark(26),
               span(class = "small-caps", style = "letter-spacing:.1em;", "Tax Invoice"),
               span(class = "ms-auto tiny muted",
                    paste(i$invoice_no, "·", fmt_date(i$invoice_date)))),

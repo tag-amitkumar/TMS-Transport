@@ -294,7 +294,7 @@ reports_server <- function(id, user) {
                     c("Bookings", "Consignments", "Vehicles", "Financial",
                       "Complaints", "HR")),
         selectInput(ns("s_freq"), "Frequency", c("Daily", "Weekly", "Monthly")),
-        textInput(ns("s_to"), "Send to", placeholder = "ops@amardiptms.in"),
+        textInput(ns("s_to"), "Send to", placeholder = paste0("ops@", BRAND$domain)),
         callout("Delivery needs a mail gateway",
                 "Scheduling is recorded, but reports will only be delivered once a transactional email provider is connected in Settings → Integrations.",
                 "warn"),
