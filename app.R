@@ -46,6 +46,9 @@ ui <- fluidPage(
   theme = app_theme(),
   tags$head(
     tags$title(BRAND$title),
+    # The tab icon. Only emitted when the artwork is actually there — a link to
+    # a missing favicon is a 404 on every page load.
+    if (brand_has_logo()) tags$link(rel = "icon", type = "image/png", href = BRAND$logo),
     tags$link(rel = "stylesheet", href = "styles.css"),
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
     # Strip fluidPage's gutters — the shell manages its own spacing.

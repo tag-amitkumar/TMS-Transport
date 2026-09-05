@@ -243,10 +243,11 @@ BRAND <- list(
 )
 ```
 
-**The logo.** Save the artwork as `www/logo.png` and it appears on the login
-card and on printed documents — the white surfaces the lock-up was drawn for.
-Until that file exists the app draws an "MW" monogram in the brand colours
-instead, so a fresh clone is never showing a broken image.
+**The logo.** `www/movewing_logo.png` — a square, transparent-background
+lock-up. It appears on the login card, on printed lorry receipts and as the
+browser tab icon. Point `BRAND$logo` at a different filename to swap it; if the
+file is missing the app draws an "MW" monogram in the brand colours instead, so
+a clone without the artwork never shows a broken image.
 
 The navy sidebar keeps the monogram either way: the supplied lock-up is a wide
 mark on a white ground, and dropping it into a dark rail would put a white slab

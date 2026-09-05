@@ -658,6 +658,10 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
   display: grid; place-items: center;
   font-weight: 700; font-size: 11pt; flex: 0 0 8mm;
 }
+/* The printed lock-up. Square and transparent, so it needs a fixed box and
+   nothing behind it. */
+.lr-logo  { width: 13mm; height: 13mm; object-fit: contain; flex: 0 0 13mm; }
+
 .lr-co    { font-weight: 700; font-size: 10pt; }
 .lr-sub   { font-size: 7pt; color: #555; }
 .lr-title { text-align: center; }

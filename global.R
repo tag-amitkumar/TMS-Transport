@@ -62,9 +62,10 @@ BRAND <- list(
   # The system, as distinct from the company that runs it.
   product = "Transport Management System",
   domain  = "movewinglogistics.in",
-  # Dropped into www/. The app falls back to a drawn monogram when it is
-  # absent, so a fresh clone without the artwork still looks finished.
-  logo    = "logo.png",
+  # Lives in www/. A square, transparent-background lock-up. The app falls back
+  # to a drawn monogram when it is absent, so a fresh clone still looks
+  # finished rather than showing a broken image.
+  logo    = "movewing_logo.png",
   navy    = "#12275C",
   orange  = "#E9631A"
 )
@@ -74,10 +75,10 @@ BRAND$title <- paste(BRAND$short, "—", BRAND$product)
 #' The square mark — an "MW" monogram in the brand colours.
 #'
 #' Used wherever the surface is dark or the space is small: the sidebar rail,
-#' a document header, a favicon-sized slot. The supplied artwork is a wide
-#' lock-up on a white ground, so dropping it into the navy rail would put a
-#' white slab down the side of every screen; a mark is the right shape there
-#' regardless of whether the file exists.
+#' a small inline badge, a favicon-sized slot. The artwork is a square lock-up
+#' whose lettering is dark navy — legible on paper and on a white card, and
+#' invisible against the navy rail — so the rail keeps the monogram whether or
+#' not the file exists.
 brand_mark <- function(size = 38) {
   # nowrap and a conservative type size: "MW" is two wide glyphs, and at the
   # ratio a single letter would take they broke onto two lines inside the tile.
@@ -93,7 +94,7 @@ brand_mark <- function(size = 38) {
 #' The full logo lock-up, for white surfaces — the login card, printed
 #' documents, anything that goes to a customer.
 #'
-#' Falls back to the mark when www/logo.png is absent, because the artwork is a
+#' Falls back to the mark when the artwork is absent, because it is a
 #' binary asset that cannot live in this file: without the fallback a fresh
 #' clone would render a broken-image icon on the login screen and on every
 #' lorry receipt.

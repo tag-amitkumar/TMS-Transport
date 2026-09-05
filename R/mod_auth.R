@@ -29,7 +29,11 @@ auth_ui <- function(id) {
         div(
           class = "text-center mb-4",
           div(class = "d-flex justify-content-center mb-3",
-              brand_logo(if (brand_has_logo()) 86 else 52)),
+              # 500x500 artwork, but four-fifths of it is transparent padding,
+              # so the mark inside is far smaller than the box. Sized off what
+              # is actually visible: below this the "PVT. LTD." line stops
+              # being legible.
+              brand_logo(if (brand_has_logo()) 168 else 52)),
           if (!brand_has_logo())
             h4(class = "mb-0", style = "font-weight:700;color:#12263F;letter-spacing:-.01em;",
                BRAND$short),

@@ -425,7 +425,13 @@ lr_slip <- function(copy, d) {
     class = "lr-slip",
     div(class = "lr-head",
         div(class = "lr-brand",
-            div(class = "lr-tile", "A"),
+            # A square, transparent lock-up prints cleanly on the slip. It falls
+            # back to a lettered tile when the artwork is absent, so the LR
+            # never prints with a broken-image box on a document a consignee
+            # signs.
+            if (brand_has_logo())
+              tags$img(class = "lr-logo", src = BRAND$logo, alt = d$company)
+            else div(class = "lr-tile", substr(BRAND$short, 1, 1)),
             div(div(class = "lr-co", d$company),
                 div(class = "lr-sub", d$office))),
         div(class = "lr-title",
