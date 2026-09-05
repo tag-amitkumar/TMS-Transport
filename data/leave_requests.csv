@@ -1,2 +1,2 @@
 lr_id,employee_id,leave_type,from_date,to_date,days,reason,applied_dt,status
-LVR-0001,EMP-0002,CL,2026-09-08,2026-09-09,2,family function,2026-09-03,Pending
+LVR-0001,EMP-0002,CL,2026-09-09,2026-09-10,2,family function,2026-09-04,Pending

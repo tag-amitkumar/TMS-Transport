@@ -229,11 +229,103 @@ Rules the deck states in passing that are implemented as actual constraints:
 
 ---
 
+---
+
+## Geography — the all-India PIN code master
+
+The deck drew Pin Code Mapping as a lane table and left the geography behind it
+unstated. Origin and destination were originally drawn from the branch master,
+which on a two-branch install offered exactly two cities and no way to book a
+load anywhere the company has no office. That is most loads.
+
+**Decision:** ship a real PIN code master and make the PIN, not the city, the
+identity of a lane end.
+
+### Source
+
+GeoNames' India postal export (`download.geonames.org/export/zip/IN.zip`,
+CC BY 4.0), reduced by `tools/build-pincodes.R` into three read-only files
+under `data/reference/`:
+
+| File | Rows | What it is |
+|---|---|---|
+| `pincodes.csv` | 19,238 | every PIN code in India → locality, city, state, coordinates, accuracy |
+| `cities.csv` | 630 | district-level cities across all 36 states and UTs, each with a representative PIN and a centroid |
+| `city_aliases.csv` | 34 | the names people type — Bangalore, Noida, Gurugram, Bombay — mapped onto the district they belong to |
+
+GeoNames was chosen over the scraped India Post CSVs in circulation because it
+is maintained, complete (no row lacks a district, state or coordinate) and
+**geocoded**. The coordinates are what make an unmapped lane quotable, and with
+630 cities in play essentially every lane is unmapped.
+
+Two corrections are applied to the source at build time, both recorded in the
+script: Ladakh is restored as its own union territory (GeoNames still files Leh
+and Kargil under Jammu & Kashmir, five years after the 2019 reorganisation),
+and Delhi's nine revenue districts collapse to one city, because no consignor
+books a load to "North West Delhi".
+
+This is reference data, not application state. Nothing writes to it, so it
+bypasses `R/store.R` entirely — no version signal, no reactivity, no CSV
+rewrite path — and is read once per process by `R/geo.R`.
+
+### The PIN is the lane, not the city
+
+Cities are a label; the PIN pair is the thing. This matters most for local
+work: cross-town cartage from Nagpur 440001 to Nagpur 440016 has one city at
+both ends, and a city-keyed model calls that a zero-kilometre trip to itself
+and refuses to book it. So:
+
+- **Only an identical PIN at both ends is rejected.** Same city with different
+  PINs is an ordinary local booking and goes through.
+- A hand-mapped lane is matched on the exact PIN pair first, then on the city
+  pair — but the city-pair fallback is skipped for a local lane, or the mapped
+  Nagpur→Delhi figure of 1,035 km would be applied to a cross-town run.
+- Bookings persist `origin_pincode`, `dest_pincode`, `origin_state`,
+  `dest_state` and `distance_km` alongside the city names. The distance is
+  frozen at booking time: it is what was quoted, and a later refresh of the
+  master must not silently move a figure a customer has been given.
+
+### Distance and transit are estimated, and labelled as estimates
+
+Road distance is the great-circle distance times a circuity factor of **1.20**,
+calibrated against sixteen published NH distances from Mumbai–Pune (150 km) to
+Kolkata–Chennai (1,670 km): **mean absolute error 3.4%, worst case 10.3%**.
+Transit is `ceiling(km / 425)` days, 425 km being a realistic long-haul driving
+day in India once loading, checkposts and rest are counted — it reproduces the
+transit days on the hand-mapped lanes.
+
+The route master always wins where it has an entry. Those numbers are
+commercial commitments negotiated per lane, and an estimate must never silently
+replace one. An estimated lane says so on the booking form, every time.
+
+### The limitation this exposed, and how it is handled
+
+**A quarter of Indian PIN codes (4,590 of 19,238) carry a city-level fallback
+coordinate rather than a real fix** — GeoNames grades these `accuracy = 1`,
+meaning it could not place the locality. It is concentrated in exactly the
+metros where local work happens: 94% of Bengaluru's PIN codes, 83% of Mumbai's,
+81% of Thane's. Chembur and Malad are 15 km apart and share a coordinate.
+
+Between cities this is harmless — a few kilometres of error does not move a
+1,400 km figure, which is why the calibration above holds. Within one city it
+is fatal, and would quote 0 km for a real cartage job.
+
+So the accuracy grade is carried through to `data/reference/pincodes.csv`, and
+`geo_lane()` returns `km_known = FALSE` for a local lane whose two ends share a
+coordinate or are not properly graded. The booking form then says the distance
+was not estimated and why, and `distance_km` is stored blank rather than zero.
+Freight on those lanes comes off a local rate card, or the lane gets mapped.
+
+Fixing it properly needs a commercial geocoder or India Post's own
+locality-level data; it is not solvable from the free dataset.
+
+---
+
 ## What this is, and is not
 
 This is a **working prototype**: all 31 screens navigable, real reactive data,
 CRUD on the master tables, and the booking → allocation → LR → POD → invoice →
-payment chain actually functioning end to end. 143 automated checks cover
+payment chain actually functioning end to end. 389 automated checks cover
 referential integrity, the domain rules above, RBAC and scoping.
 
 It is **not** a production ERP. Not built: fuel and expense management,

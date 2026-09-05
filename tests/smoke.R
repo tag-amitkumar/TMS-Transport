@@ -9,7 +9,7 @@
 # ==================================================================
 
 suppressPackageStartupMessages({
-  source("global.R"); source("R/store.R"); source("R/rbac.R")
+  source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/rbac.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
@@ -324,6 +324,197 @@ ok("expiry_state warn",        expiry_state(Sys.Date() + 10) == "warn")
 ok("expiry_state ok",          expiry_state(Sys.Date() + 200) == "ok")
 ok("%||% blank falls through", ("" %||% "x") == "x")
 
+
+cat("\n== Geography master ==\n")
+{
+  pins <- geo_pincodes(); cts <- geo_cities()
+  ok("pincode master loaded",        nrow(pins) > 19000)
+  ok("city master loaded",           nrow(cts) > 600)
+  ok("every state and UT present",   length(geo_states()) == 36)
+  ok("pincodes are unique",          !any(duplicated(pins$pincode)))
+  ok("city names are unique",        !any(duplicated(cts$city)))
+  ok("every pincode is six digits",  all(grepl("^[1-9][0-9]{5}$", pins$pincode)))
+  ok("no missing city",              all(nzchar(pins$city)))
+  ok("no missing state",             all(nzchar(pins$state)))
+  ok("no missing coordinates",       !any(is.na(pins$lat) | is.na(pins$lon)))
+  # Everything must sit inside India's bounding box. A stray sign or a swapped
+  # lat/lon pair would otherwise put a consignment in the Indian Ocean and
+  # quote a plausible-looking distance for it.
+  ok("latitudes within India",       all(pins$lat  >=  6 & pins$lat  <= 38))
+  ok("longitudes within India",      all(pins$lon  >= 68 & pins$lon  <= 98))
+  ok("every city resolves a pincode",
+     all(vapply(cts$pincode, function(p) !is.null(geo_pin(p)), logical(1))))
+  ok("city of each city's pincode matches",
+     all(mapply(function(p, c) identical(geo_pin(p)$city, c),
+                cts$pincode, cts$city)))
+
+  # Known codes, so a bad rebuild of the master is caught rather than shipped.
+  ok("110001 is Delhi",              identical(geo_pin("110001")$city,  "Delhi"))
+  ok("400001 is Mumbai",             identical(geo_pin("400001")$city,  "Mumbai"))
+  ok("440001 is Nagpur",             identical(geo_pin("440001")$city,  "Nagpur"))
+  ok("560001 is Bengaluru",          identical(geo_pin("560001")$city,  "Bengaluru"))
+  ok("700001 is Kolkata",            identical(geo_pin("700001")$city,  "Kolkata"))
+  ok("600001 is Chennai",            identical(geo_pin("600001")$state, "Tamil Nadu"))
+  # Ladakh was split from J&K in 2019; the build patches the source for it.
+  ok("194101 is in Ladakh",          identical(geo_pin("194101")$state, "Ladakh"))
+  ok("Ladakh is a state in its own right", "Ladakh" %in% geo_states())
+  ok("no Leh left under J&K",
+     !any(cts$city %in% c("Leh", "Kargil") & cts$state == "Jammu & Kashmir"))
+
+  ok("rejects a five-digit code",    is.null(geo_pin("11000")))
+  ok("rejects a leading zero",       is.null(geo_pin("010001")))
+  ok("rejects letters",              is.null(geo_pin("11000A")))
+  ok("rejects blank",                is.null(geo_pin("")))
+  ok("rejects an unassigned code",   is.null(geo_pin("999999")))
+  ok("tolerates surrounding space",  identical(geo_pin(" 110001 ")$city, "Delhi"))
+}
+
+cat("\n== City lookup and aliases ==\n")
+{
+  ok("exact city resolves",          identical(geo_city("Nagpur")$city, "Nagpur"))
+  ok("unknown city is NULL",         is.null(geo_city("Atlantis")))
+  ok("blank city is NULL",           is.null(geo_city("")))
+  # The names people actually type must reach the district they belong to.
+  ok("Bangalore -> Bengaluru",       identical(geo_city("Bangalore")$city, "Bengaluru"))
+  ok("Bombay -> Mumbai",             identical(geo_city("Bombay")$city, "Mumbai"))
+  ok("Noida -> Gautam Buddha Nagar",
+     identical(geo_city("Noida")$city, "Gautam Buddha Nagar"))
+  ok("alias lookup is case-insensitive",
+     identical(geo_city("bangalore")$city, "Bengaluru"))
+
+  ch <- geo_city_choices()
+  ok("choices cover every city",     length(ch) == nrow(geo_cities()))
+  ok("choice values are city names", all(ch %in% geo_cities()$city))
+  ok("choice labels carry the state", all(grepl(", ", names(ch), fixed = TRUE)))
+  # The alias has to be in the label, because that is the only text selectize
+  # searches — this is what makes typing "Noida" find the district.
+  ok("alias searchable in the label",
+     any(grepl("Bangalore", names(ch), fixed = TRUE)))
+  ok("aliases point at real cities",
+     all(geo_aliases()$city %in% geo_cities()$city))
+
+  ok("city pin choices are that city's",
+     all(geo_pin_city_check <- geo_city_pin_choices("Nagpur") %in%
+           geo_pincodes()$pincode[geo_pincodes()$city == "Nagpur"]))
+  ok("unknown city yields no pins",  length(geo_city_pin_choices("Atlantis")) == 0)
+}
+
+cat("\n== Lane estimation ==\n")
+{
+  # Against published NH distances. The road factor was calibrated to 1.20 on
+  # sixteen lanes; 15% is a generous band that still catches a broken factor,
+  # a swapped coordinate or a centroid that has drifted.
+  near <- function(a, b, tol = 0.15) abs(a - b) / b <= tol
+  ok("Delhi-Mumbai ~1400 km",    near(geo_lane("Delhi", "Mumbai")$km, 1400))
+  ok("Mumbai-Bengaluru ~980 km", near(geo_lane("Mumbai", "Bengaluru")$km, 980))
+  ok("Chennai-Bengaluru ~350 km",near(geo_lane("Chennai", "Bengaluru")$km, 350))
+  ok("Delhi-Kolkata ~1500 km",   near(geo_lane("Delhi", "Kolkata")$km, 1500))
+  ok("Hyderabad-Bengaluru ~570", near(geo_lane("Hyderabad", "Bengaluru")$km, 570))
+
+  ok("distance is symmetric",
+     geo_lane("Delhi", "Mumbai")$km == geo_lane("Mumbai", "Delhi")$km)
+  ok("transit is at least a day",
+     geo_lane("Mumbai", "Thane")$days >= 1)
+  ok("long haul takes longer",
+     geo_lane("Delhi", "Kolkata")$days > geo_lane("Delhi", "Jaipur")$days)
+
+  # A mapped lane is a commercial commitment and must never be replaced by the
+  # estimate, even when the estimate disagrees.
+  mapped <- geo_lane("Nagpur", "Delhi")
+  ok("mapped lane is flagged mapped", isTRUE(mapped$mapped))
+  ok("mapped lane keeps its own transit", mapped$days == 3)
+  ok("mapped lane keeps its own distance", mapped$km == 1035)
+  ok("mapped lane carries branch routing", nzchar(mapped$branches))
+
+  est <- geo_lane("Mumbai", "Bengaluru")
+  ok("unmapped lane is flagged estimated", isFALSE(est$mapped))
+  ok("estimated lane still has a path",    nzchar(est$path))
+
+  ok("unknown origin gives no lane",  is.null(geo_lane("Atlantis", "Delhi")))
+  ok("unknown destination gives none",is.null(geo_lane("Delhi", "Atlantis")))
+  ok("blank city gives no lane",      is.null(geo_lane("", "Delhi")))
+  # A city to itself with no PIN codes given is not a zero-kilometre lane, it
+  # is an unanswerable question — both ends resolve to the same centroid.
+  ok("a city to itself has no estimable distance",
+     isFALSE(geo_lane("Delhi", "Delhi")$km_known))
+}
+
+cat("\n== Local lanes — one city, two PIN codes ==\n")
+{
+  # Cross-town cartage is ordinary freight. The PIN pair is the lane; the city
+  # being the same at both ends says nothing about whether it is valid.
+  # 110001 and 110002 are both graded 4 — really placed — so this one has a
+  # distance worth quoting.
+  loc <- geo_lane("Delhi", "Delhi", "110001", "110002")
+  ok("local lane resolves",           !is.null(loc))
+  ok("local lane is flagged local",   isTRUE(loc$local))
+  ok("local lane is not mapped",      isFALSE(loc$mapped))
+  ok("local distance is known",       isTRUE(loc$km_known))
+  ok("local distance is a local one", loc$km > 0 && loc$km < 30)
+  ok("local transit is one day",      loc$days == 1)
+  ok("local path names both PINs",
+     grepl("110001", loc$path, fixed = TRUE) &&
+     grepl("110002", loc$path, fixed = TRUE))
+
+  # The mapped Nagpur→Delhi lane must not leak into a Delhi→Delhi run just
+  # because a city matches at one end. 1,035 km on a cross-town job would be
+  # wrong by two orders of magnitude, and it would price the load that way.
+  ok("trunk mapping does not apply to a local lane", loc$km < 100)
+
+  # A quarter of pincodes are graded 1: GeoNames could not place the locality
+  # and gave it the city's own coordinate. Both Nagpur codes here are graded 1
+  # and land on the same point. The only honest answer for that pair is that
+  # the distance is unknown — quoting the 0 km the arithmetic produces would
+  # price a real cartage job at nothing.
+  vague <- geo_lane("Nagpur", "Nagpur", "440001", "440016")
+  ok("ungraded local pair still resolves",  !is.null(vague))
+  ok("ungraded local pair is still local",  isTRUE(vague$local))
+  ok("ungraded local distance is unknown",  isFALSE(vague$km_known))
+  ok("unknown distance is NA, not zero",    is.na(vague$km))
+  ok("unknown distance stores as blank",    identical(geo_lane_km(vague), ""))
+
+  # The same imprecision is irrelevant between cities: a few km of error does
+  # not move a thousand-kilometre figure, so those stay quotable.
+  ok("inter-city distance is known despite grade 1",
+     isTRUE(geo_lane("Nagpur", "Mumbai", "440016", "400097")$km_known))
+
+  # A PIN outranks the city name handed to it, which is what keeps the form
+  # correct when a stale city label rides along with a fresh PIN.
+  cross <- geo_lane("Nagpur", "Nagpur", "440001", "110020")
+  ok("PIN overrides a wrong city",    isFALSE(cross$local))
+  ok("PIN-driven distance is the real one", cross$km > 900)
+
+  # And falling back to centroids when no PIN is supplied must still work.
+  ok("city-only lane still resolves", !is.null(geo_lane("Nagpur", "Delhi")))
+  ok("an unresolvable PIN falls back to the city",
+     identical(geo_lane("Nagpur", "Delhi", "999999", "999999")$km,
+               geo_lane("Nagpur", "Delhi")$km))
+  ok("a mapped lane reports its distance as known",
+     isTRUE(geo_lane("Nagpur", "Delhi")$km_known))
+}
+
+cat("\n== Booking geography ==\n")
+{
+  bk <- store_get("bookings")
+  ok("bookings carry an origin PIN",  all(nzchar(bk$origin_pincode)))
+  ok("bookings carry a destination PIN", all(nzchar(bk$dest_pincode)))
+  ok("origin PINs resolve",
+     all(vapply(bk$origin_pincode, function(p) !is.null(geo_pin(p)), logical(1))))
+  ok("destination PINs resolve",
+     all(vapply(bk$dest_pincode, function(p) !is.null(geo_pin(p)), logical(1))))
+  # The PIN and the city on a row have to agree, or the LR prints one place
+  # and the e-way bill is raised against another.
+  ok("origin PIN agrees with origin city",
+     all(mapply(function(p, c) identical(geo_pin(p)$city, c),
+                bk$origin_pincode, bk$origin_city)))
+  ok("destination PIN agrees with destination city",
+     all(mapply(function(p, c) identical(geo_pin(p)$city, c),
+                bk$dest_pincode, bk$dest_city)))
+  ok("origin state agrees with the PIN",
+     all(mapply(function(p, s) identical(geo_pin(p)$state, s),
+                bk$origin_pincode, bk$origin_state)))
+  ok("distance is recorded",          all(as_num(bk$distance_km) > 0))
+}
 cat(sprintf("\n%s  %d passed, %d failed\n\n",
             if (fail == 0) "PASS" else "FAIL", pass, fail))
 if (fail > 0) quit(status = 1)

@@ -16,7 +16,7 @@
 
 suppressPackageStartupMessages({
   library(shiny)
-  source("global.R"); source("R/store.R"); source("R/rbac.R")
+  source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/rbac.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
@@ -94,18 +94,46 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
                     f_weight = 10, f_freight = 15000, f_qty = 100, f_pkg = "",
                     f_ins = "Not insured", f_remarks = "",
                     f_from = "Nagpur", f_to = "Delhi",
+                    f_from_pin = "440016", f_to_pin = "110020",
                     f_branch = admin$branch_id, f_date = Sys.Date())
   session$setInputs(confirm = 1)
   ok("empty form is refused", nrow(store_get("bookings")) == before)
 
-  # Same origin and destination must be refused.
+  # The same PIN at both ends is meaningless and must be refused.
   session$setInputs(f_client = cl$client_id[1], f_pickup = "A", f_drop = "B",
-                    f_material = "Cement", f_from = "Nagpur", f_to = "Nagpur")
+                    f_material = "Cement", f_from = "Nagpur", f_to = "Nagpur",
+                    f_from_pin = "440016", f_to_pin = "440016")
   session$setInputs(confirm = 2)
-  ok("same origin/destination refused", nrow(store_get("bookings")) == before)
+  ok("identical origin/destination PIN refused",
+     nrow(store_get("bookings")) == before)
+
+  # The same *city* at both ends, though, is an ordinary local booking —
+  # cross-town cartage — and must go through as long as the PINs differ.
+  session$setInputs(f_to_pin = "440001", f_weight = 6, f_freight = 3500)
+  session$setInputs(confirm = 21)
+  local_ok <- nrow(store_get("bookings")) == before + 1
+  ok("same city with different PINs is allowed", local_ok)
+  if (local_ok) {
+    lb <- get_bookings(); lb <- lb[nrow(lb), ]
+    ok("local booking keeps both PINs",
+       identical(lb$origin_pincode, "440016") &&
+       identical(lb$dest_pincode, "440001"))
+    ok("local booking is one city at both ends",
+       identical(lb$origin_city, lb$dest_city))
+    # Cross-town, not a trunk lane: the mapped Nagpur→Delhi distance must not
+    # be applied just because a city matched at one end. Both Nagpur codes are
+    # graded 1 in the reference data and share a coordinate, so the distance is
+    # deliberately left blank rather than recorded as zero.
+    ok("trunk distance is not applied to a local booking",
+       is.na(as_num(lb$distance_km)) || as_num(lb$distance_km) < 60)
+    ok("unknown local distance stored blank, not zero",
+       !identical(trimws(lb$distance_km), "0"))
+    store_delete("bookings", list(booking_no = lb$booking_no))
+  }
+  before <- nrow(store_get("bookings"))
 
   # Zero weight must be refused.
-  session$setInputs(f_to = "Delhi", f_weight = 0)
+  session$setInputs(f_to = "Delhi", f_to_pin = "110020", f_weight = 0)
   session$setInputs(confirm = 3)
   ok("zero weight refused", nrow(store_get("bookings")) == before)
 
@@ -121,6 +149,26 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
   ok("client carried through",   identical(new$client_id, cl$client_id[1]))
   ok("weight carried through",   abs(new$weight_t - 12.5) < .001)
   ok("freight carried through",  abs(new$freight - 21000) < .001)
+
+  # Geography resolved from the PIN pair, not retyped by the clerk.
+  ok("origin PIN saved",           identical(new$origin_pincode, "440016"))
+  ok("destination PIN saved",      identical(new$dest_pincode, "110020"))
+  ok("origin state resolved",      identical(new$origin_state, "Maharashtra"))
+  ok("destination state resolved", identical(new$dest_state, "Delhi"))
+  # The quoted distance is frozen onto the row, so a later refresh of the
+  # pincode master cannot move a figure the customer has already been given.
+  ok("distance frozen on the row", abs(as_num(new$distance_km) - 1035) < 1)
+
+  # An unresolvable PIN must be refused: it is what the LR prints and what the
+  # e-way bill is raised against.
+  n0 <- nrow(store_get("bookings"))
+  session$setInputs(f_to_pin = "999999")
+  session$setInputs(save_draft = 2)
+  ok("unassigned PIN refused",     nrow(store_get("bookings")) == n0)
+  session$setInputs(f_to_pin = "11002")
+  session$setInputs(save_draft = 3)
+  ok("five-digit PIN refused",     nrow(store_get("bookings")) == n0)
+  session$setInputs(f_to_pin = "110020")
 
   # GST must come from the client master, never the form.
   cli <- get_clients(); cr <- cli[cli$client_id == cl$client_id[1], ]
@@ -168,6 +216,7 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
                f_material = "Terms check", f_weight = 8, f_qty = 10, f_pkg = "10",
                f_ins = "Not insured", f_remarks = "", f_freight = 12000,
                f_from = "Nagpur", f_to = "Delhi",
+               f_from_pin = "440016", f_to_pin = "110020",
                f_branch = admin$branch_id, f_date = Sys.Date())
 
   # Each term must land on the booking as chosen.
@@ -209,6 +258,7 @@ testServer(bookings_server, args = list(user = usr(), nav = noop), {
   m <- list(m_ref = "QA/LR/9001", m_date = Sys.Date() - 1, m_time = "07:30",
             m_client = cl$client_id[1], m_branch = admin$branch_id,
             m_pay = "To Pay", m_from = "Nagpur", m_to = "Delhi",
+            m_from_pin = "440016", m_to_pin = "110020",
             m_material = "Offline load", m_weight = 11, m_freight = 18000,
             m_remarks = "")
 

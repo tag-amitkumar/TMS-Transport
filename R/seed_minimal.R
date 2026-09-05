@@ -212,10 +212,22 @@ build_seed_minimal <- function() {
       # the load was actually accepted — not the time someone typed it up.
       entry_mode = c("Online", "Manual", "Online"),
       manual_ref = c("", "DEL/LR/4471", ""),
-      manual_dt  = c("", paste(TODAY - 2, "07:40:00"), "")
+      manual_dt  = c("", paste(TODAY - 2, "07:40:00"), ""),
+
+      # Geography is a PIN pair resolved through the same master the booking
+      # form uses — the industrial pincodes at each end, not the head-office
+      # ones, since that is where the goods actually move between. The distance
+      # is the figure quoted at booking time, frozen onto the row.
+      origin_pincode = c("440016", "110020", "440016"),
+      dest_pincode   = c("110020", "440016", "110020"),
+      origin_state   = c("Maharashtra", "Delhi", "Maharashtra"),
+      dest_state     = c("Delhi", "Maharashtra", "Delhi"),
+      distance_km    = 1035
     ) |>
     dplyr::select(booking_no, booking_date, branch_id, client_id, pickup_address,
-                  delivery_address, origin_city, dest_city, material, weight_t,
+                  delivery_address, origin_city, dest_city,
+                  origin_pincode, dest_pincode, origin_state, dest_state,
+                  distance_km, material, weight_t,
                   quantity, packages, insurance, declared_value, freight, gst_mode,
                   gst_pct, gst_amount, insurance_amt, total, remarks,
                   booking_user_id, priority, payment_mode, bill_at_branch_id,

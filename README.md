@@ -149,9 +149,10 @@ app.R              entry point: auth gate, router, module wiring
 global.R           config, domain vocabulary, formatting helpers
 HANDBOOK.Rmd       user handbook source; renders to HANDBOOK.html
 docs/img/          handbook screenshots, captured from the running app
-tools/             capture-screenshots.js — regenerates those screenshots
+tools/             capture-screenshots.js, build-pincodes.R
 R/
   store.R          storage layer — the only code that touches files
+  geo.R            India PIN code / city master, lane distance and transit
   seed.R           synthetic data generator
   rbac.R           roles, permission matrix, branch & owner scoping
   nav.R            sidebar tree, breadcrumbs, landing pages
@@ -159,8 +160,10 @@ R/
   ui_helpers.R     stat cards, pills, kanban, timelines, tables
   mod_*.R          one module per screen
 www/styles.css     shell, cards, kanban, pills, tables
-tests/smoke.R      143 checks
+tests/smoke.R      257 data and invariant checks
+tests/functional.R 132 checks that drive the module servers
 data/*.csv         seeded data
+data/reference/    India PIN code master — read-only, never written to
 ```
 
 ## Data
@@ -191,15 +194,45 @@ and phone numbers are generated from fixed patterns and belong to no real person
 or company. GSTINs are structurally shaped but carry an invalid checksum on
 purpose so they cannot be mistaken for live registrations.
 
+### Reference geography
+
+`data/reference/` holds the India PIN code master — 19,238 PIN codes, 630
+district-level cities across all 36 states and union territories, and the
+aliases people actually type (Bangalore, Noida, Gurugram). It is **reference
+data, not application state**: nothing in the app writes to it, so it bypasses
+`R/store.R` and is read once per process by `R/geo.R`.
+
+Rebuild it from a fresh GeoNames export with:
+
+```bash
+Rscript tools/build-pincodes.R path/to/IN.txt
+```
+
+> **Attribution.** The PIN code master is derived from the
+> [GeoNames](https://www.geonames.org/) postal-code export for India, used
+> under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Ladakh is
+> restored as its own union territory and Delhi's nine revenue districts are
+> collapsed to one city; both corrections are made in the build script.
+>
+> About a quarter of Indian PIN codes carry a city-level fallback coordinate
+> rather than a real fix, concentrated in the metros. The app carries that
+> accuracy grade through and declines to estimate a distance for a local lane
+> whose two ends share a point, rather than quoting a figure it cannot
+> support. See DESIGN-REVIEW.md.
+
 ## Tests
 
 ```bash
 Rscript tests/smoke.R
+Rscript tests/functional.R
 ```
 
-143 checks covering module wiring, seed referential integrity, the domain rules
-above, RBAC denials for every role, branch and owner scoping, the storage
-round-trip, and the formatting helpers.
+**257 + 132 = 389 checks.** `smoke.R` covers module wiring, seed referential
+integrity, the domain rules above, RBAC denials for every role, branch and
+owner scoping, the storage round-trip, the PIN code master and lane estimation,
+and the formatting helpers. `functional.R` drives the module servers through
+`shiny::testServer` and asserts on what actually landed in the store — it
+exists because render-only tests once let an unsubmittable booking form ship.
 
 ## Integrations
 

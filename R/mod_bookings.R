@@ -58,12 +58,27 @@ booking_new_ui <- function(id) {
             div(class = "col-md-6",
                 tags$label(class = "form-label req", "Delivery address"),
                 textInput(ns("f_drop"), NULL, width = "100%")),
+            # Pincode and city are two views of one answer, and the pair stays
+            # in step both ways: type a PIN and the city resolves, pick a city
+            # and the PIN drops to that city's head office. Which one the clerk
+            # reaches for depends on what the consignor gave them — a printed
+            # address carries a PIN, a phone call carries a city name.
+            div(class = "col-md-2",
+                tags$label(class = "form-label req", "Origin PIN"),
+                textInput(ns("f_from_pin"), NULL, width = "100%",
+                          placeholder = "440001")),
             div(class = "col-md-4",
-                tags$label(class = "form-label", "Origin city"),
-                uiOutput(ns("sel_from"))),
+                tags$label(class = "form-label req", "Origin city"),
+                uiOutput(ns("sel_from")),
+                uiOutput(ns("from_hint"))),
+            div(class = "col-md-2",
+                tags$label(class = "form-label req", "Destination PIN"),
+                textInput(ns("f_to_pin"), NULL, width = "100%",
+                          placeholder = "110001")),
             div(class = "col-md-4",
-                tags$label(class = "form-label", "Destination city"),
-                uiOutput(ns("sel_to"))),
+                tags$label(class = "form-label req", "Destination city"),
+                uiOutput(ns("sel_to")),
+                uiOutput(ns("to_hint"))),
             div(class = "col-md-4",
                 tags$label(class = "form-label", "Booking user"),
                 div(class = "field-static", textOutput(ns("f_user"), inline = TRUE)))),
@@ -314,7 +329,19 @@ bookings_server <- function(id, user, nav) {
     # pushing choices from an observer that fires before the page is on screen
     # sends them nowhere, which left the customer list empty and made the form
     # impossible to submit.
-    booking_cities <- reactive(sort(unique(store_get("branches")$city)))
+    # Every city in India, not just the ones the company has a branch in.
+    # Origin and destination used to be drawn from the branch master, which on
+    # a two-branch install meant exactly two choices and no way to book a load
+    # to anywhere the company does not have an office — which is most loads.
+    booking_cities <- reactive(geo_city_choices())
+
+    # The clerk's own branch city is the sane default for origin: the great
+    # majority of bookings are taken at the branch the goods leave from.
+    home_city <- reactive({
+      br <- store_get("branches")
+      c0 <- br$city[match(user()$branch_id, br$branch_id)]
+      if (length(c0) && !is.na(c0) && !is.null(geo_city(c0))) c0 else NA_character_
+    })
 
     output$sel_client <- renderUI({
       cl <- scope_branch(store_get("clients"), user())
@@ -335,15 +362,75 @@ bookings_server <- function(id, user, nav) {
                   selected = if (user()$branch_id %in% br$branch_id) user()$branch_id else br$branch_id[1])
     })
 
-    output$sel_from <- renderUI({
-      selectInput(ns("f_from"), NULL, choices = booking_cities(), width = "100%")
-    })
+    # selectize rather than a plain select: 630 cities is far past the point
+    # where scrolling a list works, and its search is what makes the aliases
+    # carried in each label usable — typing "Noida" finds Gautam Buddha Nagar.
+    # A selectize with no selection silently takes the first option, which with
+    # an alphabetical all-India list meant every new booking opened addressed
+    # to Adilabad. An explicit blank choice is what makes "nothing picked yet"
+    # representable — and it is what the placeholder needs to show at all.
+    city_selector <- function(input_id, selected) {
+      blank <- is.null(selected) || is.na(selected)
+      selectizeInput(
+        ns(input_id), NULL, width = "100%",
+        choices  = if (blank) c("Search any city…" = "", booking_cities())
+                   else booking_cities(),
+        selected = if (blank) "" else selected,
+        options  = list(placeholder = "Type a city, or a PIN alongside",
+                        maxOptions = 40))
+    }
 
-    output$sel_to <- renderUI({
-      ct <- booking_cities()
-      selectInput(ns("f_to"), NULL, choices = ct, width = "100%",
-                  selected = if (length(ct) > 1) ct[2] else ct[1])
-    })
+    output$sel_from <- renderUI(city_selector("f_from", home_city()))
+    output$sel_to   <- renderUI(city_selector("f_to", NULL))
+
+    # What the PIN actually resolved to. The city selector shows a district —
+    # "Gautam Buddha Nagar" — which is not what the clerk typed or what the
+    # consignor wrote, so echo the locality and state underneath to confirm the
+    # right place was found.
+    pin_hint <- function(pin_id) {
+      renderUI({
+        raw <- trimws(input[[pin_id]] %||% "")
+        if (!nzchar(raw)) return(NULL)
+        p <- geo_pin(raw)
+        if (is.null(p)) {
+          return(div(class = "tiny", style = "color:#C0392B;margin-top:.25rem;",
+                     if (grepl("^[0-9]{6}$", raw)) "Not an Indian PIN code"
+                     else "PIN codes are six digits"))
+        }
+        div(class = "tiny muted", style = "margin-top:.25rem;",
+            p$locality, " · ", p$state)
+      })
+    }
+    output$from_hint <- pin_hint("f_from_pin")
+    output$to_hint   <- pin_hint("f_to_pin")
+
+    # PIN -> city, and city -> PIN. Each observer no-ops when the pair is
+    # already consistent, which is what stops the two from ping-ponging.
+    bind_pin_city <- function(pin_id, city_id) {
+      observeEvent(input[[pin_id]], {
+        p <- geo_pin(input[[pin_id]])
+        if (is.null(p)) return()
+        if (!identical(input[[city_id]] %||% "", p$city)) {
+          updateSelectizeInput(session, city_id, selected = p$city)
+        }
+      }, ignoreInit = TRUE)
+
+      observeEvent(input[[city_id]], {
+        city <- input[[city_id]] %||% ""
+        if (!nzchar(city)) return()
+        cur <- geo_pin(input[[pin_id]])
+        if (!is.null(cur) && identical(cur$city, city)) return()
+        cty <- geo_city(city)
+        if (!is.null(cty)) updateTextInput(session, pin_id, value = cty$pincode)
+      }, ignoreInit = TRUE)
+    }
+    bind_pin_city("f_from_pin", "f_from")
+    bind_pin_city("f_to_pin",   "f_to")
+    # The manual-entry dialog's fields only exist while it is open, but the
+    # observers can be wired once here — they fire on the input values, which
+    # simply do not arrive until the modal renders them.
+    bind_pin_city("m_from_pin", "m_from")
+    bind_pin_city("m_to_pin",   "m_to")
 
     # TBB means another branch raises the invoice against an account the
     # customer already holds there, so the field only exists for TBB.
@@ -397,29 +484,21 @@ bookings_server <- function(id, user, nav) {
       updateTextInput(session, "f_pickup", value = r$pickup_address[1])
       updateTextInput(session, "f_drop",   value = r$delivery_address[1])
 
-      ct <- booking_cities()
-      if (r$city[1] %in% ct) {
-        updateSelectInput(session, "f_from", selected = r$city[1])
-        # Moving the origin onto the customer's city can collide with whatever
-        # the destination happens to be sitting on, and the form then refuses
-        # to submit with "same origin and destination" before the user has
-        # touched anything. Step the destination aside.
-        if (identical(input$f_to %||% "", r$city[1])) {
-          alt <- setdiff(ct, r$city[1])
-          if (length(alt)) updateSelectInput(session, "f_to", selected = alt[1])
-        }
+      # Prefer the customer's own PIN and let the binding above resolve the
+      # city from it, so a customer whose recorded city predates the master
+      # (or is spelt differently) still lands on the right district.
+      if ("pincode" %in% names(r) && !is.null(geo_pin(r$pincode[1]))) {
+        updateTextInput(session, "f_from_pin", value = r$pincode[1])
+      } else if (!is.null(geo_city(r$city[1]))) {
+        updateSelectizeInput(session, "f_from", selected = geo_city(r$city[1])$city)
       }
     })
 
-    # Same guard in the other direction: if the user picks a destination equal
-    # to the origin, move the origin rather than leaving the form unsubmittable.
-    observeEvent(input$f_to, {
-      req(nzchar(input$f_to %||% ""), nzchar(input$f_from %||% ""))
-      if (identical(input$f_from, input$f_to)) {
-        alt <- setdiff(booking_cities(), input$f_to)
-        if (length(alt)) updateSelectInput(session, "f_from", selected = alt[1])
-      }
-    }, ignoreInit = TRUE)
+    # Origin and destination used to shove each other aside on a collision,
+    # which made sense when there were two cities to choose between. Against
+    # 630 it would fling the clerk to an arbitrary district, so the collision
+    # is now just reported — route_check says so, and validate_form blocks the
+    # save. Picking a different city is one keystroke away.
 
     # Returns NULL rather than req()-halting when nothing is picked yet. A
     # halt here propagates through gst_pct/charges and blanks the whole Booking
@@ -450,26 +529,72 @@ bookings_server <- function(id, user, nav) {
              if (identical(gst_mode(), "RCM")) " · GTA" else "", ")")
     })
 
+    lane <- reactive(geo_lane(input$f_from %||% "", input$f_to %||% "",
+                              input$f_from_pin, input$f_to_pin))
+
     output$route_check <- renderUI({
       req(nzchar(input$f_from %||% ""), nzchar(input$f_to %||% ""))
-      if (identical(input$f_from, input$f_to)) {
-        return(callout("Same origin and destination",
-                       "Pick a different destination city.", "warn"))
-      }
-      rt <- store_get("pincode_routes")
-      hit <- rt[rt$src_city == input$f_from & rt$dst_city == input$f_to, ]
-      if (!nrow(hit)) {
-        return(callout("Route not mapped",
-                       paste0(input$f_from, " → ", input$f_to,
-                              " has no entry in the pin-code route master. Transit promise cannot be quoted."),
+      fp <- geo_pin(input$f_from_pin); tp <- geo_pin(input$f_to_pin)
+
+      # The PIN pair is the lane. Two ends in the same city is an ordinary
+      # local booking — cross-town cartage — and only an identical PIN at both
+      # ends is actually meaningless.
+      if (!is.null(fp) && !is.null(tp) && identical(fp$pincode, tp$pincode)) {
+        return(callout("Same origin and destination PIN",
+                       paste0("Both ends resolve to ", fp$pincode, " · ", fp$locality,
+                              ". Give the delivery PIN, even for a local booking."),
                        "warn"))
       }
-      h <- hit[1, ]
-      type <- switch(h$availability, "Available" = "ok", "Limited" = "warn", "danger")
-      callout(paste0("Serviceable · ", h$availability),
-              paste0(h$route_path, " · ", h$transit_days, " day transit · ",
-                     h$branch_mapping),
-              type)
+      ln <- lane()
+      if (is.null(ln)) {
+        return(callout("Lane cannot be quoted",
+                       "Neither end resolves against the PIN code master, so no distance or transit can be worked out.",
+                       "warn"))
+      }
+
+      # A hand-mapped lane is a commercial commitment — negotiated transit
+      # days, agreed depot routing — so it always wins over the estimate and
+      # keeps saying so.
+      if (isTRUE(ln$mapped)) {
+        type <- switch(ln$status, "Available" = "ok", "Limited" = "warn", "danger")
+        return(callout(
+          paste0("Serviceable · ", ln$status),
+          paste0(ln$path, " · ", inr_group(ln$km), " km · ", ln$days,
+                 " day transit · ", ln$branches),
+          type))
+      }
+
+      # Everywhere else, which with 630 cities is nearly everywhere. Saying
+      # "not mapped, cannot quote" on 99% of lanes would make the city list
+      # useless, so the coordinates carry it — labelled as an estimate, because
+      # it is one and nobody should bill off it.
+      # A local lane between two PIN codes the reference data could not place
+      # separately has no distance worth printing. Say that, rather than
+      # quoting the 0 km the coordinates would produce — a cartage job priced
+      # at nothing is worse than one priced by hand.
+      if (!isTRUE(ln$km_known)) {
+        return(callout(
+          "Local delivery",
+          HTML(paste0(
+            htmlEscape(ln$path), " · same city, cross-town.<br/>",
+            '<span class="tiny muted">Distance not estimated: the PIN code master places both of these localities at the same city-level point, so any figure would be invented. Enter the freight from your local rate card, or map the lane on Pin Code Mapping to fix a distance.</span>')),
+          "info"))
+      }
+
+      callout(
+        if (isTRUE(ln$local)) "Local delivery" else "Estimated lane",
+        HTML(paste0(
+          htmlEscape(ln$path), " · <strong>~", inr_group(ln$km),
+          " km</strong> by road · <strong>", ln$days,
+          if (ln$days == 1) " day" else " days",
+          "</strong> transit.<br/>",
+          '<span class="tiny muted">',
+          if (isTRUE(ln$local))
+            "Both ends are in the same city — cross-town cartage, measured between the two PIN codes rather than taken off a trunk lane."
+          else
+            "Straight-line distance between the two PIN codes with a road factor applied. Not in the route master, so treat the transit as indicative until the lane is mapped.",
+          "</span>")),
+        "info")
     })
 
     charges <- reactive({
@@ -519,6 +644,11 @@ bookings_server <- function(id, user, nav) {
         dl_rows(
           "Customer" = if (is.null(r)) "—" else r$name,
           "Route"    = paste(input$f_from %||% "—", "→", input$f_to %||% "—"),
+          "Distance" = {
+            ln <- lane()
+            if (is.null(ln) || !isTRUE(ln$km_known)) "—"
+            else paste0(if (isTRUE(ln$mapped)) "" else "~", inr_group(ln$km), " km")
+          },
           "Weight"   = fmt_wt(input$f_weight),
           "Status"   = pill("Draft")
         )
@@ -536,7 +666,17 @@ bookings_server <- function(id, user, nav) {
       if (is.na(w) || w <= 0)                msgs <- c(msgs, "Weight must be greater than zero.")
       f <- as.numeric(input$f_freight %||% 0)
       if (is.na(f) || f <= 0)                msgs <- c(msgs, "Freight charges must be greater than zero.")
-      if (identical(input$f_from, input$f_to)) msgs <- c(msgs, "Origin and destination must differ.")
+      # The PIN is what goes on the LR and what the e-way bill is raised
+      # against, so an unresolvable one is not a cosmetic problem.
+      fp <- geo_pin(input$f_from_pin); tp <- geo_pin(input$f_to_pin)
+      if (is.null(fp)) msgs <- c(msgs, "Origin PIN code is not a valid Indian pincode.")
+      if (is.null(tp)) msgs <- c(msgs, "Destination PIN code is not a valid Indian pincode.")
+      # The PIN pair is what has to differ, not the city. Local cartage inside
+      # one city is ordinary freight, and refusing it because both ends read
+      # "Mumbai" would block a whole class of real bookings.
+      if (!is.null(fp) && !is.null(tp) && identical(fp$pincode, tp$pincode)) {
+        msgs <- c(msgs, "Origin and destination PIN codes must differ.")
+      }
       # TBB without a billing branch is meaningless — the whole point of the
       # term is that some *other* branch raises the invoice.
       if (identical(input$f_pay %||% "", "TBB") && !nzchar(input$f_bill_branch %||% "")) {
@@ -561,6 +701,16 @@ bookings_server <- function(id, user, nav) {
         branch_id = input$f_branch, client_id = input$f_client,
         pickup_address = input$f_pickup, delivery_address = input$f_drop,
         origin_city = input$f_from, dest_city = input$f_to,
+        # The PIN pair is the precise geography; the city is the human label
+        # for it. Both are stored because the LR prints the city and the
+        # e-way bill needs the codes. The distance is frozen at booking time —
+        # it is what was quoted, and re-deriving it later would let a refreshed
+        # pincode master silently change an agreed figure.
+        origin_pincode = geo_pin(input$f_from_pin)$pincode %||% "",
+        dest_pincode   = geo_pin(input$f_to_pin)$pincode %||% "",
+        origin_state   = geo_pin(input$f_from_pin)$state %||% "",
+        dest_state     = geo_pin(input$f_to_pin)$state %||% "",
+        distance_km    = geo_lane_km(lane()),
         material = input$f_material,
         weight_t = input$f_weight, quantity = input$f_qty,
         packages = input$f_pkg, insurance = input$f_ins,
@@ -629,13 +779,27 @@ bookings_server <- function(id, user, nav) {
                 selectInput(ns("m_pay"), NULL, width = "100%",
                             choices = setNames(PAYMENT_MODES, PAYMENT_MODES))),
 
-            div(class = "col-md-3",
-                tags$label(class = "form-label", "Origin"),
-                selectInput(ns("m_from"), NULL, ct, width = "100%")),
-            div(class = "col-md-3",
-                tags$label(class = "form-label", "Destination"),
-                selectInput(ns("m_to"), NULL, ct, width = "100%",
-                            selected = if (length(ct) > 1) ct[2] else ct[1])),
+            # The paper LR carries a PIN far more reliably than a district
+            # name, so offline entry gets the same PIN-first pair as the
+            # online form.
+            div(class = "col-md-2",
+                tags$label(class = "form-label req", "Origin PIN"),
+                textInput(ns("m_from_pin"), NULL, width = "100%",
+                          value = if (!is.na(home_city())) geo_city(home_city())$pincode else "")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label req", "Origin"),
+                selectizeInput(ns("m_from"), NULL, ct, width = "100%",
+                               selected = home_city(),
+                               options = list(maxOptions = 40))),
+            div(class = "col-md-2",
+                tags$label(class = "form-label req", "Destination PIN"),
+                textInput(ns("m_to_pin"), NULL, width = "100%")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label req", "Destination"),
+                selectizeInput(ns("m_to"), NULL, c("Search any city…" = "", ct),
+                               width = "100%", selected = "",
+                               options = list(placeholder = "Type a city, or a PIN",
+                                              maxOptions = 40))),
             div(class = "col-md-6",
                 tags$label(class = "form-label req", "Material"),
                 textInput(ns("m_material"), NULL, width = "100%")),
@@ -665,7 +829,14 @@ bookings_server <- function(id, user, nav) {
       if (is.na(w) || w <= 0)                msgs <- c(msgs, "Weight must be greater than zero.")
       f <- as.numeric(input$m_freight %||% 0)
       if (is.na(f) || f <= 0)                msgs <- c(msgs, "Freight must be greater than zero.")
-      if (identical(input$m_from, input$m_to)) msgs <- c(msgs, "Origin and destination must differ.")
+      mfp <- geo_pin(input$m_from_pin); mtp <- geo_pin(input$m_to_pin)
+      if (is.null(mfp)) msgs <- c(msgs, "Origin PIN code is not a valid Indian pincode.")
+      if (is.null(mtp)) msgs <- c(msgs, "Destination PIN code is not a valid Indian pincode.")
+      # Same rule as the online form: the PIN pair is the lane, so a local
+      # booking with one city at both ends is perfectly valid.
+      if (!is.null(mfp) && !is.null(mtp) && identical(mfp$pincode, mtp$pincode)) {
+        msgs <- c(msgs, "Origin and destination PIN codes must differ.")
+      }
       # A paper reference is the only thing tying this row back to the book it
       # came from, so it has to stay unique.
       if (nzchar(input$m_ref %||% "") &&
@@ -690,6 +861,12 @@ bookings_server <- function(id, user, nav) {
         branch_id = input$m_branch, client_id = input$m_client,
         pickup_address = cr$pickup_address, delivery_address = cr$delivery_address,
         origin_city = input$m_from, dest_city = input$m_to,
+        origin_pincode = geo_pin(input$m_from_pin)$pincode %||% "",
+        dest_pincode   = geo_pin(input$m_to_pin)$pincode %||% "",
+        origin_state   = geo_pin(input$m_from_pin)$state %||% "",
+        dest_state     = geo_pin(input$m_to_pin)$state %||% "",
+        distance_km    = geo_lane_km(geo_lane(input$m_from, input$m_to,
+                                             input$m_from_pin, input$m_to_pin)),
         material = input$m_material, weight_t = w, quantity = "",
         packages = "", insurance = "Not insured", declared_value = 0,
         freight = f, gst_mode = cr$gst_mode, gst_pct = cr$gst_pct,

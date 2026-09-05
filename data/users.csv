@@ -1,3 +1,3 @@
 user_id,name,email,password_hash,role,branch_id,department,mobile,cross_branch,client_id,vendor_id,status
-USR-0001,Amardip Singh,admin@amardiptms.in,$2a$12$PJhufH2mYiU2L5MaMTDrzuhOa9jRJauocdKKs8CZ1e/d2z4DKqeRO,Super Admin,BR-001,Management,+91 98230 11223,TRUE,,,Active
-USR-0002,Suresh Khan,operations@amardiptms.in,$2a$12$PJhufH2mYiU2L5MaMTDrzuhOa9jRJauocdKKs8CZ1e/d2z4DKqeRO,Operations Manager,BR-001,Operations,+91 98901 22345,FALSE,,,Active
+USR-0001,Amardip Singh,admin@amardiptms.in,$2a$12$BTG6r3qEwBWCywFNUQIwRuZ9AzaJ60AAMUhhWVufnRofTl.mv0XTq,Super Admin,BR-001,Management,+91 98230 11223,TRUE,,,Active
+USR-0002,Suresh Khan,operations@amardiptms.in,$2a$12$BTG6r3qEwBWCywFNUQIwRuZ9AzaJ60AAMUhhWVufnRofTl.mv0XTq,Operations Manager,BR-001,Operations,+91 98901 22345,FALSE,,,Active

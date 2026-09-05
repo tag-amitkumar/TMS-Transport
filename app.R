@@ -9,6 +9,7 @@
 
 source("global.R")
 source("R/store.R")
+source("R/geo.R")
 source("R/rbac.R")
 source("R/seed.R")
 source("R/seed_minimal.R")
