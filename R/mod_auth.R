@@ -112,15 +112,24 @@ auth_ui <- function(id) {
         div(
           class = "login-hero",
           h1(class = "login-hero-title",
-             "Every load, ", tags$span(class = "hl", "tracked"), br(), "end to end.")
+             "Every load, ", tags$span(class = "hl", "tracked"), br(), "end to end."),
+          div(
+            class = "login-hero-tags",
+            lapply(c("Bookings", "Consignments", "Fleet", "E-way bill",
+                     "POD", "Invoicing"), function(t) span(t))
+          ),
+          p(class = "login-hero-sub",
+            "One system from the booking counter to the settled invoice — ",
+            "every PIN code in India, live position from the driver's phone, ",
+            "and e-way bill validity that renews itself.")
         ),
 
         # ---- right: one card, two tabs ----
         #
         # A person arriving here wants exactly one of two things and only one
-        # of them has a password. Signing in leads, because this is the front
-        # door of a working system before it is anything else; tracking is one
-        # click away and needs no account.
+        # of them has a password. Tracking leads, because the people who arrive
+        # without an account outnumber the people with one; signing in is one
+        # click away.
         #
         # The panes are toggled in the browser, not through Shiny: a round-trip
         # would rebuild the inputs and throw away whatever had already been
@@ -130,13 +139,13 @@ auth_ui <- function(id) {
           div(
             class = "hero-tabs",
             tags$button(class = "hero-tab is-active", type = "button",
-                        `data-pane` = "signin", "Sign in"),
+                        `data-pane` = "track", "Track shipment"),
             tags$button(class = "hero-tab", type = "button",
-                        `data-pane` = "track", "Track shipment")
+                        `data-pane` = "signin", "Sign in")
           ),
 
           div(
-            class = "hero-pane is-active", `data-pane` = "signin",
+            class = "hero-pane", `data-pane` = "signin",
             h2(class = "hero-card-title", tags$strong("Sign in"), " to your account"),
             p(class = "hero-card-sub", "For branch, operations and fleet staff."),
 
@@ -164,7 +173,7 @@ auth_ui <- function(id) {
                 "Need help signing in? Contact your branch admin")
           ),
 
-          div(class = "hero-pane", `data-pane` = "track",
+          div(class = "hero-pane is-active", `data-pane` = "track",
               public_track_ui("track")),
 
           # Delegated from document, and installed once.

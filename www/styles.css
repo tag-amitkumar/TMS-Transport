@@ -971,8 +971,27 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 .login-hero { color: #DCE6F7; }
 
 .login-hero-title {
-  font-size: 3.25rem; line-height: 1.05; font-weight: 750;
-  letter-spacing: -.028em; color: #fff; margin: 0;
+  font-size: 3.1rem; line-height: 1.05; font-weight: 750;
+  letter-spacing: -.028em; color: #fff; margin: 0 0 1.5rem;
+}
+
+/* The service strip under the headline, squares between the words. */
+.login-hero-tags {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: .95rem; margin-bottom: 1.6rem;
+}
+.login-hero-tags span {
+  position: relative; font-size: .875rem; font-weight: 600; color: #E4EDFA;
+}
+.login-hero-tags span + span::before {
+  content: ""; position: absolute; left: -.62rem; top: 50%;
+  width: 6px; height: 6px; margin-top: -3px;
+  background: var(--amber);
+}
+
+.login-hero-sub {
+  font-size: .9375rem; line-height: 1.65; color: #A8BBD8;
+  margin: 0; max-width: 34rem;
 }
 .login-hero-title .hl { color: var(--amber); }
 
@@ -1053,6 +1072,8 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
     gap: 2.5rem;
   }
   .login-hero { order: 2; text-align: center; }
+  .login-hero-tags { justify-content: center; }
+  .login-hero-sub { margin: 0 auto; }
   .login-hero-title { font-size: 2.3rem; }
   .hero-card { order: 1; }
 }

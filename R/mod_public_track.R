@@ -210,8 +210,8 @@ public_track_server <- function(id) {
       if (is.null(r)) return(NULL)
       div(class = "login-track-out", track_result_ui(r, compact = TRUE))
     })
-    # Same reason as the sign-in error: this pane starts hidden behind the
-    # Sign in tab, and a suspended output comes back blank.
+    # Same reason as the sign-in error: whichever pane is behind the other tab
+    # is inside a display:none element, and a suspended output comes back blank.
     outputOptions(output, "out", suspendWhenHidden = FALSE)
     # ---- top bar dialog ----
     observeEvent(input$open, {
