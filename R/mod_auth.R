@@ -113,15 +113,18 @@ auth_ui <- function(id) {
           class = "login-hero",
           h1(class = "login-hero-title",
              "Every load, ", tags$span(class = "hl", "tracked"), br(), "end to end."),
+          # Four, and they are the operational chain in order: what is booked,
+          # what is issued against it, what carries it, what proves it arrived.
+          # E-way bill and invoicing came off — both are back-office paperwork,
+          # and neither is what the person reading this line came here to do.
           div(
             class = "login-hero-tags",
-            lapply(c("Bookings", "Consignments", "Fleet", "E-way bill",
-                     "POD", "Invoicing"), function(t) span(t))
+            lapply(c("Bookings", "Consignments", "Fleet", "Proof of delivery"),
+                   function(t) span(t))
           ),
           p(class = "login-hero-sub",
-            "One system from the booking counter to the settled invoice — ",
-            "every PIN code in India, live position from the driver's phone, ",
-            "and e-way bill validity that renews itself.")
+            "From the booking counter to proof of delivery, ",
+            "with live position straight from the driver's phone.")
         ),
 
         # ---- right: one card, two tabs ----
