@@ -456,6 +456,7 @@ build_seed <- function() {
     cross_branch = ifelse(usr_role == "Super Admin", "TRUE", "FALSE"),
     client_id    = "",
     vendor_id    = "",
+    employee_id  = "",
     status       = c("Active", pick(c("Active","Active","Active","Active","Suspended"), n_usr - 1))
   )
   users$status[1] <- "Active"

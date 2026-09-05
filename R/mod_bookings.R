@@ -211,7 +211,7 @@ bookings_server <- function(id, user, nav) {
 
       # A booking keyed in after the fact says so, with its paper reference.
       manual <- (b$entry_mode %||% "") == "Manual"
-      no_html <- paste0('<span style="font-weight:600;color:#12263F;">',
+      no_html <- paste0('<span style="font-weight:600;color:#12275C;">',
                         htmlEscape(b$booking_no), "</span>")
       no_html[manual] <- paste0(
         no_html[manual],
@@ -660,7 +660,7 @@ bookings_server <- function(id, user, nav) {
         tags$hr(class = "soft"),
         div(class = "d-flex justify-content-between align-items-center",
             span(style = "font-weight:650;", "Total"),
-            span(style = "font-weight:700;font-size:1.05rem;color:#12263F;", inr(ch$total))),
+            span(style = "font-weight:700;font-size:1.05rem;color:#12275C;", inr(ch$total))),
         tags$hr(class = "soft"),
         dl_rows(
           "Customer" = if (is.null(r)) "—" else r$name,

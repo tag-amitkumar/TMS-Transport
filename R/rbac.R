@@ -23,7 +23,7 @@ MODULES <- c(
   "pod", "tracking", "livegps", "vehicles", "drivers", "pincodes",
   "complaints", "invoices", "payments",
   "hrms_employees", "hrms_attendance", "hrms_payroll",
-  "reports", "portal_branch", "portal_customer", "portal_vendor",
+  "reports", "portal_branch", "portal_customer", "portal_vendor", "driver",
   "security", "settings"
 )
 
@@ -71,7 +71,9 @@ DEFAULT_PERMISSIONS <- local({
                              "cargo_moto", "consignments", "ewaybill", "pod",
                              "livegps", "invoices", "payments", "pincodes"),
     "Branch Admin"       = c("security", "settings"),
-    "Driver"             = setdiff(MODULES, c("tracking", "pod", "trips")),
+    # The driver console is the driver's whole app; every other role is blocked
+    # from it, because it is the one screen that writes a position.
+    "Driver"             = setdiff(MODULES, c("driver", "tracking", "pod", "trips")),
     "Vendor"             = setdiff(MODULES, c("portal_vendor", "pod", "tracking")),
     "Customer"           = setdiff(MODULES, c("portal_customer", "tracking"))
   )
@@ -82,6 +84,14 @@ DEFAULT_PERMISSIONS <- local({
     "Accountant" = c("invoices", "payments"),
     "HR Manager" = c("hrms_employees", "hrms_attendance", "hrms_payroll")
   )
+
+  # The driver console belongs to exactly one role. Listing it in every other
+  # role's blocked vector would be nine places to forget it — including Super
+  # Admin, whose vector is empty precisely because it sees everything. Stated
+  # once here, as the rule it actually is.
+  for (role in setdiff(names(grid), "Driver")) {
+    blocked[[role]] <- union(blocked[[role]] %||% character(0), "driver")
+  }
 
   rows <- list()
   for (role in names(grid)) {
@@ -106,8 +116,19 @@ DEFAULT_PERMISSIONS <- local({
 #' Reads the live permissions table so edits made on the Security screen take
 #' effect without a restart, falling back to the compiled-in matrix if the file
 #' is missing.
+# Modules the Super Admin bypass does not reach.
+#
+# The bypass exists because a Super Admin has authority over all the company's
+# data. The driver console is not the company's data — it is the screen a
+# driver uses to report the position of the phone in their own hand, and there
+# is no meaningful sense in which that is administered on someone else's
+# behalf. A Super Admin opening it would get an inert page reading "no trip
+# assigned to you", which is clutter in the rail of the one role that cannot
+# dismiss it.
+PERSONAL_MODULES <- c("driver")
+
 can <- function(role, module, action = "view") {
-  if (identical(role, "Super Admin")) return(TRUE)
+  if (identical(role, "Super Admin") && !module %in% PERSONAL_MODULES) return(TRUE)
   if (!action %in% ACTIONS) return(FALSE)
 
   p <- store_get("permissions")

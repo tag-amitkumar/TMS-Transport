@@ -13,7 +13,12 @@
 NAV <- list(
   list(caption = "Main", items = list(
     list(id = "dashboard", label = "Dashboard", icon = "house", module = "dashboard",
-         crumb = c("Home", "Dashboard"), title = "Dashboard")
+         crumb = c("Home", "Dashboard"), title = "Dashboard"),
+    # Driver-only, and the only screen in the app that writes GPS. It sits in
+    # Main rather than under Fleet because for the one role that can see it,
+    # it is the whole application.
+    list(id = "driver", label = "My Trip", icon = "location-crosshairs",
+         module = "driver", crumb = c("Home", "My Trip"), title = "My Trip")
   )),
 
   list(caption = "Administration", items = list(
@@ -174,7 +179,7 @@ landing_page <- function(role) {
   pref <- switch(role,
     "Customer" = "portal_customer",
     "Vendor"   = "portal_vendor",
-    "Driver"   = "tracking",
+    "Driver"   = "driver",
     "dashboard")
   ok <- allowed_pages(role)
   if (pref %in% ok) pref else (ok[1] %||% "dashboard")

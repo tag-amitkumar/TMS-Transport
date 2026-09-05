@@ -88,7 +88,7 @@ vehicles_server <- function(id, user, nav) {
       v <- rows(); dr <- store_get("drivers"); ven <- store_get("vendors")
       df <- tibble::tibble(
         VEHICLE = mapply(function(r, rc) paste0(
-          '<div class="mono" style="font-weight:650;color:#12263F;">', htmlEscape(r),
+          '<div class="mono" style="font-weight:650;color:#12275C;">', htmlEscape(r),
           '</div><div style="font-size:.6875rem;color:#64748B;">RC No. ', htmlEscape(rc), "</div>"),
           v$reg_no, v$rc_number),
         `TYPE · CAPACITY` = paste0(v$body, " · ", v$capacity_t, " T"),

@@ -129,7 +129,7 @@ dashboard_server <- function(id, user, nav) {
     # ---------------- Fleet map ----------------
 
     gps <- reactive({
-      g <- get_gps()
+      g <- gps_latest()
       v <- d_vehicles()
       g[g$vehicle_id %in% v$vehicle_id, , drop = FALSE]
     })
@@ -197,7 +197,7 @@ dashboard_server <- function(id, user, nav) {
                paper_bgcolor = "rgba(0,0,0,0)",
                annotations = list(
                  text = paste0("<b>", nrow(d_vehicles()), "</b>"),
-                 showarrow = FALSE, font = list(size = 20, color = "#12263F"))) |>
+                 showarrow = FALSE, font = list(size = 20, color = "#12275C"))) |>
         config(displayModeBar = FALSE)
     })
 
@@ -236,7 +236,7 @@ dashboard_server <- function(id, user, nav) {
             style = if (i < nrow(c)) "border-bottom:1px solid #EEF2F7;" else "",
             div(style = "flex:0 0 auto;", pill(r$status)),
             div(style = "min-width:0;",
-                div(style = "font-size:.8125rem;font-weight:600;color:#12263F;",
+                div(style = "font-size:.8125rem;font-weight:600;color:#12275C;",
                     paste0(r$subject, " — ", r$lr_no)),
                 div(class = "tiny muted",
                     paste(cl$name[match(r$client_id, cl$client_id)],
@@ -259,12 +259,12 @@ dashboard_server <- function(id, user, nav) {
       }, integer(1))
       df <- tibble::tibble(m = format(months, "%b"), n = cnt)
       # Highlight the current month, as the deck does.
-      df$col <- c(rep("#AFC6DE", nrow(df) - 1), "#12263F")
+      df$col <- c(rep("#AFC6DE", nrow(df) - 1), "#12275C")
 
       plot_ly(df, x = ~m, y = ~n, type = "bar",
               marker = list(color = ~col), hoverinfo = "y",
               text = ~ifelse(seq_along(n) == length(n), n, ""),
-              textposition = "outside", textfont = list(size = 11, color = "#12263F")) |>
+              textposition = "outside", textfont = list(size = 11, color = "#12275C")) |>
         layout(xaxis = list(title = "", tickfont = list(size = 11, color = "#64748B"),
                             showgrid = FALSE, zeroline = FALSE),
                yaxis = list(title = "", showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE),

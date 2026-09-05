@@ -87,11 +87,11 @@ reports_server <- function(id, user) {
 
     output$p_book <- renderPlotly({
       d <- book_data()
-      d$col <- ifelse(d$n == max(d$n), "#12263F", "#AFC6DE")
+      d$col <- ifelse(d$n == max(d$n), "#12275C", "#AFC6DE")
       plot_ly(d, x = ~day, y = ~n, type = "bar", marker = list(color = ~col),
               hoverinfo = "y",
               text = ~ifelse(n == max(n), n, ""), textposition = "outside",
-              textfont = list(size = 11, color = "#12263F")) |>
+              textfont = list(size = 11, color = "#12275C")) |>
         layout(xaxis = list(title = "", showgrid = FALSE, zeroline = FALSE,
                             tickfont = list(size = 11, color = "#64748B")),
                yaxis = list(title = "", showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE),
@@ -145,11 +145,11 @@ reports_server <- function(id, user) {
     output$p_veh <- renderPlotly({
       d <- veh_data()
       if (!nrow(d)) return(plotly_empty())
-      d$col <- ifelse(d$pct == max(d$pct), "#12263F", "#AFC6DE")
+      d$col <- ifelse(d$pct == max(d$pct), "#12275C", "#AFC6DE")
       plot_ly(d, x = ~body, y = ~pct, type = "bar", marker = list(color = ~col),
               hoverinfo = "text",
               text = ~paste0(pct, "% of ", total),
-              textposition = "outside", textfont = list(size = 11, color = "#12263F")) |>
+              textposition = "outside", textfont = list(size = 11, color = "#12275C")) |>
         layout(xaxis = list(title = "", showgrid = FALSE, zeroline = FALSE,
                             tickfont = list(size = 10, color = "#64748B")),
                yaxis = list(title = "", showgrid = FALSE, showticklabels = FALSE,
@@ -213,10 +213,10 @@ reports_server <- function(id, user) {
     output$p_cmp <- renderPlotly({
       d <- cmp_data()
       if (!nrow(d)) return(plotly_empty())
-      d$col <- ifelse(d$pct == max(d$pct), "#12263F", "#AFC6DE")
+      d$col <- ifelse(d$pct == max(d$pct), "#12275C", "#AFC6DE")
       plot_ly(d, x = ~city, y = ~pct, type = "bar", marker = list(color = ~col),
               hoverinfo = "text", text = ~paste0(pct, "% within SLA"),
-              textposition = "outside", textfont = list(size = 11, color = "#12263F")) |>
+              textposition = "outside", textfont = list(size = 11, color = "#12275C")) |>
         layout(xaxis = list(title = "", showgrid = FALSE, zeroline = FALSE,
                             tickfont = list(size = 11, color = "#64748B")),
                yaxis = list(title = "", showgrid = FALSE, showticklabels = FALSE,

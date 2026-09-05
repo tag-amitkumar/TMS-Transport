@@ -152,7 +152,7 @@ invoices_server <- function(id, user, nav) {
             div(class = "d-flex align-items-center gap-2 py-2",
                 style = if (i < min(5, nrow(u))) "border-bottom:1px solid #EEF2F7;" else "",
                 div(style = "min-width:0;flex:1;",
-                    div(style = "font-weight:650;font-size:.8125rem;color:#12263F;", r$lr_no),
+                    div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$lr_no),
                     div(class = "tiny muted",
                         paste("POD", fmt_date(r$delivered_date, TRUE), "·",
                               cl$name[match(r$client_id, cl$client_id)]))),
@@ -183,7 +183,10 @@ invoices_server <- function(id, user, nav) {
         div(
           style = "border:1px solid #E4EAF1;border-radius:10px;padding:1rem;",
           div(class = "d-flex align-items-center gap-2 mb-3",
-              brand_mark(26),
+              # The logo, not a mark: this header sits on a white card and goes
+              # in front of a customer. 34px is where the wordmark inside the
+              # artwork stays readable.
+              brand_logo(34),
               span(class = "small-caps", style = "letter-spacing:.1em;", "Tax Invoice"),
               span(class = "ms-auto tiny muted",
                    paste(i$invoice_no, "·", fmt_date(i$invoice_date)))),
@@ -200,7 +203,7 @@ invoices_server <- function(id, user, nav) {
           tags$hr(class = "soft"),
           div(class = "d-flex justify-content-between",
               span(style = "font-weight:650;", "Total"),
-              span(style = "font-weight:700;font-size:1.05rem;color:#12263F;", inr(i$total))),
+              span(style = "font-weight:700;font-size:1.05rem;color:#12275C;", inr(i$total))),
           if (paid > 0 && paid < i$total) div(
             class = "d-flex justify-content-between mt-1 tiny",
             span(class = "muted", "Received"),

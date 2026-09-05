@@ -297,6 +297,21 @@ get_payroll <- function() {
                       "advances", "pf", "esi", "pt", "net"))
 }
 
+#' The current position of each vehicle: the most recent ping, one row each.
+#'
+#' Every screen that draws "where are my trucks" wants this, not the raw table.
+#' While the GPS feed was simulated there was exactly one ping per vehicle and
+#' the difference did not show; the moment a driver's phone starts reporting
+#' every thirty seconds, get_gps() returns the whole history and the fleet map
+#' plots the same lorry once for every place it has ever been.
+gps_latest <- function() {
+  g <- get_gps()
+  if (!nrow(g)) return(g)
+  # Newest first, then keep the first row per vehicle.
+  g <- g[order(g$ts, decreasing = TRUE), , drop = FALSE]
+  g[!duplicated(g$vehicle_id), , drop = FALSE]
+}
+
 get_pods <- function() store_typed("pods", datetime = "upload_dt")
 
 get_attendance <- function() store_typed("attendance", date = "date")

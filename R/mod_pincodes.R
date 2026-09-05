@@ -109,7 +109,7 @@ pincodes_server <- function(id, user) {
         `PIN CODE` = paste0('<span class="mono" style="font-weight:600;">',
                             htmlEscape(r$pincode), "</span>"),
         LOCALITY   = htmlEscape(r$locality),
-        CITY       = paste0('<span style="font-weight:600;color:#12263F;">',
+        CITY       = paste0('<span style="font-weight:600;color:#12275C;">',
                             htmlEscape(r$city), "</span>"),
         STATE      = htmlEscape(r$state),
         `POST OFFICES` = r$offices,

@@ -153,7 +153,7 @@ settings_server <- function(id, user) {
                   style = if (i < nrow(ig)) "border-bottom:1px solid #EEF2F7;" else "",
                   div(class = "stat-ico", fontawesome::fa("plug")),
                   div(style = "min-width:0;",
-                      div(style = "font-weight:650;font-size:.8125rem;color:#12263F;", r$name),
+                      div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$name),
                       div(class = "tiny muted", r$provider)),
                   div(class = "ms-auto d-flex align-items-center gap-2",
                       pill(r$status, if (connected) "green" else "grey"),

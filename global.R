@@ -98,9 +98,14 @@ brand_mark <- function(size = 38) {
 #' binary asset that cannot live in this file: without the fallback a fresh
 #' clone would render a broken-image icon on the login screen and on every
 #' lorry receipt.
-brand_logo <- function(height = 56, alt = BRAND$company) {
+#' @param fill Size the logo by the width of its container rather than by
+#'   `height`, cropping the empty bands the artwork carries above and below
+#'   (see .brand-logo-fill in styles.css). Used in the sidebar, where the point
+#'   is to fill the panel rather than sit politely in the middle of it.
+brand_logo <- function(height = 56, alt = BRAND$company, fill = FALSE) {
   p <- file.path("www", BRAND$logo)
   if (file.exists(p)) {
+    if (fill) return(tags$img(src = BRAND$logo, alt = alt, class = "brand-logo-fill"))
     return(tags$img(src = BRAND$logo, alt = alt, height = paste0(height, "px"),
                     style = "display:block;width:auto;max-width:100%;"))
   }
@@ -139,7 +144,7 @@ SEED_PROFILE <- Sys.getenv("TMS_SEED_PROFILE", "minimal")
 # an error. The minimal profile has exactly two accounts, so it offers exactly
 # two chips.
 DEMO_ROLES <- if (identical(SEED_PROFILE, "minimal")) {
-  c("Super Admin", "Operations Manager")
+  c("Super Admin", "Operations Manager", "Driver")
 } else {
   c("Super Admin", "Branch Admin", "Dispatcher", "Accountant",
     "HR Manager", "Vendor", "Customer")

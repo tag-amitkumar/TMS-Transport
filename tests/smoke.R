@@ -187,7 +187,15 @@ ok("drivers take home a living wage",
    all(pr$net[pr$net > 0] >= 5000, na.rm = TRUE))
 
 cat("\n== RBAC ==\n")
-ok("Super Admin sees everything", all(vapply(MODULES, function(m) can("Super Admin", m, "view"), logical(1))))
+# Super Admin outranks the matrix on every module that holds company data. The
+# exception is the personal ones: the driver console reports the position of a
+# phone in somebody's hand, and there is nothing there to administer.
+ok("Super Admin sees every company module",
+   all(vapply(setdiff(MODULES, PERSONAL_MODULES),
+              function(m) can("Super Admin", m, "view"), logical(1))))
+ok("Super Admin does not get the personal ones",
+   !any(vapply(PERSONAL_MODULES,
+               function(m) can("Super Admin", m, "view"), logical(1))))
 ok("Customer cannot see payroll", !can("Customer", "hrms_payroll", "view"))
 ok("Customer cannot see clients", !can("Customer", "clients", "view"))
 ok("Vendor cannot see invoices",  !can("Vendor", "invoices", "view"))

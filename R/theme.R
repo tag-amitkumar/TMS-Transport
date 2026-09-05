@@ -9,15 +9,16 @@
 
 TMS <- list(
   # Sidebar / brand
-  navy_900   = "#0F2338",  # sidebar background
-  navy_800   = "#17324D",  # sidebar active row
-  navy_700   = "#1B3A5C",  # dark buttons
-  navy_ink   = "#12263F",  # page headings, big numbers
+  navy_900   = "#12275C",  # sidebar background
+  navy_800   = "#1B3470",  # sidebar active row
+  navy_700   = "#24408A",  # dark buttons
+  navy_ink   = "#12275C",  # page headings, big numbers
 
-  # Accent — the amber used for every primary action in the deck
-  amber      = "#EFA31D",
-  amber_dark = "#D18E12",
-  amber_soft = "#FDF8EC",  # selected table row
+  # Accent — the orange from the MoveWing mark, used for every primary action.
+  # The deck drew this amber; the brand supersedes it.
+  amber      = "#E9631A",
+  amber_dark = "#CC5210",
+  amber_soft = "#FFF3EA",  # selected table row
 
   # Surfaces
   body_bg    = "#F4F7FB",

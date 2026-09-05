@@ -50,7 +50,7 @@ users_server <- function(id, user) {
       df <- tibble::tibble(
         USER = mapply(function(n) paste0(
           '<div class="d-flex align-items-center gap-2">', avatar_html(n),
-          '<span style="font-weight:600;color:#12263F;">', htmlEscape(n), "</span></div>"), u$name),
+          '<span style="font-weight:600;color:#12275C;">', htmlEscape(n), "</span></div>"), u$name),
         `LOGIN / EMAIL` = mono(u$email),
         BRANCH     = b$name[match(u$branch_id, b$branch_id)],
         ROLE       = pill_html(u$role, colour = NULL),

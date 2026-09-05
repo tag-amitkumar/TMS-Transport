@@ -76,7 +76,7 @@ pod_server <- function(id, user) {
               div(class = "doc-thumb",
                   if (pending) fontawesome::fa("plus") else fontawesome::fa("file-lines")),
               div(class = "doc-meta",
-                  div(style = "font-weight:650;font-size:.8125rem;color:#12263F;", r$lr_no),
+                  div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$lr_no),
                   div(class = "tiny muted", paste0(nm, " ", when)),
                   div(class = "mt-2", pill(r$status)))
             ))

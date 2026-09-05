@@ -25,6 +25,7 @@ Super Admin,reports,1,1,1,1,1,1
 Super Admin,portal_branch,1,1,1,1,1,1
 Super Admin,portal_customer,1,1,1,1,1,1
 Super Admin,portal_vendor,1,1,1,1,1,1
+Super Admin,driver,0,0,0,0,0,0
 Super Admin,security,1,1,1,1,1,1
 Super Admin,settings,1,1,1,1,1,1
 Branch Admin,dashboard,1,1,1,0,1,1
@@ -53,6 +54,7 @@ Branch Admin,reports,1,1,1,0,1,1
 Branch Admin,portal_branch,1,1,1,0,1,1
 Branch Admin,portal_customer,1,1,1,0,1,1
 Branch Admin,portal_vendor,1,1,1,0,1,1
+Branch Admin,driver,0,0,0,0,0,0
 Branch Admin,security,0,0,0,0,0,0
 Branch Admin,settings,0,0,0,0,0,0
 Operations Manager,dashboard,1,1,1,0,1,0
@@ -81,6 +83,7 @@ Operations Manager,reports,1,1,1,0,1,0
 Operations Manager,portal_branch,1,1,1,0,1,0
 Operations Manager,portal_customer,1,1,1,0,1,0
 Operations Manager,portal_vendor,1,1,1,0,1,0
+Operations Manager,driver,0,0,0,0,0,0
 Operations Manager,security,0,0,0,0,0,0
 Operations Manager,settings,0,0,0,0,0,0
 Booking Executive,dashboard,1,1,1,0,0,0
@@ -109,6 +112,7 @@ Booking Executive,reports,0,0,0,0,0,0
 Booking Executive,portal_branch,1,1,1,0,0,0
 Booking Executive,portal_customer,1,1,1,0,0,0
 Booking Executive,portal_vendor,1,1,1,0,0,0
+Booking Executive,driver,0,0,0,0,0,0
 Booking Executive,security,0,0,0,0,0,0
 Booking Executive,settings,0,0,0,0,0,0
 Dispatcher,dashboard,1,1,0,0,0,0
@@ -137,6 +141,7 @@ Dispatcher,reports,0,0,0,0,0,0
 Dispatcher,portal_branch,1,1,0,0,0,0
 Dispatcher,portal_customer,1,1,0,0,0,0
 Dispatcher,portal_vendor,1,1,0,0,0,0
+Dispatcher,driver,0,0,0,0,0,0
 Dispatcher,security,0,0,0,0,0,0
 Dispatcher,settings,0,0,0,0,0,0
 Accountant,dashboard,1,0,0,0,1,1
@@ -165,6 +170,7 @@ Accountant,reports,1,0,0,0,1,1
 Accountant,portal_branch,1,0,0,0,1,1
 Accountant,portal_customer,1,0,0,0,1,1
 Accountant,portal_vendor,1,0,0,0,1,1
+Accountant,driver,0,0,0,0,0,0
 Accountant,security,0,0,0,0,0,0
 Accountant,settings,0,0,0,0,0,0
 HR Manager,dashboard,1,1,1,0,1,1
@@ -193,6 +199,7 @@ HR Manager,reports,1,1,1,0,1,1
 HR Manager,portal_branch,1,1,1,0,1,1
 HR Manager,portal_customer,1,1,1,0,1,1
 HR Manager,portal_vendor,1,1,1,0,1,1
+HR Manager,driver,0,0,0,0,0,0
 HR Manager,security,0,0,0,0,0,0
 HR Manager,settings,0,0,0,0,0,0
 Driver,dashboard,0,0,0,0,0,0
@@ -221,6 +228,7 @@ Driver,reports,0,0,0,0,0,0
 Driver,portal_branch,0,0,0,0,0,0
 Driver,portal_customer,0,0,0,0,0,0
 Driver,portal_vendor,0,0,0,0,0,0
+Driver,driver,1,0,0,0,0,0
 Driver,security,0,0,0,0,0,0
 Driver,settings,0,0,0,0,0,0
 Vendor,dashboard,0,0,0,0,0,0
@@ -249,6 +257,7 @@ Vendor,reports,0,0,0,0,0,0
 Vendor,portal_branch,0,0,0,0,0,0
 Vendor,portal_customer,0,0,0,0,0,0
 Vendor,portal_vendor,1,0,0,0,0,0
+Vendor,driver,0,0,0,0,0,0
 Vendor,security,0,0,0,0,0,0
 Vendor,settings,0,0,0,0,0,0
 Customer,dashboard,0,0,0,0,0,0
@@ -277,5 +286,6 @@ Customer,reports,0,0,0,0,0,0
 Customer,portal_branch,0,0,0,0,0,0
 Customer,portal_customer,1,0,0,0,0,0
 Customer,portal_vendor,0,0,0,0,0,0
+Customer,driver,0,0,0,0,0,0
 Customer,security,0,0,0,0,0,0
 Customer,settings,0,0,0,0,0,0

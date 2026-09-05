@@ -8,13 +8,13 @@
    ================================================================== */
 
 :root {
-  --navy-900: #0F2338;
-  --navy-800: #17324D;
-  --navy-700: #1B3A5C;
-  --navy-ink: #12263F;
-  --amber:    #EFA31D;
-  --amber-dark: #D18E12;
-  --amber-soft: #FDF8EC;
+  --navy-900: #12275C;
+  --navy-800: #1B3470;
+  --navy-700: #24408A;
+  --navy-ink: #12275C;
+  --amber:    #E9631A;
+  --amber-dark: #CC5210;
+  --amber-soft: #FFF3EA;
   --body-bg:  #F4F7FB;
   --border:   #E4EAF1;
   --border-sub: #EEF2F7;
@@ -53,8 +53,9 @@ body {
 .tms-sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
-  background: var(--navy-900);
-  color: #CBD5E1;
+  background: #fff;
+  color: var(--ink);
+  border-right: 1px solid var(--border);
   position: sticky;
   top: 0;
   height: 100vh;
@@ -70,8 +71,8 @@ body {
 
 .tms-brand {
   display: flex; align-items: center; gap: .625rem;
-  padding: 1.125rem 1rem;
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding: .85rem .8rem;
+  border-bottom: 1px solid var(--border);
 }
 .tms-brand-tile {
   width: 38px; height: 38px; border-radius: 9px;
@@ -88,27 +89,27 @@ body {
 .tms-nav-caption {
   padding: .875rem 1rem .3rem;
   font-size: .625rem; letter-spacing: .1em; text-transform: uppercase;
-  color: #5E7590;
-  font-weight: 600;
+  color: var(--faint);
+  font-weight: 650;
 }
 
 .tms-nav-item {
   display: flex; align-items: center; gap: .625rem;
   padding: .5rem 1rem;
-  color: #C3D0DE;
+  color: #47566B;
   font-size: .8125rem;
   cursor: pointer;
   border-left: 3px solid transparent;
   user-select: none;
   transition: background .12s ease, color .12s ease;
 }
-.tms-nav-item:hover { background: rgba(255,255,255,.045); color: #fff; }
+.tms-nav-item:hover { background: #F4F7FB; color: var(--navy-ink); }
 
 .tms-nav-item.active {
-  background: var(--navy-800);
-  color: #fff;
+  background: var(--amber-soft);
+  color: var(--navy-ink);
   border-left-color: var(--amber);
-  font-weight: 550;
+  font-weight: 650;
 }
 
 .tms-nav-item .ico { width: 17px; text-align: center; opacity: .85; flex: 0 0 17px; }
@@ -118,15 +119,15 @@ body {
 .tms-nav-sub {
   padding: .4rem 1rem .4rem 2.65rem;
   font-size: .8125rem;
-  color: #9FB1C4;
+  color: #6B7A90;
   cursor: pointer;
   border-left: 3px solid transparent;
 }
-.tms-nav-sub:hover { color: #fff; background: rgba(255,255,255,.03); }
+.tms-nav-sub:hover { color: var(--navy-ink); background: #F4F7FB; }
 .tms-nav-sub.active {
-  background: var(--navy-800);
-  color: #fff;
-  font-weight: 550;
+  background: var(--amber-soft);
+  color: var(--navy-ink);
+  font-weight: 650;
   border-left-color: var(--amber);
 }
 
@@ -134,7 +135,8 @@ body {
 .tms-userchip {
   margin: .75rem;
   padding: .625rem .75rem;
-  background: rgba(255,255,255,.05);
+  background: #F4F7FB;
+  border: 1px solid var(--border);
   border-radius: 10px;
   display: flex; align-items: center; gap: .625rem;
 }
@@ -326,10 +328,10 @@ body {
 
 .btn-tms-primary {
   background: var(--amber); border: 1px solid var(--amber);
-  color: #3B2A06; font-weight: 650; font-size: .8125rem;
+  color: #fff; font-weight: 650; font-size: .8125rem;
   padding: .48rem .95rem; border-radius: 9px;
 }
-.btn-tms-primary:hover { background: var(--amber-dark); border-color: var(--amber-dark); color: #3B2A06; }
+.btn-tms-primary:hover { background: var(--amber-dark); border-color: var(--amber-dark); color: #fff; }
 
 .btn-tms-dark {
   background: var(--navy-700); border: 1px solid var(--navy-700);
@@ -509,14 +511,18 @@ body {
    ------------------------------------------------------------------ */
 
 .login-wrap {
+  position: relative;   /* the SVG backdrop is absolutely positioned inside */
   min-height: 100vh;
+  overflow: hidden;
   background: var(--navy-900);
-  background-image: radial-gradient(1100px 520px at 50% -8%, #16334F 0%, #0F2338 62%);
-  display: grid; place-items: center; padding: 2rem 1rem;
+  /* Brand navy, deepening toward the edges so the SVG convoy along the
+     bottom reads without a hard band. */
+  background-image: radial-gradient(1200px 700px at 50% 0%, #1A3468 0%, #0E1E48 70%);
+  display: block; padding: 0;
 }
 .login-card {
-  width: 100%; max-width: 420px;
-  background: #fff; border-radius: 13px; padding: 2rem;
+  width: 100%; max-width: 520px;
+  background: #fff; border-radius: 13px; padding: 2rem 2.25rem;
   box-shadow: 0 22px 55px rgba(0,0,0,.35);
 }
 .login-role-chip {
@@ -793,3 +799,267 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
   vertical-align: middle;
 }
 .tms-plain-table tbody tr:last-child td { border-bottom: none; }
+
+/* ------------------------------------------------------------------
+   Brand plate, login layout, tracking box
+   ------------------------------------------------------------------ */
+
+/* The rail is white now, so the plate is no longer a contrast device — it is
+   just the box the logo sits in. Padding rather than a panel. */
+.tms-brand-plate {
+  width: 100%;
+  padding: .15rem .25rem;
+  display: grid;
+  place-items: center;
+}
+.tms-brand-plate img { margin: 0 auto; }
+
+/* ---------- login page ---------- */
+
+/* The tracking panel. Positioning lives with the login grid further down;
+   this block is only its appearance. */
+.login-track {
+  background: #fff;
+  border-radius: 13px;
+  padding: 1.5rem;
+  box-shadow: 0 22px 55px rgba(0,0,0,.35);
+  z-index: 5;
+}
+.login-track-head { display: flex; align-items: center; gap: .7rem; }
+.login-track-ico {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--amber); color: #fff;
+  display: grid; place-items: center; font-size: 1rem;
+  flex: 0 0 40px;
+}
+.login-track-title {
+  font-size: 1.0625rem; font-weight: 700; color: var(--navy-ink);
+  letter-spacing: -.01em; line-height: 1.15;
+}
+.login-track-sub { font-size: .75rem; color: var(--muted); }
+
+/* The result can run long once a consignment has a movement trail, and the
+   panel is pinned to the top of the viewport — so it scrolls inside itself
+   rather than growing off the bottom of the screen. */
+.login-track-out {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+  max-height: 46vh;
+  overflow-y: auto;
+  /* Vertically only. The timeline rows put the event name and its timestamp on
+     one line, which in a 360px panel is just wide enough to raise a horizontal
+     scrollbar under the result — so let those rows wrap instead. */
+  overflow-x: hidden;
+}
+.login-track-out .tl-item > div:last-child { flex-wrap: wrap; row-gap: .1rem; }
+.login-track-out .tl-when { font-size: .6875rem; }
+
+/* ---------- top bar tracking button ---------- */
+
+.tms-trackbtn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  height: 36px; padding: 0 .85rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--navy-ink);
+  font-size: .8125rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.tms-trackbtn:hover { background: var(--amber-soft); border-color: var(--amber); }
+.tms-trackbtn svg { height: .85em; fill: var(--amber); }
+
+/* The label is the first thing to go when the bar runs out of room — the icon
+   still says what the button is. */
+@media (max-width: 1280px) {
+  .tms-trackbtn span { display: none; }
+  .tms-trackbtn { padding: 0; width: 36px; justify-content: center; }
+}
+
+/* User chip on the now-white rail. These were inline white-on-navy styles in
+   app.R; the rail is white, so they moved here and turned dark. */
+.tms-userchip-name {
+  color: var(--navy-ink); font-size: .8125rem; font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tms-userchip-role { color: var(--muted); font-size: .6875rem; }
+.tms-userchip-out  { margin-left: auto; cursor: pointer; color: var(--faint); }
+.tms-userchip-out:hover { color: var(--amber); }
+
+/* The logo, filling the brand panel.
+   
+   The artwork is a 500x500 canvas whose content occupies rows 94-401 — 19% of
+   the height is empty above it and 20% below. Scaled to fit, that padding is
+   what you see: a small mark adrift in a large white box. So the panel is
+   given the aspect ratio of the *content* rather than the file, and object-fit
+   crops the empty bands away. 25/16 (=1.5625) trims 18% off each end, which
+   clears the transparent margin at the top with a little to spare and never
+   reaches the artwork. */
+.brand-logo-fill {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 25 / 16;
+  object-fit: cover;
+  object-position: center;
+}
+/* ==================================================================
+   Login — full page
+
+   A masthead with the logo, a hero band, and one card carrying both of the
+   things a visitor could want. Tracking leads: the people arriving here
+   without an account outnumber the people with one.
+   ================================================================== */
+
+.login-wrap {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  background: #0E1E48;
+}
+
+/* ---------- masthead ---------- */
+
+/* White, not navy. The logo is dark navy on transparent, so a dark bar would
+   swallow the one thing this strip exists to show. */
+.login-header {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.login-header-inner {
+  max-width: 1440px; margin: 0 auto;
+  padding: .55rem 2.5rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+}
+.login-header-logo { width: 118px; flex: 0 0 118px; }
+.login-header-right {
+  font-size: .6875rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 650; white-space: nowrap;
+}
+
+/* ---------- hero band ---------- */
+
+.login-hero-band {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex; align-items: center;
+  overflow: hidden;
+  background-image: radial-gradient(1200px 700px at 30% 0%, #1A3468 0%, #0E1E48 72%);
+}
+
+.login-bg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;   /* decoration must never eat a click on the form */
+  z-index: 0;
+}
+
+.login-hero-inner {
+  position: relative; z-index: 1;
+  width: 100%;
+  max-width: 1440px; margin: 0 auto;
+  padding: 3.5rem 2.5rem 4.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 470px;
+  gap: 4rem;
+  align-items: center;
+}
+
+/* ---------- hero copy ---------- */
+
+.login-hero { color: #DCE6F7; }
+
+.login-hero-title {
+  font-size: 3.25rem; line-height: 1.05; font-weight: 750;
+  letter-spacing: -.028em; color: #fff; margin: 0;
+}
+.login-hero-title .hl { color: var(--amber); }
+
+/* ---------- the card ---------- */
+
+.hero-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .38);
+  overflow: hidden;
+  align-self: center;
+}
+
+.hero-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.hero-tab {
+  flex: 1 1 auto;
+  background: none; border: none;
+  padding: 1.05rem .75rem;
+  font-size: .9375rem; font-weight: 600; color: var(--muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.hero-tab:hover { color: var(--navy-ink); background: #FAFCFE; }
+.hero-tab.is-active {
+  color: var(--navy-ink); font-weight: 700;
+  border-bottom-color: var(--amber);
+}
+
+.hero-pane { display: none; padding: 1.6rem 1.75rem 1.75rem; }
+.hero-pane.is-active { display: block; }
+
+.hero-card-title {
+  font-size: 1.45rem; font-weight: 500; color: var(--navy-ink);
+  letter-spacing: -.02em; margin: 0 0 .2rem;
+}
+.hero-card-title strong { font-weight: 750; }
+.hero-card-sub { font-size: .8125rem; color: var(--muted); margin: 0; }
+
+.hero-cta { padding: .7rem !important; font-size: .875rem !important; }
+
+/* The result can run long once a consignment has a movement trail, so it
+   scrolls inside the card rather than growing the page under it. */
+.login-track-out {
+  margin-top: 1.1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.1rem;
+  max-height: 40vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.login-track-out .tl-item > div:last-child { flex-wrap: wrap; row-gap: .1rem; }
+.login-track-out .tl-when { font-size: .6875rem; }
+
+/* ---------- footer strip ---------- */
+
+.login-foot {
+  flex: 0 0 auto;
+  text-align: center;
+  padding: 1.5rem 1rem 2.25rem;
+  background: #0B1839;
+  border-top: 1px solid rgba(255, 255, 255, .06);
+}
+.login-foot .small-caps { color: #7F93AB; }
+.login-foot-note { margin-top: 1rem; font-size: .6875rem; color: #5E7590; }
+
+/* ---------- narrower ---------- */
+
+/* One column. The card goes first: whichever of the two things the visitor
+   came for, it is in there, and the headline is not. */
+/* One column. The card goes first: whichever of the two things the visitor
+   came for, it is in there, and the headline is not. */
+@media (max-width: 1080px) {
+  .login-hero-inner {
+    grid-template-columns: minmax(0, 470px);
+    justify-content: center;
+    padding: 2.5rem 1.25rem 3rem;
+    gap: 2.5rem;
+  }
+  .login-hero { order: 2; text-align: center; }
+  .login-hero-title { font-size: 2.3rem; }
+  .hero-card { order: 1; }
+}
+
+@media (max-width: 560px) {
+  .login-header-inner { padding: .5rem 1rem; }
+  .login-header-right { display: none; }
+  .login-hero-title { font-size: 1.9rem; }
+  .hero-pane { padding: 1.25rem 1.1rem 1.4rem; }
+}

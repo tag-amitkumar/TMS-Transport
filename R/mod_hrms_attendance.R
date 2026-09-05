@@ -130,7 +130,7 @@ hrms_attendance_server <- function(id, user) {
 
       df <- tibble::tibble(
         EMPLOYEE = mapply(function(n, ds, br) paste0(
-          '<div style="font-weight:600;color:#12263F;">', htmlEscape(n),
+          '<div style="font-weight:600;color:#12275C;">', htmlEscape(n),
           '</div><div style="font-size:.6875rem;color:#64748B;">', htmlEscape(ds),
           " · ", htmlEscape(br), "</div>"),
           s$name, s$designation, b$city[match(s$branch_id, b$branch_id)])
@@ -176,7 +176,7 @@ hrms_attendance_server <- function(id, user) {
             style = if (i < nrow(r)) "border-bottom:1px solid #EEF2F7;" else "",
             div(class = "d-flex align-items-center gap-2 mb-1",
                 avatar(nm, "sm"),
-                div(div(style = "font-weight:600;font-size:.8125rem;color:#12263F;",
+                div(div(style = "font-weight:600;font-size:.8125rem;color:#12275C;",
                         paste0(nm, " · ", dept)),
                     div(class = "tiny muted",
                         paste0(fmt_date(x$from_date, TRUE), "–", fmt_date(x$to_date, TRUE),

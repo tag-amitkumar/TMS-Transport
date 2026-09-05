@@ -156,7 +156,7 @@ hrms_payroll_server <- function(id, user) {
                                       inr(p$trip_allowance), "</span>"), "—"),
         ADVANCES = neg(p$advances),
         `PF / ESI / PT` = neg(p$pf + p$esi + p$pt),
-        `NET SALARY` = paste0('<span style="font-weight:680;color:#12263F;">',
+        `NET SALARY` = paste0('<span style="font-weight:680;color:#12275C;">',
                               inr(p$net), "</span>"),
         STATUS = pill_html(p$status, colour = NULL)
       )
@@ -218,7 +218,7 @@ hrms_payroll_server <- function(id, user) {
         tags$hr(class = "soft"),
         div(class = "d-flex justify-content-between",
             span(style = "font-weight:650;", "Total deductions"),
-            span(style = "font-weight:700;color:#12263F;",
+            span(style = "font-weight:700;color:#12275C;",
                  inr(sum(p$deductions, na.rm = TRUE)))),
         div(class = "mt-3", btn_ghost(ns("xlsx"), "Download bank transfer report (XLSX)",
                                       class = "w-100"))

@@ -45,7 +45,7 @@ vendors_server <- function(id, user) {
       df <- tibble::tibble(
         VENDOR = mapply(function(n, m) paste0(
           '<div class="d-flex align-items-center gap-2">', avatar_html(n),
-          '<div><div style="font-weight:600;color:#12263F;">', htmlEscape(n),
+          '<div><div style="font-weight:600;color:#12275C;">', htmlEscape(n),
           '</div><div style="font-size:.6875rem;color:#64748B;">', htmlEscape(m),
           "</div></div></div>"), v$name, v$mobile),
         `VEHICLE OWNER` = v$owner_name,
@@ -119,7 +119,7 @@ vendors_server <- function(id, user) {
             tags$hr(class = "soft"),
             div(class = "d-flex align-items-center justify-content-between",
                 div(div(class = "small-caps", "Pending settlement"),
-                    div(style = "font-weight:680;font-size:1.1rem;color:#12263F;",
+                    div(style = "font-weight:680;font-size:1.1rem;color:#12275C;",
                         inr(sum(vp$amount)))),
                 pill(vp$status[1], if (vp$status[1] == "Approved") "green" else "orange"))
           )

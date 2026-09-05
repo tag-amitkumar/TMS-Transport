@@ -47,14 +47,21 @@ build_seed_minimal <- function() {
   )
 
   # ---------------- Users — the two logins ----------------
+  # Three, not two. The driver login exists because the location feature can
+  # only be demonstrated from a driver's own session — and it is deliberately
+  # the driver who is *out on a live trip* (EMP-0002, Prakash Singh on
+  # TRP-0002), because a driver with nothing allocated has nothing to report a
+  # position against and the screen would only ever show its empty state.
   out$users <- tibble::tribble(
-    ~user_id,   ~name,           ~email,                         ~role,                ~branch_id, ~department,  ~mobile,            ~cross_branch,
-    "USR-0001", "Krishna Singh", paste0("admin@", BRAND$domain),          "Super Admin",        "BR-001",   "Management", "+91 98230 11223",  "TRUE",
-    "USR-0002", "Amit Kumar",    paste0("operations@", BRAND$domain),     "Operations Manager", "BR-001",   "Operations", "+91 98901 22345",  "FALSE"
+    ~user_id,   ~name,           ~email,                                ~role,                ~branch_id, ~department,  ~mobile,            ~cross_branch, ~employee_id,
+    "USR-0001", "Krishna Singh", paste0("admin@", BRAND$domain),        "Super Admin",        "BR-001",   "Management", "+91 98230 11223",  "TRUE",        "",
+    "USR-0002", "Amit Kumar",    paste0("operations@", BRAND$domain),   "Operations Manager", "BR-001",   "Operations", "+91 98901 22345",  "FALSE",       "EMP-0003",
+    "USR-0003", "Prakash Singh", paste0("driver@", BRAND$domain),       "Driver",             "BR-001",   "Fleet",      "+91 98111 77880",  "FALSE",       "EMP-0002"
   ) |>
     dplyr::mutate(password_hash = pw, client_id = "", vendor_id = "", status = "Active") |>
     dplyr::select(user_id, name, email, password_hash, role, branch_id,
-                  department, mobile, cross_branch, client_id, vendor_id, status)
+                  department, mobile, cross_branch, client_id, vendor_id,
+                  employee_id, status)
 
   # ---------------- Employees ----------------
   # Two drivers plus the operations coordinator, who is the same person as the
@@ -379,6 +386,11 @@ build_seed_minimal <- function() {
     lat = 24.85, lon = 78.10, speed = 51, heading = "S",
     ignition = "ON", idle_min = 12,
     ts = format(NOW - 240, "%Y-%m-%d %H:%M:%S"),
+    # Where the reading came from. The driver console writes "driver-app";
+    # anything else is a hardwired tracker, and the two should never be
+    # mistaken for one another when someone is judging how much to trust a
+    # position.
+    source = "telematics",
     status = "Running"
   )
 

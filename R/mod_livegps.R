@@ -45,7 +45,7 @@ livegps_server <- function(id, user, nav) {
     pings <- reactive({
       invalidateLater(30000, session)
       input$refresh
-      g <- get_gps()
+      g <- gps_latest()
       v <- scope_branch(get_vehicles(), user())
       g <- g[g$vehicle_id %in% v$vehicle_id, , drop = FALSE]
       if (!nrow(g)) return(g)
@@ -174,15 +174,15 @@ livegps_server <- function(id, user, nav) {
         DRIVER = g$driver %||% "—",
         SPEED  = paste0(g$speed, " km/h"),
         ROUTE  = g$route,
-        `IDLE TODAY` = paste0(g$idle_min, " min"),
+        `IDLE TODAY` = fmt_idle(g$idle_min),
         STATUS = pill_html(ifelse(g$status == "Halted",
-                                  paste0("Halted · ", g$idle_min, " min"),
+                                  paste0("Halted · ", fmt_idle(g$idle_min)),
                             ifelse(g$status == "Alert", "Alert · off route", "Running")),
                            colour = NULL)
       )
       df$STATUS <- sprintf('<span class="pill pill-%s">%s</span>',
                            c(Running = "green", Halted = "orange", Alert = "red")[g$status],
-                           ifelse(g$status == "Halted", paste0("Halted · ", g$idle_min, " min"),
+                           ifelse(g$status == "Halted", paste0("Halted · ", fmt_idle(g$idle_min)),
                              ifelse(g$status == "Alert", "Alert · off route", "Running")))
       tms_table(df, page = 10, align = align_right(2))
     })
@@ -204,7 +204,7 @@ livegps_server <- function(id, user, nav) {
           "Route"           = r$route,
           "ETA"             = fmt_dt(r$eta),
           "Driver"          = r$driver %||% "—",
-          "Idle time today" = paste0(r$idle_min, " min"),
+          "Idle time today" = fmt_idle(r$idle_min),
           "Current LR"      = r$lr %||% "—"
         ),
         footer = tagList(modalButton("Close"),

@@ -1,3 +1,4 @@
-user_id,name,email,password_hash,role,branch_id,department,mobile,cross_branch,client_id,vendor_id,status
-USR-0001,Krishna Singh,admin@movewinglogistics.in,$2a$12$CS7ORgRYry9pv6E6wyp6FO2zjWvMBY0jeeKmXXqEwsUMXB2IEJc8y,Super Admin,BR-001,Management,+91 98230 11223,TRUE,,,Active
-USR-0002,Amit Kumar,operations@movewinglogistics.in,$2a$12$CS7ORgRYry9pv6E6wyp6FO2zjWvMBY0jeeKmXXqEwsUMXB2IEJc8y,Operations Manager,BR-001,Operations,+91 98901 22345,FALSE,,,Active
+user_id,name,email,password_hash,role,branch_id,department,mobile,cross_branch,client_id,vendor_id,employee_id,status
+USR-0001,Krishna Singh,admin@movewinglogistics.in,$2a$12$Uf/Szg6wM3gEEf1YBzlvIuHdYzdlE.nkWyXXcyKM54V8F93yrvnDW,Super Admin,BR-001,Management,+91 98230 11223,TRUE,,,,Active
+USR-0002,Amit Kumar,operations@movewinglogistics.in,$2a$12$Uf/Szg6wM3gEEf1YBzlvIuHdYzdlE.nkWyXXcyKM54V8F93yrvnDW,Operations Manager,BR-001,Operations,+91 98901 22345,FALSE,,,EMP-0003,Active
+USR-0003,Prakash Singh,driver@movewinglogistics.in,$2a$12$Uf/Szg6wM3gEEf1YBzlvIuHdYzdlE.nkWyXXcyKM54V8F93yrvnDW,Driver,BR-001,Fleet,+91 98111 77880,FALSE,,,EMP-0002,Active

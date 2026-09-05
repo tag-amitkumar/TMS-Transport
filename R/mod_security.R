@@ -89,7 +89,7 @@ security_server <- function(id, user) {
                 }
                 tibble::tibble(
                   `ACCESS LEVEL` = sprintf(
-                    '<div style="font-weight:600;color:#12263F;">%s</div><div style="font-size:.6875rem;color:#64748B;">%s</div>',
+                    '<div style="font-weight:600;color:#12275C;">%s</div><div style="font-size:.6875rem;color:#64748B;">%s</div>',
                     htmlEscape(rl),
                     htmlEscape(roles$description[match(rl, roles$role)] %||% "")),
                   VIEW = tick("view"), CREATE = tick("create"), EDIT = tick("edit"),
@@ -122,7 +122,7 @@ security_server <- function(id, user) {
               lapply(MODULES, function(m) {
                 row <- p[p$role == r & p$module == m, ]
                 tags$tr(
-                  tags$td(style = "color:#12263F;", m),
+                  tags$td(style = "color:#12275C;", m),
                   lapply(ACTIONS, function(a) {
                     val <- if (nrow(row)) isTRUE(as.numeric(row[[a]][1]) == 1) else FALSE
                     tags$td(class = "text-center",

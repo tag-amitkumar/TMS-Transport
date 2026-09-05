@@ -66,6 +66,11 @@ admin <- list(user_id = "USR-0001", name = "Krishna Singh",
 ops <- modifyList(admin, list(user_id = "USR-0002", name = "Amit Kumar",
                               role = "Operations Manager", cross_branch = "FALSE"))
 
+drv <- list(user_id = "USR-0003", name = "Prakash Singh",
+            email = paste0("driver@", BRAND$domain), role = "Driver",
+            branch_id = "BR-001", department = "Fleet", cross_branch = "FALSE",
+            client_id = "", vendor_id = "", employee_id = "EMP-0002")
+
 usr  <- function(u = admin) reactiveVal(u)
 noop <- function(...) invisible(NULL)
 
@@ -928,49 +933,49 @@ testServer(public_track_server, {
   ok("the sample consignment has a delivery PIN", nzchar(pin %||% ""))
 
   # Nothing at all until asked.
-  ok("nothing is shown before a lookup", is.null(result()))
+  ok("nothing is shown before a lookup", is.null(box_result()))
 
   # Both fields are required.
   session$setInputs(lr = c1$lr_no, pin = "")
   session$setInputs(go = 1)
-  ok("PIN is required", !is.null(result()$err))
+  ok("PIN is required", !is.null(box_result()$err))
 
   # Right LR, wrong PIN — must be refused. This is the whole protection.
   session$setInputs(lr = c1$lr_no, pin = "999999")
   session$setInputs(go = 2)
-  ok("wrong PIN is refused", !is.null(result()$err))
-  ok("wrong PIN returns no consignment", is.null(result()$cn))
+  ok("wrong PIN is refused", !is.null(box_result()$err))
+  ok("wrong PIN returns no consignment", is.null(box_result()$cn))
 
   # An LR that does not exist must give the *same* answer as a wrong PIN, or
   # the difference between the two messages tells an enumerator which LR
   # numbers are real.
-  wrong_pin_msg <- result()$err
+  wrong_pin_msg <- box_result()$err
   session$setInputs(lr = "LR-999999", pin = pin)
   session$setInputs(go = 3)
-  ok("unknown LR is refused", !is.null(result()$err))
+  ok("unknown LR is refused", !is.null(box_result()$err))
   ok("unknown LR is indistinguishable from a wrong PIN",
-     identical(result()$err, wrong_pin_msg))
+     identical(box_result()$err, wrong_pin_msg))
 
   # The right pair opens it.
   session$setInputs(lr = c1$lr_no, pin = pin)
   session$setInputs(go = 4)
-  r <- result()
+  r <- box_result()
   ok("correct LR and PIN resolve",  is.null(r$err) && !is.null(r$cn))
   ok("it is the right consignment", identical(r$cn$lr_no, c1$lr_no))
 
   # Case and the LR- prefix should not stand between a consignee and an answer.
   session$setInputs(lr = tolower(c1$lr_no), pin = pin)
   session$setInputs(go = 5)
-  ok("lookup is case-insensitive", !is.null(result()$cn))
+  ok("lookup is case-insensitive", !is.null(box_result()$cn))
 
   session$setInputs(lr = sub("^LR-", "", c1$lr_no), pin = pin)
   session$setInputs(go = 6)
-  ok("the LR- prefix is optional", !is.null(result()$cn))
+  ok("the LR- prefix is optional", !is.null(box_result()$cn))
 
   # The CN number is printed on the same paper, so it must work too.
   session$setInputs(lr = c1$cn_no, pin = pin)
   session$setInputs(go = 7)
-  ok("the CN number also resolves", !is.null(result()$cn))
+  ok("the CN number also resolves", !is.null(box_result()$cn))
 
   # And the rendered output must not carry commercial or personal detail.
   session$setInputs(lr = c1$lr_no, pin = pin)
@@ -1002,7 +1007,143 @@ testServer(public_track_server, {
   # Freight is the commercially sensitive number on the row.
   ok("the freight amount is hidden",
      is.na(c1$freight) || !grepl(format(round(c1$freight)), html, fixed = TRUE))
+
+  # ---- the same lookup from the app's top bar ----
+  #
+  # Two surfaces, one lookup. The dialog has its own inputs, so it needs its own
+  # coverage: a shared helper that only one caller exercises is a helper with an
+  # untested branch.
+  ok("the dialog shows nothing before a lookup", is.null(modal_result()))
+
+  session$setInputs(m_lr = c1$lr_no, m_pin = "999999")
+  session$setInputs(m_go = 1)
+  ok("dialog refuses a wrong PIN", !is.null(modal_result()$err))
+
+  session$setInputs(m_lr = c1$lr_no, m_pin = pin)
+  session$setInputs(m_go = 2)
+  ok("dialog resolves the right pair", !is.null(modal_result()$cn))
+  ok("dialog found the same consignment",
+     identical(modal_result()$cn$lr_no, c1$lr_no))
+
+  mhtml <- paste(as.character(output$m_out$html %||% output$m_out), collapse = " ")
+  ok("dialog renders the result", nchar(mhtml) > 100)
+  ok("dialog withholds the customer too", !grepl(cust, mhtml, fixed = TRUE))
+  ok("dialog withholds the GSTIN too",    !grepl(gstin, mhtml, fixed = TRUE))
+
+  # The two surfaces must not share state — a staff lookup in the dialog should
+  # not overwrite what a consignee has on screen in the box, or vice versa.
+  ok("the box result is untouched by the dialog",
+     identical(box_result()$cn$lr_no, c1$lr_no))
 })
+
+
+# ==================================================================
+section("Driver console — the phone that reports the position")
+
+testServer(driver_server, args = list(user = usr(drv), nav = noop), {
+  before <- nrow(store_get("gps_pings"))
+
+  t <- my_trip()
+  ok("the driver's live trip resolves", !is.null(t))
+  ok("it is the trip they are actually on", identical(t$driver_id, drv$employee_id))
+
+  # A position only counts once sharing has been started and the browser has
+  # reported a fix. The write path is what everything downstream reads.
+  session$setInputs(pos = list(lat = 23.11, lon = 78.55, acc = 18, spd = 15.2, hdg = 190))
+  g <- get_gps()
+  ok("a position is recorded", nrow(g) == before + 1)
+
+  new <- g[nrow(g), ]
+  ok("recorded against the driver's trip",    identical(new$trip_no, t$trip_no))
+  ok("recorded against the driver's vehicle", identical(new$vehicle_id, t$vehicle_id))
+  ok("latitude stored",  abs(new$lat - 23.11) < .001)
+  ok("longitude stored", abs(new$lon - 78.55) < .001)
+  # The API reports metres per second; the fleet screens are all in km/h.
+  ok("speed converted to km/h", abs(new$speed - round(15.2 * 3.6)) < 1)
+  ok("heading becomes a compass point", identical(new$heading, "S"))
+  ok("moving means running",  identical(new$status, "Running"))
+  # A reading off a handset must never be mistaken for one off a fitted tracker.
+  ok("source marks it as the driver app", identical(new$source, "driver-app"))
+
+  # Rubbish must not reach the table. The browser is not a trusted input: a
+  # forged message should not be able to move a truck to the Atlantic.
+  n <- nrow(store_get("gps_pings"))
+  session$setInputs(pos = list(lat = 999, lon = 10, acc = 5, spd = 1, hdg = 0))
+  ok("an impossible latitude is refused", nrow(store_get("gps_pings")) == n)
+  session$setInputs(pos = list(lat = "banana", lon = 78, acc = 5, spd = 1, hdg = 0))
+  ok("a non-numeric position is refused", nrow(store_get("gps_pings")) == n)
+  # A fix good to worse than 5 km is a cell-tower guess, and plotting it would
+  # draw the truck through the middle of a district it never entered.
+  session$setInputs(pos = list(lat = 23.2, lon = 78.6, acc = 9000, spd = 1, hdg = 0))
+  ok("a hopeless accuracy is refused", nrow(store_get("gps_pings")) == n)
+
+  # Stationary is a state worth recording, not an error.
+  session$setInputs(pos = list(lat = 23.15, lon = 78.58, acc = 20, spd = 0, hdg = NULL))
+  g2 <- get_gps(); last2 <- g2[nrow(g2), ]
+  ok("a stationary fix is still recorded", nrow(g2) == n + 1)
+  ok("stationary reads as halted", identical(last2$status, "Halted"))
+  ok("an absent heading is left blank", !nzchar(last2$heading %||% ""))
+})
+
+section("Only a driver can report a position")
+
+local({
+  # The console is the one screen that writes GPS, so every other role — Super
+  # Admin included — is blocked from the module outright.
+  ok("a driver may view the console",      can("Driver", "driver", "view"))
+  ok("a super admin may not",             !can("Super Admin", "driver", "view"))
+  ok("an operations manager may not",     !can("Operations Manager", "driver", "view"))
+  ok("a dispatcher may not",              !can("Dispatcher", "driver", "view"))
+  ok("a customer may not",                !can("Customer", "driver", "view"))
+  ok("the driver lands on their console", identical(landing_page("Driver"), "driver"))
+  ok("the rail offers it to a driver",    "driver" %in% allowed_pages("Driver"))
+  ok("the rail hides it from everyone else",
+     !any(vapply(setdiff(ROLE_LEVELS, "Driver"),
+                 function(r) "driver" %in% allowed_pages(r), logical(1))))
+
+  # A driver still cannot wander into the rest of the app.
+  ok("a driver cannot see bookings", !can("Driver", "bookings", "view"))
+  ok("a driver cannot see money",    !can("Driver", "invoices", "view"))
+  ok("a driver cannot edit anything",
+     !any(vapply(MODULES, function(m) can("Driver", m, "edit"), logical(1))))
+})
+
+
+cat("\n== Fleet views show a position, not a history ==\n")
+{
+  # While the feed was simulated there was one ping per vehicle and get_gps()
+  # was indistinguishable from "current position". A driver's phone reporting
+  # every thirty seconds breaks that: the fleet map would plot the same lorry
+  # once for every place it has ever been.
+  before <- nrow(store_get("gps_pings"))
+  g0 <- gps_latest()
+  ok("latest returns one row per vehicle",
+     !nrow(g0) || !any(duplicated(g0$vehicle_id)))
+
+  if (nrow(g0)) {
+    v <- g0$vehicle_id[1]
+    store_insert("gps_pings", list(
+      vehicle_id = v, trip_no = g0$trip_no[1], lat = 21.5, lon = 79.5,
+      speed = 44, heading = "N", ignition = "ON", idle_min = "",
+      ts = format(Sys.time() + 60, "%Y-%m-%d %H:%M:%S"),
+      source = "driver-app", status = "Running"))
+
+    g1 <- gps_latest()
+    ok("a second ping does not add a second row",
+       nrow(g1) == nrow(g0))
+    ok("the newest ping wins",
+       abs(g1$lat[g1$vehicle_id == v] - 21.5) < .001)
+    ok("the raw table still holds both",
+       nrow(store_get("gps_pings")) == before + 1)
+
+    store_delete("gps_pings", list(lat = "21.5", lon = "79.5"))
+  }
+
+  # A phone cannot report idle time; the column must not read " min".
+  ok("absent idle time reads as a dash", identical(fmt_idle(""), "—"))
+  ok("absent idle time handles NA",      identical(fmt_idle(NA), "—"))
+  ok("present idle time still formats",  identical(fmt_idle("12"), "12 min"))
+}
 
 # Every section above this line writes for real. The restore has to come after
 # the last of them, not the middle — sections appended below an earlier

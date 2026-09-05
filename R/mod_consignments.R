@@ -107,7 +107,10 @@ consignments_server <- function(id, user, nav) {
         div(
           style = "border:1px solid #E4EAF1;border-radius:10px;padding:1rem;",
           div(class = "d-flex align-items-center gap-2 mb-3",
-              brand_mark(26),
+              # The logo, not a mark: this header sits on a white card and goes
+              # in front of a customer. 34px is where the wordmark inside the
+              # artwork stays readable.
+              brand_logo(34),
               span(class = "small-caps", style = "letter-spacing:.1em;", "Lorry Receipt"),
               span(class = "ms-auto mono", style = "font-weight:650;", c$lr_no)),
           dl_rows(

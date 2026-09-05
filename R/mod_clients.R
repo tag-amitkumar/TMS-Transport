@@ -61,7 +61,7 @@ clients_server <- function(id, user) {
       df <- tibble::tibble(
         CLIENT = mapply(function(n, p, m) paste0(
           '<div class="d-flex align-items-center gap-2">', avatar_html(n),
-          '<div><div style="font-weight:600;color:#12263F;">', htmlEscape(n),
+          '<div><div style="font-weight:600;color:#12275C;">', htmlEscape(n),
           '</div><div class="l2" style="font-size:.6875rem;color:#64748B;">',
           htmlEscape(p), " · ", htmlEscape(m), "</div></div></div>"),
           c$name, c$contact_person, c$mobile),

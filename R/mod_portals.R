@@ -138,7 +138,7 @@ portal_branch_server <- function(id, user, nav) {
 
       veh <- v$reg_no[match(tr$vehicle_id[match(bk$booking_no, tr$booking_no)], v$vehicle_id)]
       df <- tibble::tibble(
-        `BOOKING NO.` = paste0('<span style="font-weight:600;color:#12263F;">',
+        `BOOKING NO.` = paste0('<span style="font-weight:600;color:#12275C;">',
                                htmlEscape(bk$booking_no), "</span>"),
         CUSTOMER = cl$name[match(bk$client_id, cl$client_id)],
         ROUTE = paste(bk$origin_city, "→", bk$dest_city),
@@ -175,7 +175,7 @@ portal_branch_server <- function(id, user, nav) {
           div(class = "d-flex align-items-center gap-2 py-2",
               style = if (i < nrow(e)) "border-bottom:1px solid #EEF2F7;" else "",
               avatar(r$name, "sm"),
-              div(div(style = "font-weight:600;font-size:.8125rem;color:#12263F;", r$name),
+              div(div(style = "font-weight:600;font-size:.8125rem;color:#12275C;", r$name),
                   div(class = "tiny muted", r$designation)),
               div(class = "ms-auto", pill(lbl, col)))
         })

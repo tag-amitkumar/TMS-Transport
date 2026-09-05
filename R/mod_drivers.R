@@ -83,7 +83,7 @@ drivers_server <- function(id, user, nav) {
       df <- tibble::tibble(
         DRIVER = mapply(function(n, m, dep) paste0(
           '<div class="d-flex align-items-center gap-2">', avatar_html(n),
-          '<div><div style="font-weight:600;color:#12263F;">', htmlEscape(n),
+          '<div><div style="font-weight:600;color:#12275C;">', htmlEscape(n),
           '</div><div style="font-size:.6875rem;color:#64748B;">', htmlEscape(m),
           " · ", htmlEscape(dep), " depot</div></div></div>"),
           d$name, d$mobile, b$city[match(d$depot_branch_id, b$branch_id)]),

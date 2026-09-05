@@ -418,7 +418,7 @@ definition. Freight comes off the local rate card.
 
 This is a **working prototype**: all 31 screens navigable, real reactive data,
 CRUD on the master tables, and the booking → allocation → LR → POD → invoice →
-payment chain actually functioning end to end. 474 automated checks cover
+payment chain actually functioning end to end. 520 automated checks cover
 referential integrity, the domain rules above, RBAC and scoping.
 
 It is **not** a production ERP. Not built: fuel and expense management,

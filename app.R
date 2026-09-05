@@ -132,22 +132,24 @@ server <- function(input, output, session) {
       # ---- sidebar ----
       div(
         class = "tms-sidebar",
+        # The artwork on a white plate, and no text beside it. Its lettering is
+        # dark navy on transparent, so dropped straight onto the rail it would
+        # be navy on navy; the plate is what makes the real logo usable here
+        # rather than a stand-in. The lock-up already reads "MOVEWING LOGISTICS
+        # PVT. LTD.", so repeating that alongside would only say it twice.
         div(
           class = "tms-brand",
-          brand_mark(38),
-          div(div(class = "tms-brand-name", BRAND$short),
-              div(class = "tms-brand-sub", BRAND$unit))
+          div(class = "tms-brand-plate", brand_logo(fill = TRUE))
         ),
         uiOutput("sidebar_nav"),
         div(
           class = "tms-userchip",
           avatar(u$name),
           div(style = "min-width:0;",
-              div(style = "color:#fff;font-size:.8125rem;font-weight:600;
-                           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", u$name),
-              div(style = "color:#7F93AB;font-size:.6875rem;", u$role)),
+              div(class = "tms-userchip-name", u$name),
+              div(class = "tms-userchip-role", u$role)),
           tags$span(
-            style = "margin-left:auto;cursor:pointer;color:#7F93AB;",
+            class = "tms-userchip-out",
             title = "Sign out",
             onclick = "Shiny.setInputValue('sign_out', Math.random(), {priority:'event'})",
             fontawesome::fa("right-from-bracket", height = "0.9em", fill = "currentColor")
@@ -200,6 +202,10 @@ server <- function(input, output, session) {
         tags$input(id = "global_search", type = "text",
                    placeholder = "Search bookings, LRs, vehicles, clients…")
       ),
+      # Staff get asked "where is my load" on the phone all day, from whichever
+      # screen they happen to be on. The same lookup the login page offers a
+      # consignee, one click from anywhere.
+      track_button_ui("track"),
       div(class = "tms-iconbtn", title = "Help", fontawesome::fa("circle-question")),
       div(class = "tms-iconbtn", title = "Notifications",
           fontawesome::fa("bell"), span(class = "dot")),
@@ -224,6 +230,7 @@ server <- function(input, output, session) {
       "users"           = users_ui("users"),
       "clients"         = clients_ui("clients"),
       "vendors"         = vendors_ui("vendors"),
+      "driver"          = driver_ui("driver"),
       "bookings"        = bookings_ui("bookings"),
       "booking_new"     = booking_new_ui("bookings"),
       "cargo_moto"      = cargo_moto_ui("cargo_moto"),
@@ -273,6 +280,7 @@ server <- function(input, output, session) {
   livegps_server("livegps", user, nav)
   vehicles_server("vehicles", user, nav)
   drivers_server("drivers", user, nav)
+  driver_server("driver", user, nav)
   pincodes_server("pincodes", user)
   complaints_server("complaints", user)
   invoices_server("invoices", user, nav)

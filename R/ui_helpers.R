@@ -528,3 +528,13 @@ btn_dark <- function(id, label, icon = NULL, class = "") {
 btn_ghost <- function(id, label, icon = NULL, class = "") {
   actionButton(id, tagList(icon, label), class = paste("btn-tms-ghost", class))
 }
+
+#' Idle minutes, or an em dash when nothing reported it.
+#'
+#' A fitted tracker knows how long the ignition has been off; a driver's phone
+#' does not, and never will. Those rows carry no idle figure, and pasting " min"
+#' onto an empty string put a bare " min" in the column.
+fmt_idle <- function(x) {
+  v <- trimws(as.character(x %||% ""))
+  ifelse(nzchar(v) & !is.na(v), paste0(v, " min"), "—")
+}

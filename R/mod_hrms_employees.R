@@ -100,7 +100,7 @@ hrms_employees_server <- function(id, user, nav) {
       df <- tibble::tibble(
         EMPLOYEE = mapply(function(n, m) paste0(
           '<div class="d-flex align-items-center gap-2">', avatar_html(n),
-          '<div><div style="font-weight:600;color:#12263F;">', htmlEscape(n),
+          '<div><div style="font-weight:600;color:#12275C;">', htmlEscape(n),
           '</div><div style="font-size:.6875rem;color:#64748B;">', htmlEscape(m),
           "</div></div></div>"), e$name, e$mobile),
         `DESIGNATION · DEPT` = paste0(e$designation, " · ", e$department),
