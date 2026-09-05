@@ -1,2 +1,2 @@
 vehicle_id,trip_no,lat,lon,speed,heading,ignition,idle_min,ts,status
-VEH-002,TRP-0002,24.85,78.1,51,S,ON,12,2026-09-05 11:39:51,Running
+VEH-002,TRP-0002,24.85,78.1,51,S,ON,12,2026-09-05 11:46:02,Running

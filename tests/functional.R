@@ -58,12 +58,12 @@ ok <- function(label, cond) {
 section <- function(x) cat("\n==", x, "==\n")
 
 # A signed-in Super Admin, shaped exactly as mod_auth builds it.
-admin <- list(user_id = "USR-0001", name = "Amardip Singh",
+admin <- list(user_id = "USR-0001", name = "Krishna Singh",
               email = "admin@amardiptms.in", role = "Super Admin",
               branch_id = store_get("branches")$branch_id[1],
               department = "Management", cross_branch = "TRUE",
               client_id = "", vendor_id = "")
-ops <- modifyList(admin, list(user_id = "USR-0002", name = "Suresh Khan",
+ops <- modifyList(admin, list(user_id = "USR-0002", name = "Amit Kumar",
                               role = "Operations Manager", cross_branch = "FALSE"))
 
 usr  <- function(u = admin) reactiveVal(u)

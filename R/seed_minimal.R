@@ -42,15 +42,15 @@ build_seed_minimal <- function() {
   # Two, because a consignment needs an origin and a destination.
   out$branches <- tibble::tribble(
     ~branch_id, ~code,     ~name,          ~address,                      ~city,     ~state,        ~pincode, ~lat,   ~lon,   ~is_depot, ~manager,        ~contact,             ~gstin,                ~since,        ~status,
-    "BR-001",   "BR-NGP",  "Nagpur (HQ)",  "Plot 14, MIDC, Hingna Rd",    "Nagpur",  "Maharashtra", "440001", 21.146, 79.088, "TRUE",    "Amardip Singh", "+91 98230 11223",    "27AAACA1234F1Z1",     "2016-04-01",  "Active",
+    "BR-001",   "BR-NGP",  "Nagpur (HQ)",  "Plot 14, MIDC, Hingna Rd",    "Nagpur",  "Maharashtra", "440001", 21.146, 79.088, "TRUE",    "Krishna Singh", "+91 98230 11223",    "27AAACA1234F1Z1",     "2016-04-01",  "Active",
     "BR-002",   "BR-DEL",  "Delhi",        "Okhla Industrial Area, Ph-2", "Delhi",   "Delhi",       "110001", 28.644, 77.216, "TRUE",    "Vikram Chauhan","+91 98110 44567",    "07AAACA1234F1Z2",     "2018-07-01",  "Active"
   )
 
   # ---------------- Users — the two logins ----------------
   out$users <- tibble::tribble(
     ~user_id,   ~name,           ~email,                         ~role,                ~branch_id, ~department,  ~mobile,            ~cross_branch,
-    "USR-0001", "Amardip Singh", "admin@amardiptms.in",          "Super Admin",        "BR-001",   "Management", "+91 98230 11223",  "TRUE",
-    "USR-0002", "Suresh Khan",   "operations@amardiptms.in",     "Operations Manager", "BR-001",   "Operations", "+91 98901 22345",  "FALSE"
+    "USR-0001", "Krishna Singh", "admin@amardiptms.in",          "Super Admin",        "BR-001",   "Management", "+91 98230 11223",  "TRUE",
+    "USR-0002", "Amit Kumar",    "operations@amardiptms.in",     "Operations Manager", "BR-001",   "Operations", "+91 98901 22345",  "FALSE"
   ) |>
     dplyr::mutate(password_hash = pw, client_id = "", vendor_id = "", status = "Active") |>
     dplyr::select(user_id, name, email, password_hash, role, branch_id,
@@ -69,7 +69,7 @@ build_seed_minimal <- function() {
     "EMP-0001",   "Ramesh Yadav",  "+91 98600 11223", "Driver",          "Fleet",      "BR-001",   "2022-03-14", "AKZPY1122M",  "per_trip",   18000,   "TRUE",
     "EMP-0002",   "Prakash Singh", "+91 98111 77880", "Driver",          "Fleet",      "BR-001",   "2023-01-09", "BLMPS3344Q",  "per_trip",   18000,   "TRUE",
     "EMP-0004",   "Vikas Dubey",   "+91 90040 12987", "Driver",          "Fleet",      "BR-001",   "2023-06-21", "DRTPD7788S",  "per_trip",   18000,   "TRUE",
-    "EMP-0003",   "Suresh Khan",   "+91 98901 22345", "Ops Coordinator", "Operations", "BR-001",   "2021-11-02", "CNQPK5566R",  "monthly",    32000,   "FALSE"
+    "EMP-0003",   "Amit Kumar",    "+91 98901 22345", "Ops Coordinator", "Operations", "BR-001",   "2021-11-02", "CNQPK5566R",  "monthly",    32000,   "FALSE"
   ) |>
     dplyr::mutate(
       aadhaar     = paste0("xxxx xxxx ", c("8814", "4471", "5590", "9026")),
@@ -404,7 +404,7 @@ build_seed_minimal <- function() {
     payment_id = "RCP-0001", date = as.character(done_deliver + 6),
     client_id = "CUST-0001", invoice_no = "INV-0001",
     mode = "NEFT", reference = "UTR7712880", amount = 15000,
-    received_by = "Amardip Singh"
+    received_by = "Krishna Singh"
   )
 
   # The vendor's vehicle is still out, so nothing is settleable yet.
