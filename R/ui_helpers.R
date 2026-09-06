@@ -142,8 +142,29 @@ stat_row <- function(...) {
 }
 
 #' Standard content card with an optional header and right-aligned actions.
-card_panel <- function(title = NULL, sub = NULL, ..., actions = NULL,
+#'
+#' Body content goes in `...`; `sub` and `title` are text for the header.
+#'
+#' `...` sits second in the signature deliberately. It used to sit after `sub`,
+#' and R matches positional arguments to named formals before it reaches `...`
+#' — so the overwhelmingly common call, `card_panel(title = "X", div(...))`,
+#' silently bound the card's entire body to `sub` and rendered it inside the
+#' header, wrapped in a `<p>`. It displayed at all only because a `<dl>` or
+#' `<div>` inside a `<p>` makes the browser close the paragraph early. Roughly
+#' two dozen screens were built this way, so the fix belongs here rather than
+#' at every call site.
+card_panel <- function(title = NULL, ..., sub = NULL, actions = NULL,
                        foot = NULL, body_class = "tms-card-body") {
+  body <- list(...)
+
+  # `card_panel(empty_panel("Select a client"))` — a card with content and no
+  # header at all. Without this the content binds to `title` and is rendered
+  # inside an h6. A header title is always a string; anything else is content.
+  if (!is.null(title) && !is.character(title)) {
+    body  <- c(list(title), body)
+    title <- NULL
+  }
+
   div(
     class = "tms-card",
     if (!is.null(title)) div(
@@ -152,7 +173,7 @@ card_panel <- function(title = NULL, sub = NULL, ..., actions = NULL,
           if (!is.null(sub)) p(class = "tms-card-sub", sub)),
       if (!is.null(actions)) div(class = "ms-auto d-flex gap-2 align-items-center", actions)
     ),
-    div(class = body_class, ...),
+    div(class = body_class, body),
     if (!is.null(foot)) div(class = "tms-card-foot", foot)
   )
 }

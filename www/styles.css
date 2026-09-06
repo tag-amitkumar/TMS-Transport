@@ -50,6 +50,28 @@ body {
 
 .tms-shell { display: flex; min-height: 100vh; }
 
+/* App-shell scrolling: the window never scrolls, the content area does.
+   ------------------------------------------------------------------
+   Forms and dashboards are meant to fit the screen and now do. Registers
+   cannot — a 19,238-row PIN code directory has to scroll, and no amount of
+   tightening changes that. What it should not do is scroll the sidebar, the
+   breadcrumb, the search box and the footer off with it, so that finding the
+   next screen means scrolling back to the top first.
+   Confining the scroll to .tms-page keeps the navigation and the page title
+   where they were put and keeps the footer on screen at every scroll position.
+   Only above 992px, where the sidebar exists: below that styles.css already
+   collapses to a single stacked column, and pinning the viewport there would
+   fight the phone's own scrolling. */
+@media (min-width: 992px) {
+  html, body { height: 100%; overflow: hidden; }
+  .tms-shell { height: 100vh; overflow: hidden; }
+  .tms-sidebar { overflow-y: auto; }
+  .tms-main { height: 100vh; overflow: hidden; }
+  /* min-height:0 is what lets a flex child actually shrink below its content
+     and scroll; without it the page grows and pushes the footer out again. */
+  .tms-page { overflow-y: auto; min-height: 0; }
+}
+
 .tms-sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
@@ -1083,4 +1105,92 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
   .login-header-right { display: none; }
   .login-hero-title { font-size: 1.9rem; }
   .hero-pane { padding: 1.25rem 1.1rem 1.4rem; }
+}
+
+/* ------------------------------------------------------------------
+   Footer
+   ------------------------------------------------------------------
+   Sits at the bottom of the main column, not fixed to the viewport. A fixed
+   bar would cover the last row of every table it floats over, which on a
+   consignment register is the row someone is looking for. .tms-main is a
+   flex column with .tms-page taking the slack, so this lands at the bottom
+   of a short page and after the content on a long one.
+   ------------------------------------------------------------------ */
+
+.tms-footer {
+  flex: 0 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+  justify-content: center;
+  padding: .6rem 1.5rem;
+  border-top: 1px solid var(--border-sub);
+  background: #fff;
+  font-size: .6875rem; color: var(--muted);
+}
+.tms-footer-sep { color: #C7D2DE; }
+
+/* On the login page the ground is the hero band, not the app shell. */
+.login-wrap .tms-footer {
+  border-top: none; background: transparent;
+  padding: 1rem 1.5rem 1.25rem;
+}
+
+@media (max-width: 560px) {
+  .tms-footer { text-align: center; }
+  .tms-footer-sep { display: none; }
+  .tms-footer span { flex: 1 1 100%; }
+}
+
+/* ------------------------------------------------------------------
+   Density
+   ------------------------------------------------------------------
+   Every screen is meant to be read without scrolling on a laptop. The
+   original spacing came from a design deck laid out at full-page height and
+   left roughly a fifth of each screen as air — enough that a booking form ran
+   off the bottom of a 768px window and the Confirm button, the whole point of
+   the screen, was below the fold.
+   These reductions are uniform rather than per-screen so nothing looks like a
+   different application from the screen before it. 36px stays the floor for
+   anything clickable — below that a control gets hard to hit accurately, and
+   a compact form that mis-clicks is not an improvement.
+   ------------------------------------------------------------------ */
+
+.tms-page      { padding: 1rem 1.25rem .75rem; }
+.tms-card-head { padding: .625rem 1rem; }
+.tms-card-body { padding: .875rem 1rem; }
+.tms-card-foot { padding: .55rem 1rem; }
+
+.form-label { margin-bottom: .15rem; }
+.form-control, .form-select, .selectize-input { min-height: 36px; }
+.field-static { min-height: 36px; padding: .4rem .65rem; }
+.form-section { margin-bottom: .45rem; }
+
+/* Bootstrap's g-3 is 1rem of gutter in both directions. Vertically that is
+   where a form's height goes — eight rows of fields spend half a field's
+   worth of height on gaps alone. Horizontal spacing is left alone; that is
+   what keeps adjacent fields from reading as one control. */
+.tms-card-body > .row.g-3 { --bs-gutter-y: .55rem; }
+
+/* Shiny wraps every input in .form-group, which Bootstrap gives a 16px bottom
+   margin. Inside a grid row that margin is spacing on top of the row's own
+   gutter — the gap between two field rows was being paid for twice, on every
+   row, which is most of why a booking form ran off the bottom of the screen.
+   The gutter alone is enough, and it is the one the grid is already
+   reserving space for. */
+.tms-card-body .row > * > .shiny-input-container,
+.tms-card-body .row > * > .form-group { margin-bottom: 0; }
+
+/* A form that is one card of sections rather than three stacked cards. The
+   rule between sections does the job the card borders were doing, at 1px
+   instead of ~70px of chrome. */
+.form-group-sep {
+  margin: .7rem 0 .6rem;
+  border-top: 1px solid var(--border-sub);
+  padding-top: .65rem;
+}
+.form-group-sep:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+
+/* The action column tracks the form instead of scrolling away from it, so
+   Confirm is reachable wherever the clerk has got to. */
+@media (min-width: 1200px) {
+  .form-aside { position: sticky; top: 1rem; }
 }

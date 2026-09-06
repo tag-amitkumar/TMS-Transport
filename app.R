@@ -192,7 +192,8 @@ server <- function(input, output, session) {
       div(
         class = "tms-main",
         uiOutput("topbar"),
-        div(class = "tms-page", uiOutput("page_body"))
+        div(class = "tms-page", uiOutput("page_body")),
+        brand_footer()
       )
     )
   })

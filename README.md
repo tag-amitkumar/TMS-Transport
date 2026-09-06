@@ -163,7 +163,7 @@ R/
   ui_helpers.R     stat cards, pills, kanban, timelines, tables
   mod_*.R          one module per screen
 www/styles.css     shell, cards, kanban, pills, tables
-tests/smoke.R      324 data and invariant checks
+tests/smoke.R      337 data and invariant checks
 tests/functional.R 217 checks that drive the module servers
 data/*.csv         seeded data
 data/reference/    India PIN code master — read-only, never written to
@@ -307,7 +307,7 @@ Rscript tests/smoke.R
 Rscript tests/functional.R
 ```
 
-**324 + 217 = 541 checks.** `smoke.R` covers module wiring, seed referential
+**337 + 217 = 554 checks.** `smoke.R` covers module wiring, seed referential
 integrity, the domain rules above, RBAC denials for every role, branch and
 owner scoping, the storage round-trip, the PIN code master and lane estimation,
 datetime coercion, e-way bill validity, the data-sync queue, and the formatting

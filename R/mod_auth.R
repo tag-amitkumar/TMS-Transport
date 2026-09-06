@@ -225,7 +225,9 @@ if (!window.__mwHeroTabs) {
       ),
       div(class = "login-foot-note",
           "Demo dataset — every name, GSTIN and number in it is fictional.")
-    )
+    ),
+
+    brand_footer()
   )
 }
 

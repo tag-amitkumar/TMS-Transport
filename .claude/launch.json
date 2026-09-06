@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "tms",
-      "runtimeExecutable": "Rscript",
-      "runtimeArgs": ["-e", "shiny::runApp('.', port=8788, host='127.0.0.1', launch.browser=FALSE)"],
-      "port": 8788
+      "runtimeExecutable": "C:/Program Files/R/R-4.6.1/bin/Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('.', port=7412, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 7412
     }
   ]
 }

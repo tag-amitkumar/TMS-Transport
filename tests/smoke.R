@@ -644,6 +644,52 @@ cat("\n== E-way bill validity ==\n")
        all(round(as.numeric(difftime(pb$valid_to, pb$valid_from, units = "days"))) >= 1))
   }
 }
+cat("\n== Card layout ==\n")
+local({
+  # card_panel's `...` must come before its named text arguments. When it did
+  # not, R matched the body positionally to `sub` and rendered whole tables
+  # inside the card header, wrapped in a <p> — invalid markup that displayed
+  # only because the browser closed the paragraph for us. Two dozen call sites
+  # were written that way, so this is the assertion that keeps the signature
+  # from drifting back.
+  fm <- names(formals(card_panel))
+  ok("card_panel takes body before sub", which(fm == "...") < which(fm == "sub"))
+
+  body_of <- function(x) {
+    h <- as.character(x)
+    sub(".*<div class=\"tms-card-body\">", "", h)
+  }
+  h1 <- as.character(card_panel(title = "T", div(class = "probe-a", "x")))
+  ok("positional content lands in the body",  grepl("probe-a", body_of(h1)))
+  ok("it does not land in the header",
+     !grepl("probe-a", sub("<div class=\"tms-card-body\">.*", "", h1)))
+
+  h2 <- as.character(card_panel(title = "T", sub = "S", div(class = "probe-b", "x")))
+  ok("a named sub still reaches the header", grepl("tms-card-sub[^>]*>S", h2))
+  ok("and the body is still the body",       grepl("probe-b", body_of(h2)))
+
+  # card_panel(empty_panel(...)) — a card with content and no header at all.
+  h3 <- as.character(card_panel(div(class = "probe-c", "x")))
+  ok("a headerless card renders no header",  !grepl("tms-card-head", h3))
+  ok("its content is body, not an h6",       grepl("probe-c", body_of(h3)))
+
+  h4 <- as.character(card_panel(title = "T", foot = div(class = "probe-d")))
+  ok("foot still renders in the foot",
+     grepl("tms-card-foot", h4) && grepl("probe-d", h4))
+})
+
+cat("\n== Footer ==\n")
+local({
+  f <- as.character(brand_footer())
+  ok("footer carries the year",      grepl("2026", f, fixed = TRUE))
+  ok("footer names the owner",       grepl("MoveWing Logistics", f, fixed = TRUE))
+  ok("footer names the developer",
+     grepl("Developed and managed by Katxel Private Limited", f, fixed = TRUE))
+  # "Pvt. Ltd." already ends in a full stop; the notice must not add a second.
+  ok("no doubled full stop",         !grepl("\\.\\.", BRAND$copyright))
+  ok("footer is a <footer>",         grepl("^<footer", f))
+})
+
 cat("\n== GitHub data sync ==\n")
 local({
   # Every assertion here runs with sync switched OFF and never touches the

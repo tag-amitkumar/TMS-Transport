@@ -31,9 +31,20 @@ booking_new_ui <- function(id) {
     class = "row g-3",
     div(
       class = "col-xl-8",
+      # One card of sections rather than three stacked cards. Three cards cost
+      # roughly 150px in headers, borders and gaps — enough that the Confirm
+      # button fell below the fold on a laptop, and a booking screen whose
+      # submit you have to scroll for is a booking screen people get wrong.
       card_panel(
-        title = "Customer & Route",
-        sub = textOutput(ns("f_no"), inline = TRUE),
+        title = "Booking details",
+        # The booking number and who is raising it. Both were fields — one a
+        # caption, one a read-only box costing a whole grid row for a value
+        # nobody can change. They belong in the header: they say what this
+        # record is, not what to type into it.
+        sub = tagList(textOutput(ns("f_no"), inline = TRUE),
+                      span(class = "tms-footer-sep mx-1", "·"),
+                      "Raised by ", textOutput(ns("f_user"), inline = TRUE)),
+        div(class = "form-section", "Customer & route"),
         div(class = "row g-3",
             # These four selectors are rendered server-side rather than declared
             # with static choices. The page only exists while it is being
@@ -87,17 +98,14 @@ booking_new_ui <- function(id) {
                 tags$label(class = "form-label req", "Destination city"),
                 uiOutput(ns("sel_to")),
                 uiOutput(ns("to_hint"))),
-            div(class = "col-md-4",
-                tags$label(class = "form-label", "Booking user"),
-                div(class = "field-static", textOutput(ns("f_user"), inline = TRUE)))),
+            ),
         # Serviceability comes from the pin-code route master, which is exactly
         # what the deck says that screen is for: "serviceability checks shown at
         # booking time".
-        div(class = "mt-3", uiOutput(ns("route_check")))
-      ),
+        div(class = "mt-2", uiOutput(ns("route_check"))),
 
-      div(class = "mt-3", card_panel(
-        title = "Material & Charges",
+        div(class = "form-group-sep"),
+        div(class = "form-section", "Material & charges"),
         div(class = "row g-3",
             div(class = "col-12",
                 tags$label(class = "form-label req", "Material details"),
@@ -124,40 +132,54 @@ booking_new_ui <- function(id) {
             div(class = "col-md-6",
                 tags$label(class = "form-label", "Remarks"),
                 textInput(ns("f_remarks"), NULL, width = "100%")))
-      )),
-
-      div(class = "mt-3", card_panel(
-        title = "Payment terms",
-        sub = "Who settles the freight, and when — printed on the lorry receipt",
-        div(class = "row g-3",
-            div(class = "col-md-5",
-                tags$label(class = "form-label req", "Payment mode"),
-                # Defaults to To Pay, not Paid. Whichever term the list opens on
-                # is the one that gets saved when a clerk is in a hurry, and
-                # "Paid" writes an invoice that is already settled — money
-                # recorded as collected that nobody actually took. To Pay errs
-                # the safe way: the balance stays visible until someone clears
-                # it at the door.
-                selectInput(ns("f_pay"), NULL, width = "100%",
-                            choices = setNames(PAYMENT_MODES, PAYMENT_LABEL[PAYMENT_MODES]),
-                            selected = "To Pay")),
-            # Only meaningful for TBB, so it appears only for TBB.
-            div(class = "col-md-4", uiOutput(ns("sel_bill_branch")))),
-        div(class = "mt-2", uiOutput(ns("pay_note")))
-      ))
+      )
     ),
 
+    # Payment terms, the summary and the actions — all three about money, and
+    # all three in the column that had 400px of empty space under it while the
+    # form column ran off the bottom of the screen. Splitting the form across
+    # two balanced columns is what makes the screen fit without cutting
+    # anything from it.
     div(
       class = "col-xl-4",
-      card_panel(title = "Booking Summary", uiOutput(ns("summary"))),
-      div(class = "mt-3", card_panel(
-        callout("Next steps",
-                "Confirming this booking makes it available for vehicle allocation and consignment (LR) generation.",
-                "info", fontawesome::fa("circle-info")),
-        div(class = "mt-3 d-grid gap-2",
-            btn_ghost(ns("save_draft"), "Save as Draft"),
-            btn_primary(ns("confirm"), "Confirm Booking"))
-      ))
+      div(
+        class = "form-aside",
+        card_panel(
+          title = "Payment terms",
+          sub = "Who settles the freight, and when — printed on the LR",
+          div(class = "row g-3",
+              div(class = "col-12",
+                  tags$label(class = "form-label req", "Payment mode"),
+                  # Defaults to To Pay, not Paid. Whichever term the list opens
+                  # on is the one that gets saved when a clerk is in a hurry,
+                  # and "Paid" writes an invoice that is already settled — money
+                  # recorded as collected that nobody actually took. To Pay errs
+                  # the safe way: the balance stays visible until someone clears
+                  # it at the door.
+                  selectInput(ns("f_pay"), NULL, width = "100%",
+                              choices = setNames(PAYMENT_MODES, PAYMENT_LABEL[PAYMENT_MODES]),
+                              selected = "To Pay")),
+              # Only meaningful for TBB, so it appears only for TBB.
+              div(class = "col-12", uiOutput(ns("sel_bill_branch")))),
+          div(class = "mt-2", uiOutput(ns("pay_note")))
+        ),
+
+        div(class = "mt-3", card_panel(
+          title = "Booking Summary",
+          uiOutput(ns("summary")),
+          # Side by side, not stacked. Two full-width buttons one above the
+          # other cost 40px for no gain — and the taller this column gets, the
+          # sooner Confirm goes below the fold, which is the thing the whole
+          # rearrangement was for.
+          foot = tagList(
+            div(class = "tiny muted mb-2",
+                "Confirming enables vehicle allocation and LR generation."),
+            div(class = "d-flex gap-2",
+                btn_primary(ns("confirm"), "Confirm Booking", class = "flex-grow-1"),
+                btn_ghost(ns("save_draft"), "Save Draft"))
+          )
+        ))
+      )
     )
   )
 }

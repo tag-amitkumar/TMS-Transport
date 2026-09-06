@@ -72,6 +72,28 @@ BRAND <- list(
 
 BRAND$title <- paste(BRAND$short, "—", BRAND$product)
 
+# Who owns the operation and who builds the system are two different parties,
+# so the notice carries two clauses rather than blurring them into one.
+# The company name already ends in "Ltd.", so the sentence full stop would be
+# a second one. Strip it before adding ours rather than hard-coding a name
+# without the suffix — BRAND$company is meant to be the one place it is set.
+BRAND$copyright <- paste0("© 2026 ", sub("\\.$", "", BRAND$company),
+                          ". All rights reserved.")
+BRAND$developer <- "Developed and managed by Katxel Private Limited"
+
+#' The footer, shown on every screen and on the login page.
+#'
+#' Defined once and used in both places: a copyright notice that reads
+#' differently depending on which page you found it on is worse than none.
+brand_footer <- function() {
+  tags$footer(
+    class = "tms-footer",
+    span(BRAND$copyright),
+    span(class = "tms-footer-sep", "·"),
+    span(BRAND$developer)
+  )
+}
+
 #' The square mark — an "MW" monogram in the brand colours.
 #'
 #' Used wherever the surface is dark or the space is small: the sidebar rail,
