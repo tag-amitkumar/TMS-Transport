@@ -152,6 +152,7 @@ docs/img/          handbook screenshots, captured from the running app
 tools/             capture-screenshots.js, build-pincodes.R
 R/
   store.R          storage layer — the only code that touches files
+  github_sync.R    pushes what the app writes back to the repo
   geo.R            India PIN code / city master, lane distance and transit
   ewb.R            e-way bill validity and automatic Part-B re-entry
   mod_driver.R     driver console — the only screen that writes GPS
@@ -162,7 +163,7 @@ R/
   ui_helpers.R     stat cards, pills, kanban, timelines, tables
   mod_*.R          one module per screen
 www/styles.css     shell, cards, kanban, pills, tables
-tests/smoke.R      303 data and invariant checks
+tests/smoke.R      324 data and invariant checks
 tests/functional.R 217 checks that drive the module servers
 data/*.csv         seeded data
 data/reference/    India PIN code master — read-only, never written to
@@ -195,6 +196,51 @@ TMS_SEED_PROFILE=demo Rscript R/seed.R
 and phone numbers are generated from fixed patterns and belong to no real person
 or company. GSTINs are structurally shaped but carry an invalid checksum on
 purpose so they cannot be mistaken for live registrations.
+
+### Keeping the repo's copy current
+
+`data/` is committed, so a clone starts with a working dataset. What the app
+*writes* is a separate problem: it goes to the container's own filesystem, and
+on shinyapps.io that filesystem is discarded when the instance recycles. Deploy
+without more and the day's bookings die with the container while the repo still
+shows the seed.
+
+`R/github_sync.R` closes that gap. Every `store_*` write marks its table dirty;
+a timer pushes whatever is dirty through GitHub's Contents API roughly once a
+minute, one commit per table. At startup the app pulls `data/` back from the
+repo before reading it, so a restart resumes rather than rewinds.
+
+Two decisions worth knowing about:
+
+- **Queued, not immediate.** A driver's phone reports its position every 30
+  seconds and each ping is a store write. Pushing per write would mean a commit
+  every 30 seconds per driver and a save path that blocks on a network
+  round-trip. Marking dirty costs microseconds; fifty pings inside one window
+  become one commit.
+- **HTTPS, not git.** rsconnect excludes `.git` from the deployment bundle, so
+  anything built on a local git repository cannot work on the host that
+  actually needs this.
+
+Off by default. Set these in `.Renviron` (gitignored, but *included* by
+rsconnect, so one file configures both local dev and the deployment) — see
+`.Renviron.example`:
+
+```
+TMS_GITHUB_REPO_URL=https://github.com/tag-amitkumar/TMS-Transport.git
+TMS_GITHUB_PAT=github_pat_...     # Contents: read and write
+TMS_GITHUB_BRANCH=minimal-setup
+```
+
+**This repository is public — never commit the token.** Unconfigured is a
+supported state: with no PAT the app behaves exactly as it did before, writing
+to disk and pushing nothing. Settings → Integrations reports whether sync is
+active, what it last did, and what is queued, and offers a manual push and pull.
+
+Two instances writing the same table will collide — the second push is rejected
+rather than silently overwriting, and the table is requeued. That is the right
+failure for a demo deployment on a single instance; a multi-instance production
+deployment wants a real database, which is what the storage API in `R/store.R`
+was kept narrow for.
 
 ### Reference geography
 
@@ -261,10 +307,11 @@ Rscript tests/smoke.R
 Rscript tests/functional.R
 ```
 
-**303 + 217 = 520 checks.** `smoke.R` covers module wiring, seed referential
+**324 + 217 = 541 checks.** `smoke.R` covers module wiring, seed referential
 integrity, the domain rules above, RBAC denials for every role, branch and
 owner scoping, the storage round-trip, the PIN code master and lane estimation,
-datetime coercion, e-way bill validity, and the formatting helpers. `functional.R` drives the module servers through
+datetime coercion, e-way bill validity, the data-sync queue, and the formatting
+helpers. `functional.R` drives the module servers through
 `shiny::testServer` and asserts on what actually landed in the store — it
 exists because render-only tests once let an unsubmittable booking form ship.
 
@@ -296,7 +343,7 @@ integration.
 
 R ≥ 4.3. Dependencies: shiny, bslib, dplyr, tidyr, purrr, stringr, readr,
 lubridate, scales, DT, plotly, leaflet, shinyWidgets, bcrypt, uuid, jsonlite,
-openxlsx, fontawesome, htmltools.
+httr, openxlsx, fontawesome, htmltools.
 
 `leaflet` backs one screen (Live GPS) and is loaded defensively — the app runs
 without it, that screen degrades to a notice.

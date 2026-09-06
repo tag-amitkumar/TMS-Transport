@@ -17,10 +17,22 @@ source("R/seed_minimal.R")
 source("R/theme.R")
 source("R/ui_helpers.R")
 source("R/nav.R")
+source("R/github_sync.R")
+
+# Pull data/ from the repo before anything reads it.
+#
+# A hosted instance starts from the deployment bundle, which carries whatever
+# data/ looked like when it was last deployed. Every booking taken since then
+# lives only in the repo, because the instance that took it has long been
+# recycled. Pulling first means a restart resumes the business rather than
+# rewinding it. A no-op when sync is not configured, and silent when GitHub is
+# unreachable — neither should stop the app from starting.
+gh_pull_all()
 
 # A fresh clone ships without data/ populated, and hosted runtimes get an
 # ephemeral filesystem on restart. Generating the seed on demand means the app
-# always starts into a working state rather than an empty one.
+# always starts into a working state rather than an empty one. Runs after the
+# pull, so it only fires when the repo had nothing to give either.
 seed_if_empty()
 
 # Wire the store's change signal now that Shiny is loaded, so a row written by
@@ -92,6 +104,25 @@ server <- function(input, output, session) {
         type = "warning", duration = 12)
     }
   })
+
+  # Push whatever has been written since the last tick up to GitHub.
+  #
+  # On a timer rather than inside the save, so a burst of writes — a driver
+  # pinging their position, a multi-consignment booking touching five tables —
+  # collapses into one commit per table per minute instead of one per row, and
+  # so nobody's Save button waits on api.github.com.
+  #
+  # Same caveat as the renewal observer above: Shiny has no scheduler, so this
+  # runs only while a session is open. That is the right shape here anyway —
+  # with nobody using the app there is nothing being written to push.
+  observe({
+    invalidateLater(SYNC_INTERVAL_MS)
+    gh_flush()
+  })
+
+  # Anything still queued when a session closes would be lost with the
+  # instance, so flush once more on the way out.
+  session$onSessionEnded(function() try(gh_flush(), silent = TRUE))
 
   # Land each role somewhere it is actually allowed to be.
   observeEvent(user(), {

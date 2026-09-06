@@ -10,6 +10,7 @@ pkgs <- c(
   "leaflet",                              # Live GPS map
   "shinyWidgets", "fontawesome",          # inputs + icons
   "bcrypt", "uuid", "jsonlite",           # auth, ids, config
+  "httr",                                 # GitHub data sync
   "openxlsx"                              # xlsx export
 )
 

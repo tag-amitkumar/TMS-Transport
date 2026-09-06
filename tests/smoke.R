@@ -12,6 +12,7 @@ suppressPackageStartupMessages({
   source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
+  source("R/github_sync.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
 })
 
@@ -643,6 +644,72 @@ cat("\n== E-way bill validity ==\n")
        all(round(as.numeric(difftime(pb$valid_to, pb$valid_from, units = "days"))) >= 1))
   }
 }
+cat("\n== GitHub data sync ==\n")
+local({
+  # Every assertion here runs with sync switched OFF and never touches the
+  # network. The point is that the app is unchanged when it is not configured,
+  # and that the queue behaves before anyone hands it a token.
+  old <- Sys.getenv(c("TMS_GITHUB_REPO_URL", "TMS_GITHUB_PAT"), unset = NA)
+  Sys.unsetenv(c("TMS_GITHUB_REPO_URL", "TMS_GITHUB_PAT"))
+
+  ok("sync off without a token",        !gh_enabled())
+  ok("a write does not queue when off", !isTRUE(gh_mark_dirty("bookings")))
+  ok("flush is a no-op when off",       length(gh_flush()) == 0)
+  ok("pull is a no-op when off",        !isTRUE(gh_pull_all()))
+
+  # A store write must still succeed with no token, no network and no repo —
+  # this is the path every existing installation is on.
+  before <- nrow(get_clients())
+  store_insert("clients", list(client_id = "SYNC-TEST", name = "Sync Probe"))
+  ok("store writes work with sync off", nrow(get_clients()) == before + 1)
+  store_delete("clients", list(client_id = "SYNC-TEST"))
+  ok("probe row removed",               nrow(get_clients()) == before)
+
+  # Owner/repo parsing, which decides where a push lands. Getting this wrong
+  # silently would mean committing someone else's repository.
+  p <- gh_parse_repo("https://github.com/tag-amitkumar/TMS-Transport.git")
+  ok("repo url parses to owner",  identical(p$owner, "tag-amitkumar"))
+  ok("repo url parses to repo",   identical(p$repo,  "TMS-Transport"))
+  ok("url without .git parses",
+     identical(gh_parse_repo("https://github.com/a/b")$repo, "b"))
+  ok("trailing slash parses",
+     identical(gh_parse_repo("https://github.com/a/b/")$repo, "b"))
+  ok("a non-GitHub url is refused", is.null(gh_parse_repo("https://gitlab.com/a/b.git")))
+  ok("an empty url is refused",     is.null(gh_parse_repo("")))
+
+  # The static reference master is 19k rows that never change at runtime.
+  # Pushing it on every lane lookup would be pure waste.
+  ok("reference data is never queued", all(c("pincodes", "cities") %in% SYNC_SKIP))
+  ok("business tables are not skipped",
+     !any(c("bookings", "consignments", "gps_pings", "pods") %in% SYNC_SKIP))
+
+  # With a token present the queue must coalesce: fifty GPS pings inside one
+  # flush window are one commit, not fifty.
+  Sys.setenv(TMS_GITHUB_REPO_URL = "https://github.com/example/example.git",
+             TMS_GITHUB_PAT = "not-a-real-token")
+  ok("sync on once configured", gh_enabled())
+  ok("default branch is this one", identical(gh_config()$branch, "minimal-setup"))
+  for (i in 1:50) gh_mark_dirty("gps_pings")
+  gh_mark_dirty("bookings")
+  ok("repeated writes coalesce to one entry", sum(gh_pending() == "gps_pings") == 1)
+  ok("distinct tables queue separately",
+     all(c("gps_pings", "bookings") %in% gh_pending()))
+  ok("skipped tables never enter the queue", !isTRUE(gh_mark_dirty("pincodes")))
+  .sync$dirty <- character(0)
+
+  Sys.unsetenv(c("TMS_GITHUB_REPO_URL", "TMS_GITHUB_PAT"))
+  for (k in names(old)) if (!is.na(old[[k]])) do.call(Sys.setenv, setNames(list(old[[k]]), k))
+
+  # The token is the one thing that must never reach the repository, which is
+  # public. Nothing in the tree may carry it but the gitignored .Renviron.
+  src <- unlist(lapply(c("app.R", "global.R", list.files("R", "[.]R$", full.names = TRUE)),
+                       readLines, warn = FALSE))
+  ok("no token literal in the source",
+     !any(grepl("gh[ps]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}", src)))
+  ok(".Renviron is gitignored",
+     any(grepl("^\\.Renviron\\s*$", readLines(".gitignore", warn = FALSE))))
+})
+
 cat(sprintf("\n%s  %d passed, %d failed\n\n",
             if (fail == 0) "PASS" else "FAIL", pass, fail))
 if (fail > 0) quit(status = 1)

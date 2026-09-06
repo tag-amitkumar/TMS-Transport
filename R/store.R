@@ -64,6 +64,16 @@ store_init_reactivity <- function() {
 .write_tbl <- function(name, df) {
   if (!dir.exists(DATA_DIR)) dir.create(DATA_DIR, recursive = TRUE)
   readr::write_csv(df, tbl_path(name), na = "")
+  # Queue the table for GitHub, so what the app writes reaches the repo
+  # instead of dying with the container. This only adds a name to an
+  # in-memory set — the network round-trip happens on a timer, off the
+  # save path. See R/github_sync.R for why it is not pushed from here.
+  #
+  # Guarded: store.R is also sourced by the seed script and by tests,
+  # which run without github_sync.R loaded at all.
+  if (exists("gh_mark_dirty", mode = "function")) {
+    try(gh_mark_dirty(name), silent = TRUE)
+  }
   invisible(TRUE)
 }
 

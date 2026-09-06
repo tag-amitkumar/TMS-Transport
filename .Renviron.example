@@ -1,0 +1,33 @@
+# Copy to .Renviron (which is gitignored) and fill in.
+#
+# This repository is PUBLIC. Never commit a real token: a PAT in a commit is
+# compromised the moment it is pushed, and GitHub scans for them and revokes
+# them for you. .Renviron is in .gitignore for exactly this reason — but note
+# that rsconnect DOES include it in a deployment bundle, so the same file
+# configures local development and the shinyapps.io deployment.
+#
+# ------------------------------------------------------------------
+# Data sync — persisting what the running app writes (see R/github_sync.R)
+# ------------------------------------------------------------------
+# Without these the app works exactly as before: records are written to the
+# local filesystem and nowhere else. On a hosted platform that filesystem is
+# discarded when the instance recycles, so set these for any deployment whose
+# data is meant to survive.
+#
+# The PAT needs one permission: Contents (read and write) on this repository.
+# Create it at https://github.com/settings/personal-access-tokens
+#
+# TMS_GITHUB_REPO_URL=https://github.com/tag-amitkumar/TMS-Transport.git
+# TMS_GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxx
+# TMS_GITHUB_BRANCH=minimal-setup
+
+# ------------------------------------------------------------------
+# Connectors — all optional, all "Not configured" until set
+# ------------------------------------------------------------------
+# TMS_WHATSAPP_TOKEN=
+# TMS_SENDGRID_KEY=
+# TMS_MSG91_KEY=
+# TMS_GSP_CLIENT_ID=
+# TMS_GSP_SECRET=
+# TMS_GPS_API_KEY=
+# TMS_RAZORPAY_KEY=

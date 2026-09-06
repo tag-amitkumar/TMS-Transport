@@ -25,6 +25,9 @@ settings_server <- function(id, user) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     tab <- reactiveVal("Company")
+    # Bumped by the sync buttons so the status card re-renders with the new
+    # result — gh_status() reads a plain environment, which nothing observes.
+    sync_tick <- reactiveVal(0L)
 
     output$tabs <- renderUI({
       tab_strip(ns, "tab",
@@ -179,9 +182,72 @@ settings_server <- function(id, user) {
             div(class = "mt-3",
                 callout("Demo build",
                         "All connectors ship disconnected. Marking one connected here records the intent for the audit log; it does not establish a live session.",
-                        "warn"))))
+                        "warn"))),
+          div(class = "mt-3", sync_panel()))
       )
     }
+
+    # ---------------- Data sync ----------------
+    #
+    # Its own card rather than a row in the connector list above: those are
+    # outbound notification channels a branch admin chooses to switch on, this
+    # is infrastructure that decides whether today's bookings still exist
+    # tomorrow. Read-only — it reports what the environment says, and offers
+    # the one action (push now) that is useful without a restart.
+
+    sync_panel <- function() {
+      sync_tick()
+      on  <- gh_enabled()
+      cfg <- gh_config()
+      st  <- gh_status()
+      pending <- gh_pending()
+
+      card_panel(
+        title = "Data sync",
+        sub = "Where the running app's records are persisted",
+        div(class = "d-flex align-items-center gap-2 mb-3",
+            pill(if (on) "Active" else "Off", if (on) "green" else "grey"),
+            span(class = "tiny muted",
+                 if (on) paste("branch", cfg$branch) else "no token set")),
+
+        if (on) tagList(
+          dl_rows("Last result" = st$msg %||% "—",
+                  "Waiting to push" = if (length(pending))
+                    paste(pending, collapse = ", ") else "nothing"),
+          div(class = "mt-3 d-flex gap-2",
+              btn_primary(ns("sync_now"), "Push now"),
+              actionButton(ns("sync_pull"), "Pull from repo",
+                           class = "btn-tms-ghost btn-tms-sm")),
+          div(class = "tiny muted mt-2",
+              sprintf("Changes are pushed automatically every %d seconds while anyone is signed in.",
+                      SYNC_INTERVAL_MS %/% 1000))
+        ) else callout(
+          "Records live only on this server",
+          paste("Bookings, PODs and GPS trails are written to the container's own",
+                "filesystem, which a hosted platform discards on restart. Set",
+                "TMS_GITHUB_REPO_URL and TMS_GITHUB_PAT to have every change",
+                "committed to the repository as it happens."),
+          "warn")
+      )
+    }
+
+    observeEvent(input$sync_now, {
+      if (!require_perm(session, user()$role, "settings", "edit")) return()
+      done <- gh_flush()
+      sync_tick(sync_tick() + 1L)
+      showNotification(
+        if (length(done)) paste("Pushed:", paste(done, collapse = ", "))
+        else "Nothing waiting to push.",
+        type = "message", duration = 5)
+    })
+
+    observeEvent(input$sync_pull, {
+      if (!require_perm(session, user()$role, "settings", "edit")) return()
+      gh_pull_all()
+      sync_tick(sync_tick() + 1L)
+      audit(user()$user_id, "data-pull", "settings", "pulled data/ from GitHub")
+      showNotification(gh_status()$msg, type = "message", duration = 6)
+    })
 
     observeEvent(input$toggle, {
       if (!require_perm(session, user()$role, "settings", "edit")) return()
