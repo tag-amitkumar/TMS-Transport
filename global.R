@@ -379,6 +379,48 @@ expiry_state <- function(d, warn = 30) {
   )
 }
 
+# Staleness of the GPS feed, shared by Live GPS and the dashboard so one
+# threshold change updates both at once — the same reason expiry_state exists.
+#
+# This needs to exist because "is there a row?" is not the same question as "is
+# the feed live?". Positions come from a driver's handset over the browser's
+# Geolocation API, and that stops for entirely ordinary reasons: the phone
+# sleeps, the browser is backgrounded, the tab is closed, the driver revokes
+# permission, the truck is in a tunnel. None of those produce an error the app
+# ever sees — the pings simply stop arriving.
+#
+# So a screen that reports "live" whenever gps_pings is non-empty will keep
+# saying "live" over a position that stopped moving hours ago, and the operator
+# reads a stale dot as the truck having gone back somewhere. Saying how old the
+# fix is, and colouring it, is the difference between a map that is trusted and
+# one that quietly misleads.
+#
+# Thresholds are in terms of the driver's own reporting interval rather than
+# absolute seconds, so changing DRIVER_PING_SECONDS cannot silently make every
+# feed look stale. Two missed reports is ordinary jitter; ten means it stopped.
+gps_feed_state <- function(ts) {
+  if (!length(ts) || all(is.na(ts))) return("none")
+  every <- if (exists("DRIVER_PING_SECONDS")) DRIVER_PING_SECONDS else 30
+  age <- as.numeric(difftime(Sys.time(), max(ts, na.rm = TRUE), units = "secs"))
+  if (is.na(age))            "none"
+  else if (age <= every * 3) "live"
+  else if (age <= every * 10) "delayed"
+  else                        "stale"
+}
+
+# Human-readable age of the newest fix: "12 s", "4 min", "3 h", "12 d".
+# Hours and days matter — a seeded dataset is days old, and "17487 min ago"
+# tells an operator nothing they can act on.
+gps_feed_age <- function(ts) {
+  if (!length(ts) || all(is.na(ts))) return("never")
+  s <- as.numeric(difftime(Sys.time(), max(ts, na.rm = TRUE), units = "secs"))
+  if (is.na(s))        "never"
+  else if (s < 90)     paste0(round(s), " s")
+  else if (s < 5400)   paste0(round(s / 60), " min")
+  else if (s < 172800) paste0(round(s / 3600), " h")
+  else                 paste0(round(s / 86400), " d")
+}
+
 # Next id in a prefixed series, e.g. next_id(bookings$booking_no, "BKG-") on
 # c("BKG-4471","BKG-4482") -> "BKG-4483". Flat-file storage has no sequences,
 # so ids are derived from the data on each insert.

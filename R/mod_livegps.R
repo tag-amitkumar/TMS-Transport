@@ -72,14 +72,23 @@ livegps_server <- function(id, user, nav) {
     })
     observeEvent(input$filt, filt(input$filt))
 
+    # The pill reports the age of the newest fix, not merely that rows exist.
+    # A handset stops reporting without raising anything the app can see, so a
+    # feed that is hours old is indistinguishable from a live one here unless
+    # the age is what decides the colour.
     output$feed <- renderUI({
       g <- pings()
       if (!nrow(g)) return(pill("No feed", "grey"))
-      age <- round(as.numeric(difftime(Sys.time(), max(g$ts, na.rm = TRUE), units = "secs")))
+      state <- gps_feed_state(g$ts)
+      spec <- switch(state,
+        live    = list("GPS feed · live",    "green"),
+        delayed = list("GPS feed · delayed", "orange"),
+        stale   = list("GPS feed · stale",   "red"),
+        list("No feed", "grey"))
       tagList(
-        pill("GPS feed · live", "green"),
+        pill(spec[[1]], spec[[2]]),
         span(class = "tiny muted ms-2",
-             sprintf("Last poll %s", if (age < 90) paste0(age, " s") else paste0(round(age / 60), " min")))
+             sprintf("Last fix %s ago", gps_feed_age(g$ts)))
       )
     })
 

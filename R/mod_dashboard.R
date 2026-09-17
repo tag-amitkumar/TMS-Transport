@@ -137,13 +137,19 @@ dashboard_server <- function(id, user, nav) {
     output$gps_sub <- renderText({
       g <- gps()
       if (!nrow(g)) return("No live feed")
-      age <- round(as.numeric(difftime(Sys.time(), max(g$ts, na.rm = TRUE), units = "secs")))
-      sprintf("GPS feed · updated %s ago · %d vehicles",
-              if (age < 90) paste0(age, " s") else paste0(round(age / 60), " min"), nrow(g))
+      sprintf("GPS feed · last fix %s ago · %d vehicles", gps_feed_age(g$ts), nrow(g))
     })
 
+    # "healthy" used to mean "gps_pings has at least one row", which reported a
+    # seeded dataset days old as healthy. Health is the age of the newest fix.
     output$gps_health <- renderUI({
-      if (nrow(gps())) pill("GPS feed healthy", "green") else pill("No feed", "grey")
+      g <- gps()
+      if (!nrow(g)) return(pill("No feed", "grey"))
+      switch(gps_feed_state(g$ts),
+        live    = pill("GPS feed healthy", "green"),
+        delayed = pill("GPS feed delayed", "orange"),
+        stale   = pill("GPS feed stale",   "red"),
+        pill("No feed", "grey"))
     })
 
     output$map <- leaflet::renderLeaflet({
