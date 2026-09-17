@@ -127,11 +127,32 @@ brand_mark <- function(size = 38) {
 brand_logo <- function(height = 56, alt = BRAND$company, fill = FALSE) {
   p <- file.path("www", BRAND$logo)
   if (file.exists(p)) {
-    if (fill) return(tags$img(src = BRAND$logo, alt = alt, class = "brand-logo-fill"))
-    return(tags$img(src = BRAND$logo, alt = alt, height = paste0(height, "px"),
+    src <- asset_url(BRAND$logo)
+    if (fill) return(tags$img(src = src, alt = alt, class = "brand-logo-fill"))
+    return(tags$img(src = src, alt = alt, height = paste0(height, "px"),
                     style = "display:block;width:auto;max-width:100%;"))
   }
   brand_mark(height)
+}
+
+#' Content-hashed query string for a file in www/, e.g. "styles.css?v=1a2b3c4d5e".
+#'
+#' Shiny serves www/ at stable, unversioned URLs, and a CDN in front of the app
+#' will happily cache /styles.css on its own default TTL — Cloudflare uses four
+#' hours for .css when the origin sends no Cache-Control, which httpuv does not.
+#' The result is that a deploy changing the stylesheet keeps serving the old one
+#' to the edge's cache until it expires: the new markup arrives styled by the
+#' previous release, which looks like the layout has fallen apart rather than
+#' like a caching problem.
+#'
+#' Hashing the contents rather than stamping mtime matters here: `docker build`
+#' rewrites mtimes on every COPY, so a timestamp would bust the cache on every
+#' rebuild whether or not the file changed, while an unchanged file keeps its
+#' hash and stays cached.
+asset_url <- function(file) {
+  p <- file.path("www", file)
+  if (!file.exists(p)) return(file)
+  paste0(file, "?v=", substr(unname(tools::md5sum(p)), 1, 10))
 }
 
 #' TRUE when the real artwork is in place.
