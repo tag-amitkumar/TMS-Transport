@@ -224,6 +224,22 @@ docker compose down && docker volume rm tms-data && docker compose up -d --build
 **`cloudflared` logs show `dial tcp: lookup app`** — the app container is not
 up. `docker compose logs app`.
 
+**Page renders unstyled, or the layout looks broken after a deploy** — almost
+certainly a stale stylesheet at Cloudflare's edge, not a CSS bug. Compare what
+the edge serves against the origin:
+
+```bash
+curl -sI https://tms.katxel.in/styles.css | grep -i cf-cache-status
+curl -s https://tms.katxel.in/styles.css | wc -c
+curl -s http://localhost:3838/styles.css | wc -c
+```
+
+Different byte counts with `cf-cache-status: HIT` means the edge is serving the
+previous release. `asset_url()` in `global.R` is what prevents this — it appends
+a content hash to `styles.css` and the logo, so a changed file gets a changed
+URL. If you add another asset in `www/` and reference it by stable name, route
+it through `asset_url()` too, or it will hit exactly this.
+
 **Browser shows "Disconnected from server"** — Shiny holds a WebSocket open for
 the life of a session. The `originRequest` keepalive settings in
 `cloudflared/config.yml` exist to stop the origin hop timing it out; if it
