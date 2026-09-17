@@ -26,3 +26,9 @@ tools/node_modules/
 # scratch dir is not
 HANDBOOK_files/
 HANDBOOK_cache/
+
+# Deployment secrets — the tunnel credentials file authenticates as the tunnel
+# itself, and config.yml embeds its UUID
+cloudflared/*.json
+cloudflared/config.yml
+.env

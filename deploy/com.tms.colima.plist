@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Starts the Colima VM when the Mac mini logs in.
+
+  Docker itself has no launchd job here: Colima *is* the Docker daemon on
+  macOS, and the containers carry `restart: unless-stopped`, so Docker brings
+  the stack back up on its own once the VM is running.
+
+  LaunchAgents run at LOGIN, not at boot. On a headless Mac mini, enable
+  System Settings -> Users & Groups -> Automatically log in as this user,
+  otherwise the app stays down after a power cut until someone signs in.
+
+  Install:  cp deploy/com.tms.colima.plist ~/Library/LaunchAgents/
+            launchctl load -w ~/Library/LaunchAgents/com.tms.colima.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tms.colima</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mac/.local/bin/colima</string>
+        <string>start</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- launchd hands jobs a minimal PATH; colima shells out to limactl,
+         which lives alongside it in ~/.local/bin. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/mac/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/mac</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/mac/Library/Logs/tms-colima.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mac/Library/Logs/tms-colima.log</string>
+</dict>
+</plist>

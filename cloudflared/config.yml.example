@@ -1,0 +1,40 @@
+# ==================================================================
+# Cloudflare Tunnel ingress for TMS.
+#
+# config.yml is generated from this template by the setup in DEPLOY.md, which
+# substitutes the tunnel UUID and your hostname. Kept here so the mapping is
+# reviewable and the real config.yml can stay out of git.
+# ==================================================================
+
+# The tunnel's UUID, printed by `cloudflared tunnel create`.
+tunnel: REPLACE_WITH_TUNNEL_ID
+
+# Path *inside the container* — docker-compose mounts ./cloudflared here.
+credentials-file: /etc/cloudflared/REPLACE_WITH_TUNNEL_ID.json
+
+# Cloudflare's edge reaches this instance over four outbound connections;
+# metrics are exposed for `docker compose exec cloudflared` debugging.
+metrics: 0.0.0.0:2000
+no-autoupdate: true
+
+ingress:
+  - hostname: REPLACE_WITH_HOSTNAME
+    # "app" is the compose service name; Docker's embedded DNS resolves it on
+    # the shared network. Plain http is correct — this hop never leaves the
+    # Mac mini, and Cloudflare terminates TLS at the edge.
+    service: http://app:3838
+    originRequest:
+      # Shiny holds an open WebSocket per session for the entire time a user
+      # has the app open. The default 90s origin idle timeout would drop it
+      # mid-session and the browser would show "Disconnected from server".
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+      keepAliveTimeout: 90s
+      noTLSVerify: false
+      # The Host header the app sees. Shiny does not vhost, but keeping the
+      # public hostname makes container logs match what users typed.
+      httpHostHeader: REPLACE_WITH_HOSTNAME
+
+  # Required terminator: anything not matched above gets a 404 rather than
+  # being silently proxied somewhere.
+  - service: http_status:404

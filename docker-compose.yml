@@ -1,0 +1,78 @@
+# ==================================================================
+# TMS — self-hosted stack for the Mac mini.
+#
+#   app         the Shiny application
+#   cloudflared an outbound-only tunnel that publishes it on your domain
+#
+# The tunnel dials out to Cloudflare, so nothing here needs a port forwarded
+# on the router, a static IP, or a firewall hole.
+# ==================================================================
+name: tms
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tms-transport:latest
+    container_name: tms-app
+    restart: unless-stopped
+
+    environment:
+      TZ: Asia/Kolkata
+      # Set to "false" to hide the login screen's quick-preview role chips and
+      # require real credentials. See R/mod_auth.R.
+      TMS_DEMO_LOGIN: ${TMS_DEMO_LOGIN:-true}
+      TMS_SEED_PROFILE: ${TMS_SEED_PROFILE:-minimal}
+      # R/github_sync.R stays inert unless both of these are set. See
+      # .env.example for why that is deliberate on a host with a real volume.
+      TMS_GITHUB_REPO_URL: ${TMS_GITHUB_REPO_URL:-}
+      TMS_GITHUB_PAT: ${TMS_GITHUB_PAT:-}
+      TMS_GITHUB_BRANCH: ${TMS_GITHUB_BRANCH:-minimal-setup}
+
+    volumes:
+      # Everything the app persists is a CSV under data/. A named volume keeps
+      # bookings, PODs and approvals across restarts and image rebuilds.
+      - tms-data:/srv/tms/data
+
+    # Bound to loopback on purpose. The public route is the tunnel; this
+    # mapping exists so you can reach the app at http://localhost:3838 while
+    # on the Mac mini itself, without also exposing it to the local network.
+    ports:
+      - "127.0.0.1:3838:3838"
+
+    # 8 GB of RAM shared with macOS — a runaway R session should not take the
+    # machine down with it.
+    mem_limit: 2g
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3838/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: tms-cloudflared
+    restart: unless-stopped
+
+    # --no-autoupdate because the container is the unit of upgrade here: a
+    # self-update inside a running container is lost on the next recreate and
+    # only muddies what version is actually deployed.
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+
+    volumes:
+      # Holds config.yml (ingress rules) and <tunnel-id>.json (the tunnel's
+      # credentials, gitignored). Read-only — cloudflared never writes here.
+      - ./cloudflared:/etc/cloudflared:ro
+
+    # Wait for Shiny to finish sourcing before advertising the route, so the
+    # first request after a reboot does not land on a 502.
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  tms-data:
+    name: tms-data
