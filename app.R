@@ -10,6 +10,7 @@
 source("global.R")
 source("R/store.R")
 source("R/geo.R")
+source("R/serviceability.R")
 source("R/ewb.R")
 source("R/rbac.R")
 source("R/seed.R")

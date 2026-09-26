@@ -23,6 +23,66 @@
 # the app, not sample data.
 # ==================================================================
 
+# ==================================================================
+# Masters added for the 20 Sep 2026 change requests.
+#
+# Shared by both seed profiles. Derived from whichever branch table is passed
+# in rather than hardcoded to two branch ids, so the full 18-branch seed and
+# the 2-branch minimal seed both come out consistent — a master that only
+# populated under one profile would leave ODA unresolvable under the other.
+# ==================================================================
+seed_cr_masters <- function(branches) {
+  out <- list()
+
+  # Each branch claims its own pincode as Normal (CR-14, CR-20). That is the
+  # minimum truthful statement: a branch certainly delivers its own PIN code.
+  # Everything else is left unclassified so the distance rule in
+  # resolve_delivery() decides it, which is the behaviour the rule exists for.
+  out$branch_pincodes <- tibble::tibble(
+    branch_id     = as.character(branches$branch_id),
+    pincode       = as.character(branches$pincode),
+    delivery_type = "Normal"
+  )
+  out$branch_pincodes <-
+    out$branch_pincodes[nzchar(out$branch_pincodes$pincode), , drop = FALSE]
+
+  # Rate card (CR-07). One standard rate, then a per-branch LTL and FTL rate.
+  # FTL is cheaper per kg because the whole vehicle is paid for either way.
+  std <- tibble::tibble(pincode = "", branch_id = "", dispatch = "",
+                        rate_per_kg = 12)
+  per_branch <- tibble::tibble(
+    pincode     = "",
+    branch_id   = rep(as.character(branches$branch_id), each = 2),
+    dispatch    = rep(c("LTL", "FTL"), times = nrow(branches)),
+    rate_per_kg = rep(c(14, 9), times = nrow(branches))
+  )
+  out$freight_rates <- dplyr::bind_rows(std, per_branch)
+
+  # Product types and the Rule 138(14) exemption (CR-17). The exempt entries
+  # are the commonly carried ones; the annexure is longer, and this is a
+  # master so it can be corrected without a release.
+  out$product_types <- tibble::tribble(
+    ~name,               ~ewb_exempt, ~notes,
+    "General goods",     FALSE,       "Default for anything not classified",
+    "Books & printed",   TRUE,        "Printed books, newspapers, journals",
+    "Fresh produce",     TRUE,        "Unprocessed fruit and vegetables",
+    "Milk & dairy",      TRUE,        "Fresh milk, curd",
+    "Textiles",          FALSE,       "",
+    "Electronics",       FALSE,       "",
+    "Pharmaceuticals",   FALSE,       "",
+    "Machinery & parts", FALSE,       "",
+    "Hazardous",         FALSE,       "Requires additional documentation"
+  )
+
+  # One row per invoice on a booking (CR-15, CR-18). Empty on a fresh install.
+  out$booking_invoices <- tibble::tibble(
+    booking_no = character(), invoice_no = character(),
+    invoice_value = character(), ewb_no = character()
+  )
+
+  out
+}
+
 build_seed_minimal <- function() {
 
   TODAY <- Sys.Date()
@@ -564,6 +624,12 @@ build_seed_minimal <- function() {
     ts = character(), user_id = character(),
     action = character(), module = character(), detail = character()
   )
+
+  # ----------------------------------------------------------------
+  # Masters added for the 20 Sep 2026 change requests.
+  # ----------------------------------------------------------------
+
+  out <- c(out, seed_cr_masters(out$branches))
 
   out
 }

@@ -1078,6 +1078,10 @@ build_seed <- function() {
     action = character(), module = character(), detail = character()
   )
 
+  # Masters shared with the minimal profile — see seed_cr_masters() in
+  # R/seed_minimal.R. Both profiles must produce these or ODA cannot resolve.
+  out <- c(out, seed_cr_masters(out$branches))
+
   out
 }
 

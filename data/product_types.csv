@@ -1,0 +1,10 @@
+name,ewb_exempt,notes
+General goods,FALSE,Default for anything not classified
+Books & printed,TRUE,"Printed books, newspapers, journals"
+Fresh produce,TRUE,Unprocessed fruit and vegetables
+Milk & dairy,TRUE,"Fresh milk, curd"
+Textiles,FALSE,
+Electronics,FALSE,
+Pharmaceuticals,FALSE,
+Machinery & parts,FALSE,
+Hazardous,FALSE,Requires additional documentation

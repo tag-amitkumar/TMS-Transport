@@ -207,7 +207,12 @@ TABLES <- c(
   "ewaybills", "ewaybill_partb", "pods", "gps_pings",
   "complaints", "invoices", "payments", "vendor_payments",
   "attendance", "leave_types", "leave_requests", "payroll",
-  "settings", "notification_events", "integrations", "audit_log"
+  "settings", "notification_events", "integrations", "audit_log",
+  # Added for the 20 Sep 2026 change requests. branch_pincodes and
+  # freight_rates are branch-maintained masters; booking_invoices is the
+  # one-to-many the e-way bill threshold is summed over; product_types
+  # carries the exemption flag.
+  "branch_pincodes", "freight_rates", "booking_invoices", "product_types"
 )
 
 tbl_path <- function(name) file.path(DATA_DIR, paste0(name, ".csv"))
@@ -262,6 +267,72 @@ ROLE_LEVELS <- c("Super Admin", "Branch Admin", "Operations Manager",
 # with only the hint "RCM flagged per client configuration", so the rate is
 # stored per client rather than inferred — see clients$gst_mode / gst_pct.
 GST_MODES <- c("RCM", "FCM")
+
+# ------------------------------------------------------------------
+# Dispatch mode (CR-10)
+#
+# Whether the consignment shares a vehicle or takes one. LTL is first because
+# it is the overwhelming majority of bookings on a part-load network — making
+# the rarer FTL the default would mean the clerk unsets it all day.
+# ------------------------------------------------------------------
+DISPATCH_TYPES <- c("LTL", "FTL")
+
+DISPATCH_LABEL <- c(
+  "LTL" = "LTL — Less Than Truck Load",
+  "FTL" = "FTL — Full Truck Load"
+)
+
+# ------------------------------------------------------------------
+# Serviceability (CR-09, CR-11, CR-20)
+#
+# A delivery address is either inside a branch's ordinary beat or outside it.
+# Outside costs more and takes longer, so it has to be known at booking time
+# rather than discovered by the delivery branch.
+#
+# Two tests were specified and they can disagree, so their precedence is
+# fixed here rather than left to whichever screen asks first:
+#
+#   1. The branch pincode list is authoritative. A pincode someone has
+#      explicitly entered against a branch carries a human decision, and that
+#      beats any calculation.
+#   2. For a pincode nobody has classified, fall back to distance: within
+#      ODA_RADIUS_KM of the nearest branch is Normal, beyond it is ODA.
+#
+# The distance is straight-line (geo_haversine over branches.lat/lon), which
+# is all the stored data supports. Road distance is longer than straight-line,
+# so this errs toward calling a borderline address Normal — the cheaper
+# quote — and that is the error worth flagging if a routing service is ever
+# added.
+# ------------------------------------------------------------------
+DELIVERY_TYPES <- c("Normal", "ODA")
+
+ODA_RADIUS_KM <- 15
+
+# ------------------------------------------------------------------
+# Who may raise a TBB booking (CR-05, CR-13)
+#
+# The meeting said "operator". No role of that name exists in ROLE_LEVELS, so
+# it is read as the two roles that actually operate the booking counter.
+# Super Admin is included because it is included everywhere.
+# ------------------------------------------------------------------
+OPERATOR_ROLES <- c("Super Admin", "Branch Admin",
+                    "Operations Manager", "Booking Executive")
+
+# ------------------------------------------------------------------
+# E-way bill thresholds (CR-16, CR-19)
+#
+# Rule 138 requires an e-way bill once consignment value crosses the limit.
+# The limit differs by movement: states set their own intrastate floor, and
+# the interstate floor is the statutory 50,000.
+#
+# Applied to the SUM of all invoices on the booking (CR-19), not to each
+# invoice, because the consignment is what moves and the consignment is what
+# the bill covers. Splitting one load across three invoices to stay under the
+# limit is precisely what the aggregate test exists to prevent.
+# ------------------------------------------------------------------
+EWB_THRESHOLD_INTRASTATE <- 100000
+EWB_THRESHOLD_INTERSTATE <- 50000
+
 
 # ------------------------------------------------------------------
 # Freight payment terms
