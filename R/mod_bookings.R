@@ -104,6 +104,42 @@ booking_new_ui <- function(id) {
         # booking time".
         div(class = "mt-2", uiOutput(ns("route_check"))),
 
+        # Which branch delivers this PIN code, and whether it is inside that
+        # branch's ordinary beat (CR-09, CR-11, CR-12). Shown at booking time
+        # because an ODA address costs more and takes longer, and the customer
+        # has to be told before the load is accepted, not after.
+        div(class = "mt-2", uiOutput(ns("delivery_check"))),
+
+        div(class = "form-group-sep"),
+        # Consignor before consignee (CR-25) — the order the load actually
+        # travels, and the order the consignment note prints.
+        div(class = "form-section", "Consignor & consignee"),
+        div(class = "row g-3",
+            # Mobile is mandatory at both ends and email is not (CR-01, CR-02).
+            # A delivery runs on a phone call: the driver ringing ahead from the
+            # highway, the branch chasing a missing consignee. Nobody has ever
+            # rerouted a truck by email.
+            div(class = "col-md-4",
+                tags$label(class = "form-label req", "Consignor name"),
+                textInput(ns("f_cnor_name"), NULL, width = "100%")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label req", "Consignor mobile"),
+                textInput(ns("f_cnor_mob"), NULL, width = "100%",
+                          placeholder = "9876543210")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label", "Consignor email (optional)"),
+                textInput(ns("f_cnor_mail"), NULL, width = "100%")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label req", "Consignee name"),
+                textInput(ns("f_cnee_name"), NULL, width = "100%")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label req", "Consignee mobile"),
+                textInput(ns("f_cnee_mob"), NULL, width = "100%",
+                          placeholder = "9876543210")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label", "Consignee email (optional)"),
+                textInput(ns("f_cnee_mail"), NULL, width = "100%"))),
+
         div(class = "form-group-sep"),
         div(class = "form-section", "Material & charges"),
         div(class = "row g-3",
@@ -119,19 +155,59 @@ booking_new_ui <- function(id) {
             div(class = "col-md-3",
                 tags$label(class = "form-label", "Packages"),
                 textInput(ns("f_pkg"), NULL, width = "100%")),
-            div(class = "col-md-5",
+            div(class = "col-md-3",
                 tags$label(class = "form-label", "Insurance"),
                 selectInput(ns("f_ins"), NULL,
                             c("Not insured", "Insured"), width = "100%")),
+            # Dispatch mode (CR-10). LTL first and selected, because on a
+            # part-load network it is most of the book; defaulting to FTL would
+            # mean the clerk unsetting it all day.
             div(class = "col-md-3",
-                tags$label(class = "form-label req", "Freight charges (₹)"),
-                numericInput(ns("f_freight"), NULL, 15000, 0, step = 100, width = "100%")),
+                tags$label(class = "form-label req", "Dispatch"),
+                selectInput(ns("f_dispatch"), NULL, width = "100%",
+                            choices = setNames(DISPATCH_TYPES,
+                                               DISPATCH_LABEL[DISPATCH_TYPES]),
+                            selected = "LTL")),
+            # Product type drives the Rule 138(14) exemption (CR-17), so it is
+            # asked here rather than inferred from the free-text material line.
             div(class = "col-md-3",
-                tags$label(class = "form-label", "GST"),
-                div(class = "field-static", textOutput(ns("f_gst_lbl"), inline = TRUE))),
-            div(class = "col-md-6",
+                tags$label(class = "form-label req", "Product type"),
+                uiOutput(ns("sel_product"))),
+            # Freight is computed from the rate card now (CR-07); this box is
+            # the exception, not the entry point. Left blank the quoted rate
+            # stands, which is what should normally happen — a figure typed
+            # over an agreed rate card is a negotiation, and it gets recorded
+            # on the booking as one.
+            div(class = "col-md-3",
+                tags$label(class = "form-label", "Negotiated freight (₹)"),
+                textInput(ns("f_freight"), NULL, width = "100%",
+                          placeholder = "rate card")),
+            div(class = "col-md-12",
                 tags$label(class = "form-label", "Remarks"),
-                textInput(ns("f_remarks"), NULL, width = "100%")))
+                textInput(ns("f_remarks"), NULL, width = "100%"))),
+
+        div(class = "form-group-sep"),
+        # Invoices (CR-15, CR-18). "Material value" is gone: what the
+        # consignment is worth is what its invoices say it is worth, and one
+        # consignment routinely carries several. They are captured as rows
+        # rather than a single figure because the e-way bill threshold is
+        # tested on their sum (CR-19), and a sum needs addends.
+        div(class = "form-section", "Invoices"),
+        div(class = "row g-2 align-items-end",
+            div(class = "col-md-3",
+                tags$label(class = "form-label", "Invoice no."),
+                textInput(ns("i_no"), NULL, width = "100%")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label", "Invoice value (₹)"),
+                textInput(ns("i_val"), NULL, width = "100%")),
+            div(class = "col-md-4",
+                tags$label(class = "form-label", "E-way bill no."),
+                textInput(ns("i_ewb"), NULL, width = "100%",
+                          placeholder = "12 digits")),
+            div(class = "col-md-2",
+                btn_ghost(ns("i_add"), "Add", fontawesome::fa("plus")))),
+        div(class = "mt-2", uiOutput(ns("inv_table"))),
+        div(class = "mt-2", uiOutput(ns("ewb_check")))
       )
     ),
 
@@ -150,17 +226,23 @@ booking_new_ui <- function(id) {
           div(class = "row g-3",
               div(class = "col-12",
                   tags$label(class = "form-label req", "Payment mode"),
-                  # Defaults to To Pay, not Paid. Whichever term the list opens
-                  # on is the one that gets saved when a clerk is in a hurry,
-                  # and "Paid" writes an invoice that is already settled — money
-                  # recorded as collected that nobody actually took. To Pay errs
-                  # the safe way: the balance stays visible until someone clears
-                  # it at the door.
+                  # Opens on nothing (CR-04). It used to default to To Pay,
+                  # on the reasoning that whichever term the list opens on is
+                  # what a hurried clerk saves, and To Pay at least errs toward
+                  # a visible balance. The objection raised was that a default
+                  # is still a guess at the commercial terms, and a wrong guess
+                  # that looks deliberate is worse than an empty field that
+                  # refuses to save. validate_form() now blocks on it.
                   selectInput(ns("f_pay"), NULL, width = "100%",
-                              choices = setNames(PAYMENT_MODES, PAYMENT_LABEL[PAYMENT_MODES]),
-                              selected = "To Pay")),
+                              choices = c(setNames("", "Select payment mode…"),
+                                          setNames(PAYMENT_MODES,
+                                                   PAYMENT_LABEL[PAYMENT_MODES])),
+                              selected = "")),
               # Only meaningful for TBB, so it appears only for TBB.
-              div(class = "col-12", uiOutput(ns("sel_bill_branch")))),
+              div(class = "col-12", uiOutput(ns("sel_bill_branch"))),
+              # The billing branch's acceptance (CR-06), and the role gate on
+              # raising TBB at all (CR-05).
+              div(class = "col-12", uiOutput(ns("tbb_panel")))),
           div(class = "mt-2", uiOutput(ns("pay_note")))
         ),
 
@@ -564,9 +646,48 @@ bookings_server <- function(id, user, nav) {
       r$gst_mode
     })
 
-    output$f_gst_lbl <- renderText({
-      paste0(gst_pct(), "% (", gst_mode(),
-             if (identical(gst_mode(), "RCM")) " · GTA" else "", ")")
+    # The GST control is gone from the form (CR-03). GST itself is not: it is
+    # still computed, still shown in the summary and still printed on the
+    # invoice — it is taken from the customer's configured treatment, which is
+    # where it was already coming from. What has gone is the per-booking field
+    # that implied a clerk could choose it.
+
+    # Product type drives the e-way bill exemption, so the list is the master,
+    # not a hardcoded vector.
+    output$sel_product <- renderUI({
+      pt <- store_get("product_types")
+      ch <- if (nrow(pt)) pt$name else "General goods"
+      selectInput(ns("f_product"), NULL, choices = ch,
+                  selected = "General goods", width = "100%")
+    })
+
+    # Which branch delivers, and whether it is ODA (CR-09, CR-11, CR-12).
+    delivery <- reactive(resolve_delivery(input$f_to_pin %||% ""))
+
+    output$delivery_check <- renderUI({
+      req(nzchar(input$f_to_pin %||% ""))
+      d <- delivery()
+      if (identical(d$delivery_type, "Unserviceable")) {
+        return(callout(
+          "No delivering branch for this PIN code",
+          paste("Nothing in the branch lists covers it and it cannot be placed",
+                "against the PIN code master, so neither a delivery branch nor",
+                "a rate can be worked out. Check the PIN, or add it to a",
+                "branch's list on the Branches screen."),
+          "warn"))
+      }
+      oda <- identical(d$delivery_type, "ODA")
+      callout(
+        paste0("Delivered by ", d$branch_name,
+               if (oda) " · ODA" else " · Normal delivery"),
+        HTML(paste0(
+          htmlEscape(d$basis),
+          if (oda) paste0(
+            '<br/><span class="tiny muted">Outer Delivery Area — a surcharge of ',
+            htmlEscape(inr(oda_charge())),
+            ' applies and transit runs longer than the quoted lane time. Tell the consignor before accepting the load.</span>')
+          else "")),
+        if (oda) "warn" else "info")
     })
 
     lane <- reactive(geo_lane(input$f_from %||% "", input$f_to %||% "",
@@ -641,8 +762,26 @@ bookings_server <- function(id, user, nav) {
     })
 
     charges <- reactive({
-      fr  <- as.numeric(input$f_freight %||% 0)
-      if (is.na(fr)) fr <- 0
+      # Freight now comes off the rate card by weight and destination (CR-07),
+      # broken into named lines (CR-08). Weight is captured in tonnes and the
+      # card is priced per kg, so the conversion happens once, here.
+      d  <- delivery()
+      wt <- suppressWarnings(as.numeric(input$f_weight %||% 0))
+      if (is.na(wt)) wt <- 0
+      bk <- freight_breakup(
+        weight_kg     = wt * 1000,
+        dest_pincode  = input$f_to_pin %||% "",
+        branch_id     = d$branch_id,
+        dispatch      = input$f_dispatch %||% "LTL",
+        delivery_type = d$delivery_type)
+
+      # A typed figure overrides the card, and is recorded as a negotiated
+      # rate rather than quietly replacing it — the breakup keeps showing what
+      # the card said so the difference is visible on the booking.
+      override <- suppressWarnings(as.numeric(input$f_freight %||% ""))
+      negotiated <- !is.na(override) && override > 0
+      fr <- if (negotiated) override else bk$freight
+
       gp  <- gst_pct()
       rcm <- identical(gst_mode(), "RCM")
 
@@ -659,7 +798,9 @@ bookings_server <- function(id, user, nav) {
       ins <- if (dv > 0) round(dv * 0.000125 / 10) * 10 else 0
 
       list(freight = fr, gst = gst, gst_pct = gp, rcm = rcm, gst_note = gst_note,
-           insurance = ins, declared = dv, total = fr + gst + ins)
+           insurance = ins, declared = dv, total = fr + gst + ins,
+           breakup = bk, negotiated = negotiated, card_freight = bk$freight,
+           delivery = d)
     })
 
     output$summary <- renderUI({
@@ -668,15 +809,34 @@ bookings_server <- function(id, user, nav) {
       # named list and splatted rather than written inline. Under reverse charge
       # the amount is shown for information with a nil collected, because the
       # customer still needs to see what they will be discharging themselves.
-      charge_rows <- list(
-        inr(ch$freight),
+      # One row per charge line rather than a single freight figure (CR-08).
+      # freight_breakup() decides the lines and their order so that this card,
+      # the consignment note and the invoice cannot disagree about them.
+      charge_rows <- list(); charge_names <- character(0)
+      if (ch$negotiated) {
+        charge_rows <- c(charge_rows, list(inr(ch$freight)))
+        charge_names <- c(charge_names, "Freight — negotiated")
+        charge_rows <- c(charge_rows, list(
+          HTML(paste0('<span class="muted">', inr(ch$card_freight), "</span>"))))
+        charge_names <- c(charge_names, "Rate card would have quoted")
+      } else if (length(ch$breakup$lines)) {
+        for (l in ch$breakup$lines) {
+          charge_rows  <- c(charge_rows, list(inr(l$amount)))
+          charge_names <- c(charge_names, l$label)
+        }
+      } else {
+        charge_rows  <- c(charge_rows, list(
+          HTML('<span class="muted">No rate — enter a negotiated figure</span>')))
+        charge_names <- c(charge_names, "Freight")
+      }
+      charge_rows <- c(charge_rows, list(
         if (ch$rcm) HTML(paste0('<span class="muted">', inr(ch$gst_note),
                                 " payable by recipient</span>")) else inr(ch$gst),
-        inr(ch$insurance)
-      )
-      names(charge_rows) <- c("Freight charges",
-                              sprintf("GST (%s%% · %s)", ch$gst_pct, gst_mode()),
-                              "Insurance")
+        inr(ch$insurance)))
+      charge_names <- c(charge_names,
+                        sprintf("GST (%s%% · %s)", ch$gst_pct, gst_mode()),
+                        "Insurance")
+      names(charge_rows) <- charge_names
       tagList(
         do.call(dl_rows, charge_rows),
         tags$hr(class = "soft"),
@@ -699,6 +859,159 @@ bookings_server <- function(id, user, nav) {
     })
 
     # Validation shared by both save paths.
+    # ---------------- invoices (CR-15, CR-18) ----------------
+    #
+    # Held in the module until the booking is saved, then written as rows of
+    # booking_invoices. Kept out of the store while the form is open so an
+    # abandoned booking does not leave orphan invoice rows behind.
+    inv_rows <- reactiveVal(tibble::tibble(
+      invoice_no = character(), invoice_value = character(), ewb_no = character()))
+    invoices <- reactive(inv_rows())
+
+    observeEvent(input$i_add, {
+      no  <- trimws(input$i_no  %||% "")
+      val <- trimws(input$i_val %||% "")
+      ewb <- trimws(input$i_ewb %||% "")
+      v   <- suppressWarnings(as.numeric(val))
+
+      if (!nzchar(no)) {
+        showNotification("Invoice number is required.", type = "error"); return()
+      }
+      if (is.na(v) || v <= 0) {
+        showNotification("Invoice value must be a number greater than zero.",
+                         type = "error"); return()
+      }
+      cur <- inv_rows()
+      if (no %in% cur$invoice_no) {
+        showNotification(paste0("Invoice ", no, " is already on this booking."),
+                         type = "error"); return()
+      }
+      # An e-way bill number is 12 digits. Checked when one is supplied, so a
+      # transposed digit is caught here rather than at the checkpost.
+      if (nzchar(ewb) && !grepl("^[0-9]{12}$", gsub("[ -]", "", ewb))) {
+        showNotification("E-way bill number must be 12 digits.", type = "error"); return()
+      }
+
+      inv_rows(dplyr::bind_rows(cur, tibble::tibble(
+        invoice_no = no, invoice_value = as.character(round(v)),
+        ewb_no = gsub("[ -]", "", ewb))))
+      updateTextInput(session, "i_no",  value = "")
+      updateTextInput(session, "i_val", value = "")
+      updateTextInput(session, "i_ewb", value = "")
+    })
+
+    observeEvent(input$i_del, {
+      cur <- inv_rows()
+      k <- input$i_del
+      if (is.null(k) || !nzchar(k)) return()
+      inv_rows(cur[cur$invoice_no != k, , drop = FALSE])
+    })
+
+    output$inv_table <- renderUI({
+      iv <- invoices()
+      if (!nrow(iv)) {
+        return(div(class = "tiny muted", "No invoices added yet."))
+      }
+      rows <- lapply(seq_len(nrow(iv)), function(i) {
+        tags$tr(
+          tags$td(class = "mono", iv$invoice_no[i]),
+          tags$td(class = "text-end", inr(as_num(iv$invoice_value[i]))),
+          tags$td(class = "mono", if (nzchar(iv$ewb_no[i])) iv$ewb_no[i] else "—"),
+          tags$td(class = "text-end",
+                  tags$button(
+                    class = "btn btn-sm btn-link p-0 text-danger",
+                    onclick = sprintf(
+                      "Shiny.setInputValue('%s', '%s', {priority:'event'})",
+                      ns("i_del"), iv$invoice_no[i]),
+                    "Remove")))
+      })
+      total <- sum(as_num(iv$invoice_value), na.rm = TRUE)
+      div(class = "tms-table",
+        tags$table(class = "table table-sm mb-0",
+          tags$thead(tags$tr(
+            tags$th("INVOICE"), tags$th(class = "text-end", "VALUE"),
+            tags$th("E-WAY BILL"), tags$th(""))),
+          tags$tbody(rows),
+          tags$tfoot(tags$tr(
+            tags$th("Total"), tags$th(class = "text-end", inr(total)),
+            tags$th(colspan = 2, "")))))
+    })
+
+    # Whether an e-way bill is needed, and why (CR-16, CR-17, CR-19). Shown
+    # while the form is open rather than only on save, so the clerk can ask the
+    # consignor for the number before the driver is waiting at the counter.
+    output$ewb_check <- renderUI({
+      iv <- invoices()
+      if (!nrow(iv)) return(NULL)
+      e <- ewb_required(sum(as_num(iv$invoice_value), na.rm = TRUE),
+                        geo_pin(input$f_from_pin)$state %||% "",
+                        geo_pin(input$f_to_pin)$state %||% "",
+                        input$f_product %||% "")
+      missing <- sum(!nzchar(trimws(iv$ewb_no)))
+      if (e$exempt) return(callout("E-way bill not required", e$reason, "info"))
+      if (!e$required) return(callout("E-way bill not required", e$reason, "info"))
+      callout(
+        if (missing) sprintf("E-way bill required — %d invoice%s still without one",
+                             missing, if (missing == 1) "" else "s")
+        else "E-way bill required — all invoices carry one",
+        e$reason, if (missing) "warn" else "ok")
+    })
+
+    # ---------------- TBB reference (CR-05, CR-06) ----------------
+    #
+    # A TBB load is billed by another branch, so that branch has to accept it
+    # before the consignment moves on its account. The reference is that
+    # acceptance. Requesting it is a deliberate act and the number comes back
+    # from the billing branch, so it is not generated silently on save.
+    tbb_ref <- reactiveVal("")
+
+    observeEvent(input$f_pay, tbb_ref(""))
+    observeEvent(input$f_bill_branch, tbb_ref(""))
+
+    observeEvent(input$tbb_request, {
+      if (!(user()$role %in% OPERATOR_ROLES)) {
+        showNotification("Only a booking operator can raise a TBB request.",
+                         type = "error"); return()
+      }
+      br <- input$f_bill_branch %||% ""
+      if (!nzchar(br)) {
+        showNotification("Choose the branch that will raise the bill first.",
+                         type = "error"); return()
+      }
+      bx <- store_get("branches")
+      code <- bx$code[match(br, bx$branch_id)] %||% br
+      ref <- sprintf("TBB-%s-%s", gsub("^BR-", "", code),
+                     format(Sys.time(), "%y%m%d%H%M%S"))
+      tbb_ref(ref)
+      audit(user()$user_id, "tbb-reference", "bookings", ref)
+      showNotification(paste0("TBB reference ", ref, " received from ",
+                              bx$name[match(br, bx$branch_id)] %||% br, "."),
+                       type = "message", duration = 6)
+    })
+
+    output$tbb_panel <- renderUI({
+      if (!identical(input$f_pay %||% "", "TBB")) return(NULL)
+      if (!(user()$role %in% OPERATOR_ROLES)) {
+        return(callout("TBB is not available to your role",
+                       paste("To Be Billed is raised by a booking operator.",
+                             "Ask the counter to book this one."), "warn"))
+      }
+      ref <- tbb_ref()
+      if (nzchar(ref)) {
+        return(callout("TBB reference received",
+                       HTML(paste0('<span class="mono">', htmlEscape(ref),
+                                   "</span> — this booking can be confirmed.")),
+                       "ok"))
+      }
+      tagList(
+        callout("TBB reference not yet received",
+                paste("The billing branch has to accept this load before it can",
+                      "be confirmed on their account."), "warn"),
+        div(class = "mt-2",
+            btn_primary(ns("tbb_request"), "Request TBB reference",
+                        fontawesome::fa("paper-plane"))))
+    })
+
     validate_form <- function() {
       msgs <- c()
       if (!nzchar(input$f_client %||% ""))   msgs <- c(msgs, "Customer is required.")
@@ -707,8 +1020,58 @@ bookings_server <- function(id, user, nav) {
       if (!nzchar(input$f_material %||% "")) msgs <- c(msgs, "Material details are required.")
       w <- as.numeric(input$f_weight %||% 0)
       if (is.na(w) || w <= 0)                msgs <- c(msgs, "Weight must be greater than zero.")
-      f <- as.numeric(input$f_freight %||% 0)
-      if (is.na(f) || f <= 0)                msgs <- c(msgs, "Freight charges must be greater than zero.")
+      # Freight is quoted from the rate card, so the check is that a figure
+      # was arrived at at all — an unrated destination with no negotiated
+      # figure typed leaves nothing to bill.
+      if (as.numeric(charges()$freight %||% 0) <= 0) {
+        msgs <- c(msgs, paste("No freight could be quoted. Either the destination has",
+                              "no rate card entry, or the weight is zero — enter a",
+                              "negotiated figure if the rate is agreed separately."))
+      }
+      if (!nzchar(input$f_pay %||% ""))      msgs <- c(msgs, "Payment mode is required.")
+      if (!nzchar(input$f_product %||% ""))  msgs <- c(msgs, "Product type is required.")
+
+      # Mobile mandatory at both ends, email optional (CR-01, CR-02, CR-27).
+      if (!nzchar(input$f_cnor_name %||% "")) msgs <- c(msgs, "Consignor name is required.")
+      if (!nzchar(input$f_cnee_name %||% "")) msgs <- c(msgs, "Consignee name is required.")
+      for (f in list(list("f_cnor_mob", "Consignor"), list("f_cnee_mob", "Consignee"))) {
+        v <- trimws(input[[f[[1]]]] %||% "")
+        if (!nzchar(v)) {
+          msgs <- c(msgs, paste(f[[2]], "mobile number is required."))
+        } else if (!grepl("^(\\+?91[- ]?)?[6-9][0-9]{9}$", gsub("[ -]", "", v))) {
+          msgs <- c(msgs, paste(f[[2]],
+                                "mobile number is not a valid 10-digit Indian mobile."))
+        }
+      }
+      for (f in list(list("f_cnor_mail", "Consignor"), list("f_cnee_mail", "Consignee"))) {
+        v <- trimws(input[[f[[1]]]] %||% "")
+        # Optional, but a typo in an address that was supplied is still a typo.
+        if (nzchar(v) && !grepl("^[^@[:space:]]+@[^@[:space:]]+\\.[A-Za-z]{2,}$", v)) {
+          msgs <- c(msgs, paste(f[[2]], "email is not a valid address."))
+        }
+      }
+
+      # An address nothing delivers to cannot be booked (CR-12).
+      d <- delivery()
+      if (nzchar(input$f_to_pin %||% "") &&
+          identical(d$delivery_type, "Unserviceable")) {
+        msgs <- c(msgs, "No branch delivers this destination PIN code.")
+      }
+
+      # E-way bill, tested on the summed invoice value (CR-16, CR-17, CR-19).
+      inv <- invoices()
+      if (!nrow(inv)) {
+        msgs <- c(msgs, "At least one invoice is required.")
+      } else {
+        e <- ewb_required(sum(as_num(inv$invoice_value), na.rm = TRUE),
+                          geo_pin(input$f_from_pin)$state %||% "",
+                          geo_pin(input$f_to_pin)$state %||% "",
+                          input$f_product %||% "")
+        if (e$required && any(!nzchar(trimws(inv$ewb_no)))) {
+          msgs <- c(msgs, paste0("E-way bill number is required on every invoice. ",
+                                 e$reason, "."))
+        }
+      }
       # The PIN is what goes on the LR and what the e-way bill is raised
       # against, so an unresolvable one is not a cosmetic problem.
       fp <- geo_pin(input$f_from_pin); tp <- geo_pin(input$f_to_pin)
@@ -726,8 +1089,25 @@ bookings_server <- function(id, user, nav) {
       }
       # TBB without a billing branch is meaningless — the whole point of the
       # term is that some *other* branch raises the invoice.
-      if (identical(input$f_pay %||% "", "TBB") && !nzchar(input$f_bill_branch %||% "")) {
-        msgs <- c(msgs, "TBB requires the branch that will raise the bill.")
+      if (identical(input$f_pay %||% "", "TBB")) {
+        if (!nzchar(input$f_bill_branch %||% "")) {
+          msgs <- c(msgs, "TBB requires the branch that will raise the bill.")
+        }
+        # TBB is offered on request and only to an operator (CR-05). The
+        # select is already filtered by role, but a filtered dropdown is a
+        # convenience, not a control — the value still arrives from the
+        # browser and is still checked here.
+        if (!(user()$role %in% OPERATOR_ROLES)) {
+          msgs <- c(msgs, "TBB can only be raised by a booking operator.")
+        }
+        # The billing branch has to acknowledge before the load moves on its
+        # account (CR-06). Until that reference comes back the booking can be
+        # held as a draft, but it cannot be confirmed.
+        if (!nzchar(tbb_ref() %||% "")) {
+          msgs <- c(msgs, paste("TBB reference not yet received from the billing",
+                                "branch. Request it, then confirm — the booking",
+                                "can be saved as a draft meanwhile."))
+        }
       }
       msgs
     }
@@ -766,12 +1146,45 @@ bookings_server <- function(id, user, nav) {
         insurance_amt = ch$insurance, total = ch$total,
         remarks = input$f_remarks, booking_user_id = user()$user_id,
         priority = "Normal",
-        payment_mode = input$f_pay %||% "Credit",
+        payment_mode = input$f_pay,
         bill_at_branch_id = if (identical(input$f_pay %||% "", "TBB"))
                               (input$f_bill_branch %||% "") else "",
+        # The billing branch's acceptance is stored on the booking, not just
+        # shown — it is the evidence that the load was accepted on their
+        # account, and accounts will be asked for it later (CR-06).
+        tbb_ref = if (identical(input$f_pay %||% "", "TBB")) tbb_ref() else "",
+        # Consignor and consignee, in that order (CR-01, CR-02, CR-25).
+        consignor_name = input$f_cnor_name, consignor_mobile = input$f_cnor_mob,
+        consignor_email = input$f_cnor_mail %||% "",
+        consignee_name = input$f_cnee_name, consignee_mobile = input$f_cnee_mob,
+        consignee_email = input$f_cnee_mail %||% "",
+        dispatch_type = input$f_dispatch %||% "LTL",
+        product_type  = input$f_product %||% "",
+        # Serviceability is frozen onto the booking rather than recomputed
+        # later. A branch pincode list is editable, and a booking quoted as
+        # Normal must not silently become ODA — or stop being ODA after the
+        # surcharge was charged — because somebody edited the master next week.
+        delivery_branch_id = ch$delivery$branch_id,
+        delivery_type      = ch$delivery$delivery_type,
+        oda_km             = ch$delivery$km %||% "",
+        rate_per_kg        = ch$breakup$rate,
+        freight_base       = ch$breakup$base,
+        freight_min_topup  = ch$breakup$minimum_topup,
+        oda_charge         = ch$breakup$oda,
+        freight_negotiated = if (ch$negotiated) "TRUE" else "FALSE",
         entry_mode = "Online", manual_ref = "", manual_dt = "",
         status = status
       ))
+
+      # Invoice rows are written against the booking number, which only exists
+      # once the booking is saved (CR-15, CR-18).
+      iv <- invoices()
+      for (i in seq_len(nrow(iv))) {
+        store_insert("booking_invoices", list(
+          booking_no = no, invoice_no = iv$invoice_no[i],
+          invoice_value = iv$invoice_value[i], ewb_no = iv$ewb_no[i]))
+      }
+      inv_rows(iv[0, , drop = FALSE])
       audit(user()$user_id, tolower(status), "bookings",
             paste(no, "·", input$f_pay %||% "Credit"))
       showNotification(sprintf("Booking %s saved as %s.", no, tolower(status)),

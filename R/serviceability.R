@@ -239,10 +239,19 @@ ewb_required <- function(invoice_total, origin_state, dest_state,
   v <- suppressWarnings(as.numeric(invoice_total))
   if (is.na(v)) v <- 0
 
-  interstate <- nzchar(origin_state %||% "") && nzchar(dest_state %||% "") &&
-                !identical(origin_state, dest_state)
-  limit <- if (interstate) EWB_THRESHOLD_INTERSTATE else EWB_THRESHOLD_INTRASTATE
-  movement <- if (interstate) "interstate" else "intrastate"
+  # An unknown state takes the stricter limit, not the looser one.
+  #
+  # Getting this backwards is a compliance failure rather than an
+  # inconvenience: falling back to the 1 lakh intrastate floor when the
+  # destination has not resolved yet would let a 60,000 rupee interstate load
+  # leave the counter with no e-way bill, and that is a detained vehicle and a
+  # penalty. Over-requiring costs someone a number they did not strictly need.
+  known <- nzchar(origin_state %||% "") && nzchar(dest_state %||% "")
+  interstate <- known && !identical(origin_state, dest_state)
+  limit <- if (interstate || !known) EWB_THRESHOLD_INTERSTATE
+           else EWB_THRESHOLD_INTRASTATE
+  movement <- if (!known) "interstate (destination state not yet known)"
+              else if (interstate) "interstate" else "intrastate"
 
   if (product_exempt(product_type)) {
     return(list(required = FALSE, limit = limit, movement = movement,
