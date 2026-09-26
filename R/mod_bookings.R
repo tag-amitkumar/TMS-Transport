@@ -222,7 +222,7 @@ booking_new_ui <- function(id) {
         class = "form-aside",
         card_panel(
           title = "Payment terms",
-          sub = "Who settles the freight, and when — printed on the LR",
+          sub = "Who settles the freight, and when — printed on the consignment note",
           div(class = "row g-3",
               div(class = "col-12",
                   tags$label(class = "form-label req", "Payment mode"),
@@ -314,7 +314,7 @@ bookings_server <- function(id, user, nav) {
         htmlEscape(br$city[match(b$bill_at_branch_id[tbb], br$branch_id)]), "</div>")
 
       # A booking keyed in after the fact says so, with its paper reference.
-      manual <- (b$entry_mode %||% "") == "Manual"
+      manual <- (b$entry_mode %||% "") %in% c("Manual", "Offline")
       no_html <- paste0('<span style="font-weight:600;color:#12275C;">',
                         htmlEscape(b$booking_no), "</span>")
       no_html[manual] <- paste0(
@@ -401,7 +401,10 @@ bookings_server <- function(id, user, nav) {
         lr_no     = if (nrow(c1)) c1$lr_no[1] else paste0("(LR on allocation) ", b$booking_no),
         cn_no     = if (nrow(c1)) c1$cn_no[1] else b$booking_no,
         date      = fmt_date(b$booking_date),
-        consignor = if (nrow(cr)) cr$name[1] else "—",
+        consignor = if (nzchar(b$consignor_name %||% "")) b$consignor_name
+                    else if (nrow(cr)) cr$name[1] else "—",
+        consignor_mobile = b$consignor_mobile %||% "",
+        consignee_mobile = b$consignee_mobile %||% "",
         consignee = b$dest_city,
         from_addr = b$pickup_address, to_addr = b$delivery_address,
         from = b$origin_city, to = b$dest_city,
@@ -421,7 +424,7 @@ bookings_server <- function(id, user, nav) {
         gst_mode = b$gst_mode,
         gst = if (identical(b$gst_mode, "RCM")) "Payable by recipient" else inr(b$gst_amount),
         insurance = inr(b$insurance_amt), total = inr(b$total),
-        manual_note = if (identical(b$entry_mode %||% "", "Manual"))
+        manual_note = if ((b$entry_mode %||% "") %in% c("Manual", "Offline"))
           paste0("Entered manually from paper reference ", b$manual_ref,
                  " · load accepted ", fmt_dt(b$manual_dt)) else ""
       ), title = paste("Consignment note —", b$booking_no))
@@ -468,7 +471,15 @@ bookings_server <- function(id, user, nav) {
 
     output$sel_branch <- renderUI({
       br <- scope_branch(store_get("branches"), user())
-      if (!nrow(br)) br <- store_get("branches")
+      # Operators are scoped to their branch (CR-13). This used to fall back
+      # to every branch when the scope came back empty, which sounds harmless
+      # and is not: an empty scope means the user's branch_id matches no
+      # branch — bad data — and the response to that was to widen their access
+      # to the whole company. Fail closed and say so instead.
+      if (!nrow(br)) {
+        return(div(class = "field-static text-danger",
+                   "Your login is not attached to a branch. Ask an administrator to set one."))
+      }
       selectInput(ns("f_branch"), NULL, width = "100%",
                   choices = setNames(br$branch_id, br$name),
                   selected = if (user()$branch_id %in% br$branch_id) user()$branch_id else br$branch_id[1])
@@ -1263,6 +1274,14 @@ bookings_server <- function(id, user, nav) {
             div(class = "col-md-6",
                 tags$label(class = "form-label req", "Material"),
                 textInput(ns("m_material"), NULL, width = "100%")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label req", "Consignor mobile"),
+                textInput(ns("m_cnor_mob"), NULL, width = "100%",
+                          placeholder = "9876543210")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label req", "Consignee mobile"),
+                textInput(ns("m_cnee_mob"), NULL, width = "100%",
+                          placeholder = "9876543210")),
 
             div(class = "col-md-3",
                 tags$label(class = "form-label req", "Weight (T)"),
@@ -1289,6 +1308,18 @@ bookings_server <- function(id, user, nav) {
       if (is.na(w) || w <= 0)                msgs <- c(msgs, "Weight must be greater than zero.")
       f <- as.numeric(input$m_freight %||% 0)
       if (is.na(f) || f <= 0)                msgs <- c(msgs, "Freight must be greater than zero.")
+      # Mobile is mandatory whichever channel the load came in through
+      # (CR-27). A paper docket that reached the counter without a phone
+      # number is a load nobody can chase, and keying it in does not fix that
+      # — so it is caught here, while the paper is still on the desk.
+      for (fld in list(list("m_cnor_mob", "Consignor"), list("m_cnee_mob", "Consignee"))) {
+        v <- gsub("[ -]", "", trimws(input[[fld[[1]]]] %||% ""))
+        if (!nzchar(v)) {
+          msgs <- c(msgs, paste(fld[[2]], "mobile number is required."))
+        } else if (!grepl("^(\\+?91)?[6-9][0-9]{9}$", v)) {
+          msgs <- c(msgs, paste(fld[[2]], "mobile number is not a valid Indian mobile."))
+        }
+      }
       mfp <- geo_pin(input$m_from_pin); mtp <- geo_pin(input$m_to_pin)
       if (is.null(mfp)) msgs <- c(msgs, "Origin PIN code is not a valid Indian pincode.")
       if (is.null(mtp)) msgs <- c(msgs, "Destination PIN code is not a valid Indian pincode.")
@@ -1331,7 +1362,9 @@ bookings_server <- function(id, user, nav) {
         remarks = input$m_remarks, booking_user_id = user()$user_id,
         priority = "Normal",
         payment_mode = input$m_pay %||% "Credit", bill_at_branch_id = "",
-        entry_mode = "Manual",
+        consignor_mobile = gsub("[ -]", "", trimws(input$m_cnor_mob %||% "")),
+        consignee_mobile = gsub("[ -]", "", trimws(input$m_cnee_mob %||% "")),
+        entry_mode = "Offline",
         manual_ref = input$m_ref,
         manual_dt = paste(input$m_date, paste0(input$m_time %||% "09:00", ":00")),
         # Offline loads have already been accepted, so they enter Confirmed —

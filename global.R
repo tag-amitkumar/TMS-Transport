@@ -119,7 +119,7 @@ brand_mark <- function(size = 38) {
 #' Falls back to the mark when the artwork is absent, because it is a
 #' binary asset that cannot live in this file: without the fallback a fresh
 #' clone would render a broken-image icon on the login screen and on every
-#' lorry receipt.
+#' consignment note.
 #' @param fill Size the logo by the width of its container rather than by
 #'   `height`, cropping the empty bands the artwork carries above and below
 #'   (see .brand-logo-fill in styles.css). Used in the sidebar, where the point

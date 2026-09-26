@@ -277,7 +277,7 @@ build_seed_minimal <- function() {
       # BKG-0002 was written in the paper LR book while TMS was unreachable and
       # keyed in afterwards, so it carries the original reference and the time
       # the load was actually accepted — not the time someone typed it up.
-      entry_mode = c("Online", "Manual", "Online"),
+      entry_mode = c("Online", "Offline", "Online"),
       manual_ref = c("", "DEL/LR/4471", ""),
       manual_dt  = c("", paste(TODAY - 2, "07:40:00"), ""),
 

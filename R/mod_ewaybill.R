@@ -199,7 +199,12 @@ ewaybill_server <- function(id, user, nav) {
           # side effect of that, not the point of it.
           if (can(user()$role, "ewaybill", "edit"))
             btn_primary(ns("extend_one"),
-                        if (e$status == "Valid") "Re-enter Part-B" else "Re-enter Part-B and extend")
+                        if (e$status == "Valid") "Re-enter Part-B" else "Re-enter Part-B and extend"),
+          # Vehicle change files Part-B with the provider as well as locally
+          # (CR-22). Separate from the extend button above: extending is a
+          # validity problem, a vehicle change is a movement fact.
+          if (can(user()$role, "ewaybill", "edit"))
+            btn_ghost(ns("partb_api"), "File Part-B — vehicle changed")
         )
       ))
       session$userData$ewb_sel <- e$ewb_no
@@ -220,6 +225,59 @@ ewaybill_server <- function(id, user, nav) {
       audit(user()$user_id, "extend", "ewaybill", paste(n, "bills"))
       n
     }
+
+    # ---------------- provider calls (CR-21, CR-22) ----------------
+    #
+    # Each is an explicit operator action. An e-way bill is a declaration, and
+    # generating one silently from whatever is on the booking would put the
+    # carrier's name on a declaration nobody checked.
+    #
+    # With no provider configured these report what would have been sent and
+    # leave the operator to key the number in by hand. That is the designed
+    # behaviour, not a degraded one — see D-10 in CHANGE-REQUESTS-2026-09-20.md.
+    .show_api_result <- function(res, what) {
+      if (isTRUE(res$ok)) {
+        showNotification(paste(what, "accepted by the provider."),
+                         type = "message", duration = 6)
+        return(invisible(NULL))
+      }
+      showModal(modalDialog(
+        title = paste(what, "not sent"), size = "l", easyClose = TRUE,
+        callout(if (isFALSE(res$configured)) "No e-way bill provider configured"
+                else "The provider did not accept this",
+                res$message,
+                if (isFALSE(res$configured)) "warn" else "danger"),
+        if (!is.null(res$payload)) tagList(
+          p(class = "tiny muted mt-3",
+            "This is exactly what would be sent once a provider is configured.",
+            "Check it against the consignment before keying the number in by hand."),
+          tags$pre(style = "max-height:340px;overflow:auto;font-size:.75rem;",
+                   jsonlite::toJSON(res$payload, auto_unbox = TRUE,
+                                    null = "null", pretty = TRUE))),
+        footer = modalButton("Close")
+      ))
+    }
+
+    observeEvent(input$partb_api, {
+      if (!require_perm(session, user()$role, "ewaybill", "edit")) return()
+      no <- session$userData$ewb_sel
+      req(no)
+      eb <- store_get("ewaybills")
+      row <- eb[eb$ewb_no == no, , drop = FALSE]
+      res <- ewb_api_update_part_b(
+        no, vehicle_id = if (nrow(row)) row$vehicle_id[1] else "",
+        reason = "Vehicle changed", user_id = user()$user_id)
+      audit(user()$user_id, "partb-api", "ewaybill", no)
+      removeModal()
+      # The local Part-B is written either way, so say so — otherwise a failed
+      # provider call reads as "nothing happened" when the movement has in
+      # fact been recorded.
+      showNotification(
+        paste0("Part-B recorded locally; validity now ",
+               fmt_dt(res$local_valid_to), "."),
+        type = "message", duration = 6)
+      .show_api_result(res, "Part-B")
+    })
 
     observeEvent(input$extend_one, {
       if (!require_perm(session, user()$role, "ewaybill", "edit")) return()

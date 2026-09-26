@@ -594,7 +594,7 @@ build_seed <- function() {
 
   # A small slice were written on paper during an outage and keyed in later.
   manual <- rep(FALSE, n_bk); manual[sample(n_bk, round(n_bk * 0.04))] <- TRUE
-  bookings$entry_mode <- ifelse(manual, "Manual", "Online")
+  bookings$entry_mode <- ifelse(manual, "Offline", "Online")
   bookings$manual_ref <- ifelse(
     manual,
     paste0(toupper(substr(bookings$origin_city, 1, 3)), "/LR/",

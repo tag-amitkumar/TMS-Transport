@@ -796,6 +796,10 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 
   .lr-sheet  { width: 100%; }
   .lr-slip   { page-break-inside: avoid; }
+  /* Four copies now print across two sheets (CR-24). Each sheet after the
+     first starts a new page; without this the second pair flows onto the
+     bottom of the first and both get cut in half by the page edge. */
+  .lr-sheet + .lr-sheet { page-break-before: always; }
 }
 
 /* Small static tables inside modals.

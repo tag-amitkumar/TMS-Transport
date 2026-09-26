@@ -10,6 +10,7 @@
 
 suppressPackageStartupMessages({
   source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
+  source("R/serviceability.R"); source("R/ewb_api.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   source("R/github_sync.R")
@@ -754,6 +755,150 @@ local({
      !any(grepl("gh[ps]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}", src)))
   ok(".Renviron is gitignored",
      any(grepl("^\\.Renviron\\s*$", readLines(".gitignore", warn = FALSE))))
+})
+
+cat("\n== Serviceability — which branch, and is it ODA (CR-09/11/12/20) ==\n")
+local({
+  m <- seed_cr_masters(store_get("branches"))
+  for (n in names(m)) store_set(n, m[[n]])
+  br <- store_get("branches")
+
+  own <- resolve_delivery(br$pincode[1])
+  ok("a branch's own PIN code is delivered by that branch",
+     identical(own$branch_id, br$branch_id[1]))
+  ok("a branch's own PIN code is Normal, not ODA",
+     identical(own$delivery_type, "Normal"))
+
+  # An unlisted PIN code falls through to the distance rule. Somewhere far
+  # from every branch must come back ODA whatever the branch list says.
+  far <- resolve_delivery("682001")   # Kochi
+  ok("a distant unlisted PIN code is ODA", identical(far$delivery_type, "ODA"))
+  ok("ODA by distance says how far it was", grepl("km", far$basis))
+
+  ok("an unknown PIN code is Unserviceable, not ODA",
+     identical(resolve_delivery("999999")$delivery_type, "Unserviceable"))
+  ok("a blank PIN code is Unserviceable",
+     identical(resolve_delivery("")$delivery_type, "Unserviceable"))
+
+  # An explicit listing beats the distance rule — that is the whole point of
+  # the list, and it is how an exception gets recorded.
+  store_insert("branch_pincodes", list(branch_id = br$branch_id[1],
+                                       pincode = "682001", delivery_type = "Normal"))
+  ok("an explicit listing overrides the distance rule",
+     identical(resolve_delivery("682001")$delivery_type, "Normal"))
+})
+
+cat("\n== Freight breakup (CR-07/08) ==\n")
+local({
+  br <- store_get("branches")
+  b  <- freight_breakup(1000, br$pincode[1], br$branch_id[1], "LTL", "Normal")
+  ok("freight is rate x weight", b$base == round(1000 * b$rate))
+  ok("a normal delivery carries no ODA surcharge", b$oda == 0)
+  ok("every line is named", all(nzchar(vapply(b$lines, `[[`, character(1), "label"))))
+  ok("no zero-value line is printed",
+     all(vapply(b$lines, function(l) l$amount > 0, logical(1))))
+
+  o <- freight_breakup(1000, br$pincode[1], br$branch_id[1], "LTL", "ODA")
+  ok("an ODA delivery costs more than the same load to a normal one",
+     o$freight > b$freight)
+  ok("the ODA difference is exactly the surcharge",
+     o$freight - b$freight == oda_charge())
+
+  tiny <- freight_breakup(1, br$pincode[1], br$branch_id[1], "LTL", "Normal")
+  ok("a tiny parcel bills at the minimum", tiny$freight == freight_minimum())
+  ok("the minimum shows as a top-up line, not a silently raised rate",
+     tiny$minimum_topup > 0)
+  ok("zero weight quotes nothing rather than the minimum",
+     freight_breakup(0, br$pincode[1], br$branch_id[1], "LTL", "Normal")$freight == 0)
+})
+
+cat("\n== E-way bill threshold (CR-16/17/19) ==\n")
+local({
+  ok("intrastate below 1 lakh does not need one",
+     !ewb_required(99999, "Maharashtra", "Maharashtra", "General goods")$required)
+  ok("intrastate at 1 lakh does",
+     ewb_required(100000, "Maharashtra", "Maharashtra", "General goods")$required)
+  ok("interstate below 50k does not",
+     !ewb_required(49999, "Maharashtra", "Delhi", "General goods")$required)
+  ok("interstate at 50k does",
+     ewb_required(50000, "Maharashtra", "Delhi", "General goods")$required)
+
+  # CR-19: the test is on the sum, which is what stops a load being split
+  # across invoices to duck the limit.
+  store_set("booking_invoices", tibble::tibble(
+    booking_no = rep("BKG-TEST", 3), invoice_no = c("A", "B", "C"),
+    invoice_value = c("20000", "20000", "20000"), ewb_no = c("", "", "")))
+  tot <- booking_invoice_total("BKG-TEST")
+  ok("invoice values sum across the booking", tot == 60000)
+  ok("three invoices under the limit still require one together",
+     ewb_required(tot, "Maharashtra", "Delhi", "General goods")$required)
+
+  ok("an exempt product never needs one, however valuable",
+     !ewb_required(5000000, "Maharashtra", "Delhi", "Books & printed")$required)
+  ok("a non-exempt product of the same value does",
+     ewb_required(5000000, "Maharashtra", "Delhi", "Electronics")$required)
+
+  # An unresolved destination must take the stricter limit. The other way
+  # round lets an interstate load leave with no bill.
+  ok("an unknown destination state uses the stricter interstate limit",
+     ewb_required(60000, "Maharashtra", "", "General goods")$required)
+})
+
+cat("\n== E-way bill payload (CR-21/22) ==\n")
+local({
+  ok("no provider is configured yet", !ewb_api_configured())
+
+  ok("state code comes from the GSTIN prefix when there is one",
+     identical(ewb_state_code("27AAACA1234F1Z1", ""), "27"))
+  ok("state code falls back to the name", identical(ewb_state_code("", "Delhi"), "07"))
+  ok("an unknown state yields blank, not a wrong code",
+     identical(ewb_state_code("", "Atlantis"), ""))
+
+  bk <- store_get("bookings")
+  bn <- bk$booking_no[1]
+  store_set("booking_invoices", tibble::tibble(
+    booking_no = bn, invoice_no = "INV-T1", invoice_value = "120000", ewb_no = ""))
+  p <- ewb_part_a_payload(bn)
+  ok("Part-A builds for a real booking", !is.null(p))
+  ok("Part-A declares the invoice total", p$totInvValue == 120000)
+  ok("Part-A is road transport", identical(p$transMode, "1"))
+  ok("Part-A serialises to valid JSON",
+     !is.null(jsonlite::fromJSON(jsonlite::toJSON(p, auto_unbox = TRUE, null = "null"))))
+
+  # act*StateCode is the physical movement; *StateCode is the registration.
+  # Deriving the physical one from a GSTIN files cross-state deliveries against
+  # the wrong state.
+  b1 <- bk[bk$booking_no == bn, ]
+  ok("the physical destination code follows the address, not the GSTIN",
+     identical(p$actToStateCode, ewb_state_code("", b1$dest_state[1])))
+
+  r <- ewb_api_generate_part_a(bn)
+  ok("an unconfigured provider fails softly rather than erroring", isFALSE(r$ok))
+  ok("it says why", grepl("no e-way bill provider is configured", r$message))
+  ok("it still shows what would have been sent", !is.null(r$payload))
+
+  ok("a booking with no invoices sends nothing",
+     isFALSE(ewb_api_generate_part_a("BKG-DOES-NOT-EXIST")$ok))
+})
+
+cat("\n== Change-request constants ==\n")
+local({
+  ok("LTL is the first dispatch option (CR-10)", DISPATCH_TYPES[1] == "LTL")
+  ok("FTL is the second", DISPATCH_TYPES[2] == "FTL")
+  ok("both dispatch types are labelled", all(nzchar(DISPATCH_LABEL[DISPATCH_TYPES])))
+  ok("the ODA radius is 15 km (CR-11)", ODA_RADIUS_KM == 15)
+  ok("operator roles exist for the TBB gate (CR-05/13)", length(OPERATOR_ROLES) > 0)
+  ok("Customer is not an operator", !("Customer" %in% OPERATOR_ROLES))
+  ok("Driver is not an operator", !("Driver" %in% OPERATOR_ROLES))
+  ok("the four new masters are registered tables",
+     all(c("branch_pincodes", "freight_rates", "booking_invoices",
+           "product_types") %in% TABLES))
+  ok("the consignment note is no longer called a lorry receipt (CR-23)",
+     !any(grepl("LORRY RECEIPT",
+                paste(readLines("R/ui_helpers.R", warn = FALSE), collapse = "\n"))))
+  ok("four copies are printed across two sheets (CR-24)",
+     length(LR_COPIES) == 2 && all(lengths(LR_COPIES) == 2))
+  ok("the consignor copy comes first (CR-25)", LR_COPIES[[1]][1] == "Consignor Copy")
 })
 
 cat(sprintf("\n%s  %d passed, %d failed\n\n",
