@@ -255,7 +255,7 @@ booking_new_ui <- function(id) {
           # rearrangement was for.
           foot = tagList(
             div(class = "tiny muted mb-2",
-                "Confirming enables vehicle allocation and LR generation."),
+                "Confirming enables vehicle allocation and consignment note generation."),
             div(class = "d-flex gap-2",
                 btn_primary(ns("confirm"), "Confirm Booking", class = "flex-grow-1"),
                 btn_ghost(ns("save_draft"), "Save Draft"))
@@ -588,7 +588,7 @@ bookings_server <- function(id, user, nav) {
           "ok"),
         "To Pay" = callout(
           "Collect on delivery",
-          "The consignee pays before the goods are released. This prints large on all three copies of the LR so the driver cannot miss it.",
+          "The consignee pays before the goods are released. This prints large on every copy of the consignment note so the driver cannot miss it.",
           "warn"),
         "Credit" = callout(
           "Booked to account",
@@ -1223,11 +1223,11 @@ bookings_server <- function(id, user, nav) {
       showModal(modalDialog(
         title = "Manual entry — booking taken offline", size = "l", easyClose = TRUE,
         callout("For loads booked while the system was unavailable",
-                "Enter the details from the paper LR book. The booking is created normally and joins the same workflow, but is marked Manual and keeps the original paper reference and time for audit.",
+                "Enter the details from the paper consignment note book. The booking is created normally and joins the same workflow, but is marked Offline and keeps the original paper reference and time for audit.",
                 "warn"),
         div(class = "row g-3 mt-1",
             div(class = "col-md-6",
-                tags$label(class = "form-label req", "Paper LR / booking reference"),
+                tags$label(class = "form-label req", "Paper reference"),
                 textInput(ns("m_ref"), NULL, placeholder = "NGP/LR/1042", width = "100%")),
             div(class = "col-md-3",
                 tags$label(class = "form-label req", "Date taken"),

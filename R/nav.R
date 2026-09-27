@@ -48,10 +48,10 @@ NAV <- list(
     list(id = "cargo_moto", label = "Cargo Moto", icon = "truck-fast", module = "cargo_moto",
          crumb = c("Operations", "Cargo Moto"), title = "Cargo Moto Management"),
     list(id = "consignments", label = "Consignments", icon = "table-cells", module = "consignments",
-         crumb = c("Operations", "Consignments"), title = "Consignments (LR)",
+         crumb = c("Operations", "Consignments"), title = "Consignments",
          children = list(
-           list(id = "consignments",  label = "Consignment (LR)", title = "Consignments (LR)",
-                crumb = c("Operations", "Consignments", "Consignment (LR)")),
+           list(id = "consignments",  label = "Consignment Notes", title = "Consignment Notes",
+                crumb = c("Operations", "Consignments", "Consignment Notes")),
            list(id = "consign_multi", label = "Multiple Consignment", module = "consignments",
                 title = "Multiple Consignment Management",
                 crumb = c("Operations", "Consignments", "Multiple Consignment"))

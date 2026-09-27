@@ -72,8 +72,11 @@ consignments_server <- function(id, user, nav) {
     output$tbl <- renderDT({
       c <- rows(); v <- store_get("vehicles"); dr <- store_get("drivers")
       df <- tibble::tibble(
+        # The LR column that sat here is gone with the LR (CR-23), and it is
+        # not replaced by a CN column: the first cell already carries the
+        # consignment number. Two columns showing the same number is how a
+        # rename usually leaves a table.
         `CONSIGNMENT / BOOKING` = mapply(cell2, c$cn_no, paste("Ref", c$booking_no)),
-        `LR NO.` = mono(c$lr_no),
         `VEHICLE / DRIVER` = mapply(function(rg, dn) paste0(
           '<div class="mono" style="font-weight:600;">', htmlEscape(rg),
           '</div><div style="font-size:.6875rem;color:#64748B;">', htmlEscape(dn), "</div>"),
@@ -275,7 +278,7 @@ consignments_server <- function(id, user, nav) {
         div(class = "form-section", paste0("Child Consignments (", nrow(k), ")")),
         div(class = "tms-table",
             DT::datatable(
-              tibble::tibble(CONSIGNMENT = k$cn_no, `LR NO.` = k$lr_no,
+              tibble::tibble(CONSIGNMENT = k$cn_no, `BOOKING` = k$booking_no,
                              `DELIVERY ADDRESS` = k$dest_addr,
                              WEIGHT = fmt_wt(k$weight_t),
                              STATUS = pill_html(k$status)),
@@ -333,7 +336,7 @@ consignments_server <- function(id, user, nav) {
         div(class = "form-section", paste0("Consolidated Bookings (", nrow(l), " LRs)")),
         div(class = "tms-table",
             DT::datatable(
-              tibble::tibble(`LR NO.` = l$lr_no,
+              tibble::tibble(`CN NO.` = l$cn_no,
                              CUSTOMER = cl$name[match(l$client_id, cl$client_id)],
                              DROP = l$dest_city,
                              WEIGHT = fmt_wt(l$weight_t)),

@@ -37,7 +37,7 @@
 # The lookup, shared by both surfaces
 # ------------------------------------------------------------------
 
-#' Resolve an LR and delivery PIN to a consignment and its event trail.
+#' Resolve a consignment note number and delivery PIN to a consignment\n#' and its event trail. Accepts either number series — a consignee reads what\n#' is printed, including on older paper.
 #'
 #' Returns `list(err = "...")` on any failure, or `list(cn =, events =)`.
 track_lookup <- function(lr_in, pin_in) {
@@ -45,21 +45,28 @@ track_lookup <- function(lr_in, pin_in) {
   pin <- trimws(pin_in %||% "")
 
   if (!nzchar(lr) || !nzchar(pin)) {
-    return(list(err = "Enter both the LR number and the delivery PIN code."))
+    return(list(err = "Enter both the consignment note number and the delivery PIN code."))
   }
 
   cn <- get_consignments()
   # Accept the LR with or without its prefix, and accept the CN number too. A
   # consignee reads what is printed and should not have to know which of the
   # two numbers on the paper the system wants.
-  if (!grepl("^(LR|CN)-", lr)) lr <- paste0("LR-", lr)
-  hit <- cn[toupper(cn$lr_no) == lr | toupper(cn$cn_no) == lr, , drop = FALSE]
+  # A bare number used to be prefixed with LR-, which was safe while LR was
+  # the number printed on the paper. It is not safe now: the note shows the CN
+  # number (CR-23), the two series run independently, and LR-0003 and CN-0003
+  # are not guaranteed to be the same shipment. So a bare number is tried
+  # against both series rather than guessed into one.
+  candidates <- if (grepl("^(LR|CN)-", lr)) lr
+                else c(paste0("CN-", lr), paste0("LR-", lr))
+  hit <- cn[toupper(cn$lr_no) %in% candidates |
+              toupper(cn$cn_no) %in% candidates, , drop = FALSE]
 
-  # One message for "no such LR" and for "wrong PIN". Telling them apart would
-  # confirm which LR numbers exist, which is the enumeration this prevents.
+  # One message for "no such number" and for "wrong PIN". Telling them apart
+  # would confirm which numbers exist, which is the enumeration this prevents.
   deny <- list(err = paste(
-    "No shipment matches that LR number and delivery PIN.",
-    "Check both against your consignment note."))
+    "No shipment matches that consignment note number and delivery PIN.",
+    "Check both against your copy."))
 
   if (!nrow(hit)) return(deny)
   c1 <- hit[1, ]

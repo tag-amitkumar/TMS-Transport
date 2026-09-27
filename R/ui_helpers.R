@@ -458,9 +458,12 @@ lr_slip <- function(copy, d) {
         div(class = "lr-title",
             div(class = "lr-doc", "CONSIGNMENT NOTE"),
             div(class = "lr-copy", copy)),
+        # The consignment number is the document's identity now (CR-23). The
+        # LR number is still carried in the data, but a customer copy showing
+        # two different references for one shipment is exactly the confusion
+        # the change was asked for.
         div(class = "lr-nos",
-            div(tags$b(d$lr_no)),
-            div(class = "lr-sub", d$cn_no),
+            div(tags$b(d$cn_no)),
             div(class = "lr-sub", paste("Date", d$date)))),
 
     div(class = "lr-grid",

@@ -93,7 +93,7 @@ pod_server <- function(id, user) {
       if (!nrow(p)) return(tms_table(tibble::tibble(Message = "No uploads yet"), page = 5))
 
       df <- tibble::tibble(
-        `LR NO.`  = p$lr_no,
+        `CN NO.`  = p$cn_no,
         CUSTOMER  = cl$name[match(p$client_id, cl$client_id)],
         `UPLOADED BY` = paste0(p$uploaded_by, " (driver)"),
         FILE      = mono(p$file_name),
