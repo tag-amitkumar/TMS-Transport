@@ -268,7 +268,7 @@ branches_server <- function(id, user) {
       if (!nzchar(mob)) {
         showNotification("Branch mobile number is required.", type = "error"); return()
       }
-      if (!grepl("^(\\+?91)?[6-9][0-9]{9}$", mob)) {
+      if (!valid_mobile(mob)) {
         showNotification("Branch mobile is not a valid 10-digit Indian mobile.",
                          type = "error"); return()
       }

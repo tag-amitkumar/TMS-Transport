@@ -951,6 +951,34 @@ local({
   ok("and says so rather than erroring", isFALSE(r$ok) && nzchar(r$message))
 })
 
+cat("\n== One rule for mobiles, one rule for e-way bills ==\n")
+local({
+  ok("a plain 10-digit mobile is valid", valid_mobile("9876543210"))
+  ok("+91 and spacing are accepted", valid_mobile("+91 98765 43210"))
+  ok("punctuation is stripped for storage",
+     identical(clean_mobile("+91-98765 43210"), "9876543210"))
+  ok("a landline-style number is refused", !valid_mobile("1234567890"))
+  ok("nine digits is refused", !valid_mobile("987654321"))
+  ok("blank is refused", !valid_mobile(""))
+
+  # The offline booking path must reach the same verdict as the online one for
+  # the same load. It used to skip the test entirely, which made the rule
+  # avoidable by choosing that screen.
+  a <- ewb_required(60000, "Maharashtra", "Delhi", "General goods")
+  ok("the same load gives the same verdict whichever screen books it",
+     isTRUE(a$required))
+  ok("and the reason is stated either way", nzchar(a$reason))
+
+  src <- paste(readLines("R/mod_bookings.R", warn = FALSE), collapse = "\n")
+  ok("the offline form collects invoices", grepl("mi_add", src))
+  ok("the offline form runs the e-way bill test", grepl("m_ewb\\(\\)", src))
+  ok("the offline form asks for a dispatch type", grepl("m_dispatch", src))
+  ok("the offline form asks for a product type", grepl("m_product", src))
+  ok("the offline form resolves serviceability", grepl("resolve_delivery\\(input\\$m_to_pin", src))
+  ok("no hand-rolled mobile regex remains outside global.R",
+     !grepl("6-9\\]\\[0-9\\]\\{9\\}", src))
+})
+
 cat("\n== Change-request constants ==\n")
 local({
   ok("LTL is the first dispatch option (CR-10)", DISPATCH_TYPES[1] == "LTL")

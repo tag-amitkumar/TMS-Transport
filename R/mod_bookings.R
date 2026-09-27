@@ -297,7 +297,7 @@ bookings_server <- function(id, user, nav) {
 
     output$manual_btn <- renderUI({
       if (!can(user()$role, "bookings", "create")) return(NULL)
-      btn_ghost(ns("manual_entry"), "Manual Entry", fontawesome::fa("pen"))
+      btn_ghost(ns("manual_entry"), "Offline Entry", fontawesome::fa("pen"))
     })
 
     output$tbl <- renderDT({
@@ -319,7 +319,7 @@ bookings_server <- function(id, user, nav) {
                         htmlEscape(b$booking_no), "</span>")
       no_html[manual] <- paste0(
         no_html[manual],
-        '<div><span class="pill pill-orange nodot" style="font-size:.6rem;">manual</span> ',
+        '<div><span class="pill pill-orange nodot" style="font-size:.6rem;">offline</span> ',
         '<span class="tiny muted mono">', htmlEscape(b$manual_ref[manual]), "</span></div>")
 
       df <- tibble::tibble(
@@ -425,7 +425,7 @@ bookings_server <- function(id, user, nav) {
         gst = if (identical(b$gst_mode, "RCM")) "Payable by recipient" else inr(b$gst_amount),
         insurance = inr(b$insurance_amt), total = inr(b$total),
         manual_note = if ((b$entry_mode %||% "") %in% c("Manual", "Offline"))
-          paste0("Entered manually from paper reference ", b$manual_ref,
+          paste0("Booked offline from paper reference ", b$manual_ref,
                  " · load accepted ", fmt_dt(b$manual_dt)) else ""
       ), title = paste("Consignment note —", b$booking_no))
       audit(user()$user_id, "print", "bookings", b$booking_no)
@@ -1063,7 +1063,7 @@ bookings_server <- function(id, user, nav) {
         v <- trimws(input[[f[[1]]]] %||% "")
         if (!nzchar(v)) {
           msgs <- c(msgs, paste(f[[2]], "mobile number is required."))
-        } else if (!grepl("^(\\+?91[- ]?)?[6-9][0-9]{9}$", gsub("[ -]", "", v))) {
+        } else if (!valid_mobile(v)) {
           msgs <- c(msgs, paste(f[[2]],
                                 "mobile number is not a valid 10-digit Indian mobile."))
         }
@@ -1146,6 +1146,7 @@ bookings_server <- function(id, user, nav) {
       }
       ch <- charges(); r <- client_row()
       no <- next_id(store_get("bookings")$booking_no, PREFIX$booking)
+      m_del <- resolve_delivery(input$m_to_pin %||% "")
 
       store_insert("bookings", list(
         booking_no = no,
@@ -1235,7 +1236,7 @@ bookings_server <- function(id, user, nav) {
       ct <- booking_cities()
 
       showModal(modalDialog(
-        title = "Manual entry — booking taken offline", size = "l", easyClose = TRUE,
+        title = "Offline entry — booking taken on paper", size = "l", easyClose = TRUE,
         callout("For loads booked while the system was unavailable",
                 "Enter the details from the paper consignment note book. The booking is created normally and joins the same workflow, but is marked Offline and keeps the original paper reference and time for audit.",
                 "warn"),
@@ -1262,7 +1263,9 @@ bookings_server <- function(id, user, nav) {
             div(class = "col-md-3",
                 tags$label(class = "form-label req", "Payment mode"),
                 selectInput(ns("m_pay"), NULL, width = "100%",
-                            choices = setNames(PAYMENT_MODES, PAYMENT_MODES))),
+                            choices = c(setNames("", "Select payment mode…"),
+                                        setNames(PAYMENT_MODES, PAYMENT_MODES)),
+                            selected = "")),
 
             # The paper LR carries a PIN far more reliably than a district
             # name, so offline entry gets the same PIN-first pair as the
@@ -1296,6 +1299,45 @@ bookings_server <- function(id, user, nav) {
                 tags$label(class = "form-label req", "Consignee mobile"),
                 textInput(ns("m_cnee_mob"), NULL, width = "100%",
                           placeholder = "9876543210")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label req", "Consignor name"),
+                textInput(ns("m_cnor_name"), NULL, width = "100%")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label req", "Consignee name"),
+                textInput(ns("m_cnee_name"), NULL, width = "100%")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label req", "Dispatch"),
+                selectInput(ns("m_dispatch"), NULL, width = "100%",
+                            choices = setNames(DISPATCH_TYPES,
+                                               DISPATCH_LABEL[DISPATCH_TYPES]),
+                            selected = "LTL")),
+            div(class = "col-md-3",
+                tags$label(class = "form-label req", "Product type"),
+                uiOutput(ns("m_sel_product"))),
+
+            # Invoices, and therefore the e-way bill test (CR-15 to CR-19).
+            #
+            # This form used to skip them entirely, which meant a load keyed in
+            # offline was never checked against the e-way bill thresholds at
+            # all — and that made the whole rule optional, since choosing this
+            # form was enough to avoid it. Whether a bill was required is a
+            # fact about the load that moved, not about how the booking
+            # reached the system.
+            div(class = "col-12", tags$hr(class = "soft")),
+            div(class = "col-12",
+                tags$label(class = "form-label req",
+                           "Invoices on the paper docket")),
+            div(class = "col-md-3",
+                textInput(ns("mi_no"), NULL, placeholder = "Invoice no.", width = "100%")),
+            div(class = "col-md-3",
+                textInput(ns("mi_val"), NULL, placeholder = "Value (₹)", width = "100%")),
+            div(class = "col-md-4",
+                textInput(ns("mi_ewb"), NULL, placeholder = "E-way bill no. (12 digits)",
+                          width = "100%")),
+            div(class = "col-md-2",
+                btn_ghost(ns("mi_add"), "Add", fontawesome::fa("plus"))),
+            div(class = "col-12", uiOutput(ns("m_inv_table"))),
+            div(class = "col-12", uiOutput(ns("m_ewb_check"))),
 
             div(class = "col-md-3",
                 tags$label(class = "form-label req", "Weight (T)"),
@@ -1309,6 +1351,86 @@ bookings_server <- function(id, user, nav) {
         footer = tagList(modalButton("Cancel"),
                          btn_primary(ns("m_save"), "Create booking"))
       ))
+    })
+
+    # ---------------- offline entry: invoices and the e-way bill gate ----------------
+    m_inv <- reactiveVal(tibble::tibble(
+      invoice_no = character(), invoice_value = character(), ewb_no = character()))
+
+    output$m_sel_product <- renderUI({
+      pt <- store_get("product_types")
+      selectInput(ns("m_product"), NULL,
+                  choices = if (nrow(pt)) pt$name else "General goods",
+                  selected = "General goods", width = "100%")
+    })
+
+    observeEvent(input$mi_add, {
+      no  <- trimws(input$mi_no  %||% "")
+      val <- trimws(input$mi_val %||% "")
+      ewb <- gsub("[ -]", "", trimws(input$mi_ewb %||% ""))
+      v   <- suppressWarnings(as.numeric(val))
+      if (!nzchar(no)) { showNotification("Invoice number is required.", type = "error"); return() }
+      if (is.na(v) || v <= 0) {
+        showNotification("Invoice value must be a number greater than zero.", type = "error"); return() }
+      cur <- m_inv()
+      if (no %in% cur$invoice_no) {
+        showNotification(paste0("Invoice ", no, " is already on this booking."), type = "error"); return() }
+      if (nzchar(ewb) && !grepl("^[0-9]{12}$", ewb)) {
+        showNotification("E-way bill number must be 12 digits.", type = "error"); return() }
+      m_inv(dplyr::bind_rows(cur, tibble::tibble(
+        invoice_no = no, invoice_value = as.character(round(v)), ewb_no = ewb)))
+      updateTextInput(session, "mi_no", value = "")
+      updateTextInput(session, "mi_val", value = "")
+      updateTextInput(session, "mi_ewb", value = "")
+    })
+
+    observeEvent(input$mi_del, {
+      cur <- m_inv(); k <- input$mi_del
+      if (is.null(k) || !nzchar(k)) return()
+      m_inv(cur[cur$invoice_no != k, , drop = FALSE])
+    })
+
+    output$m_inv_table <- renderUI({
+      iv <- m_inv()
+      if (!nrow(iv)) return(div(class = "tiny muted", "No invoices added yet."))
+      rows <- lapply(seq_len(nrow(iv)), function(i) {
+        tags$tr(
+          tags$td(class = "mono", iv$invoice_no[i]),
+          tags$td(class = "text-end", inr(as_num(iv$invoice_value[i]))),
+          tags$td(class = "mono", if (nzchar(iv$ewb_no[i])) iv$ewb_no[i] else "—"),
+          tags$td(class = "text-end",
+                  tags$button(class = "btn btn-sm btn-link p-0 text-danger",
+                    onclick = sprintf("Shiny.setInputValue('%s','%s',{priority:'event'})",
+                                      ns("mi_del"), iv$invoice_no[i]), "Remove")))
+      })
+      div(class = "tms-table",
+        tags$table(class = "table table-sm mb-0",
+          tags$thead(tags$tr(tags$th("INVOICE"), tags$th(class = "text-end", "VALUE"),
+                             tags$th("E-WAY BILL"), tags$th(""))),
+          tags$tbody(rows),
+          tags$tfoot(tags$tr(tags$th("Total"),
+            tags$th(class = "text-end", inr(sum(as_num(iv$invoice_value), na.rm = TRUE))),
+            tags$th(colspan = 2, "")))))
+    })
+
+    m_ewb <- reactive({
+      iv <- m_inv()
+      ewb_required(sum(as_num(iv$invoice_value), na.rm = TRUE),
+                   geo_pin(input$m_from_pin)$state %||% "",
+                   geo_pin(input$m_to_pin)$state %||% "",
+                   input$m_product %||% "")
+    })
+
+    output$m_ewb_check <- renderUI({
+      iv <- m_inv()
+      if (!nrow(iv)) return(NULL)
+      e <- m_ewb(); missing <- sum(!nzchar(trimws(iv$ewb_no)))
+      if (e$exempt || !e$required) return(callout("E-way bill not required", e$reason, "info"))
+      callout(
+        if (missing) sprintf("E-way bill required — %d invoice%s still without one",
+                             missing, if (missing == 1) "" else "s")
+        else "E-way bill required — all invoices carry one",
+        e$reason, if (missing) "warn" else "ok")
     })
 
     observeEvent(input$m_save, {
@@ -1330,10 +1452,30 @@ bookings_server <- function(id, user, nav) {
         v <- gsub("[ -]", "", trimws(input[[fld[[1]]]] %||% ""))
         if (!nzchar(v)) {
           msgs <- c(msgs, paste(fld[[2]], "mobile number is required."))
-        } else if (!grepl("^(\\+?91)?[6-9][0-9]{9}$", v)) {
+        } else if (!valid_mobile(v)) {
           msgs <- c(msgs, paste(fld[[2]], "mobile number is not a valid Indian mobile."))
         }
       }
+      if (!nzchar(input$m_pay %||% ""))       msgs <- c(msgs, "Payment mode is required.")
+      if (!nzchar(input$m_product %||% ""))   msgs <- c(msgs, "Product type is required.")
+      if (!nzchar(input$m_cnor_name %||% "")) msgs <- c(msgs, "Consignor name is required.")
+      if (!nzchar(input$m_cnee_name %||% "")) msgs <- c(msgs, "Consignee name is required.")
+
+      # The same e-way bill test as the online form (CR-16, CR-17, CR-19).
+      # A load that needed a bill needed one whether the booking was typed at
+      # the counter or copied off a docket afterwards, and leaving this out
+      # made the rule avoidable by choosing this screen.
+      miv <- m_inv()
+      if (!nrow(miv)) {
+        msgs <- c(msgs, "At least one invoice from the paper docket is required.")
+      } else {
+        e <- m_ewb()
+        if (e$required && any(!nzchar(trimws(miv$ewb_no)))) {
+          msgs <- c(msgs, paste0("E-way bill number is required on every invoice. ",
+                                 e$reason, "."))
+        }
+      }
+
       mfp <- geo_pin(input$m_from_pin); mtp <- geo_pin(input$m_to_pin)
       if (is.null(mfp)) msgs <- c(msgs, "Origin PIN code is not a valid Indian pincode.")
       if (is.null(mtp)) msgs <- c(msgs, "Destination PIN code is not a valid Indian pincode.")
@@ -1376,8 +1518,17 @@ bookings_server <- function(id, user, nav) {
         remarks = input$m_remarks, booking_user_id = user()$user_id,
         priority = "Normal",
         payment_mode = input$m_pay %||% "Credit", bill_at_branch_id = "",
+        consignor_name   = input$m_cnor_name,
+        consignee_name   = input$m_cnee_name,
         consignor_mobile = gsub("[ -]", "", trimws(input$m_cnor_mob %||% "")),
         consignee_mobile = gsub("[ -]", "", trimws(input$m_cnee_mob %||% "")),
+        dispatch_type    = input$m_dispatch %||% "LTL",
+        product_type     = input$m_product %||% "",
+        # Serviceability is resolved and frozen here too, so an offline
+        # booking carries the same delivery branch and ODA flag as any other.
+        delivery_branch_id = m_del$branch_id,
+        delivery_type      = m_del$delivery_type,
+        oda_km             = m_del$km %||% "",
         entry_mode = "Offline",
         manual_ref = input$m_ref,
         manual_dt = paste(input$m_date, paste0(input$m_time %||% "09:00", ":00")),
@@ -1386,11 +1537,19 @@ bookings_server <- function(id, user, nav) {
         # a backlog entry is for.
         status = "Confirmed"
       ))
-      audit(user()$user_id, "manual-entry", "bookings",
+      miv <- m_inv()
+      for (i in seq_len(nrow(miv))) {
+        store_insert("booking_invoices", list(
+          booking_no = no, invoice_no = miv$invoice_no[i],
+          invoice_value = miv$invoice_value[i], ewb_no = miv$ewb_no[i]))
+      }
+      m_inv(miv[0, , drop = FALSE])
+
+      audit(user()$user_id, "offline-entry", "bookings",
             paste(no, "from paper", input$m_ref))
       removeModal()
       showNotification(
-        sprintf("Manual booking %s created from paper reference %s.", no, input$m_ref),
+        sprintf("Offline booking %s created from paper reference %s.", no, input$m_ref),
         type = "message", duration = 7)
     })
   })

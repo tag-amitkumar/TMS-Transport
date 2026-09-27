@@ -492,6 +492,28 @@ gps_feed_age <- function(ts) {
   else                 paste0(round(s / 86400), " d")
 }
 
+#' Is this a usable Indian mobile number? (CR-02, CR-27)
+#'
+#' One rule in one place, because "mobile number for all" means the booking
+#' form, the offline form, the branch master, customers, vendors and users all
+#' have to agree on what a number is. Five copies of a regex become four
+#' copies and one that drifts.
+#'
+#' Accepts an optional +91 or 91 prefix and ignores spaces and dashes, because
+#' that is how people write numbers down and rejecting a correct number for
+#' its punctuation trains everyone to fight the field. The number itself must
+#' be ten digits starting 6-9, which is the whole of the Indian mobile range.
+valid_mobile <- function(x) {
+  v <- gsub("[ ()-]", "", trimws(as.character(x %||% "")))
+  grepl("^(\\+?91)?[6-9][0-9]{9}$", v)
+}
+
+#' The digits alone, for storage — so one number is not held three ways.
+clean_mobile <- function(x) {
+  v <- gsub("[ ()-]", "", trimws(as.character(x %||% "")))
+  sub("^(\\+?91)", "", v)
+}
+
 # Next id in a prefixed series, e.g. next_id(bookings$booking_no, "BKG-") on
 # c("BKG-4471","BKG-4482") -> "BKG-4483". Flat-file storage has no sequences,
 # so ids are derived from the data on each insert.

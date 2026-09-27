@@ -200,10 +200,14 @@ clients_server <- function(id, user) {
       if (!nzchar(input$n_name %||% "")) {
         showNotification("Company name is required.", type = "error"); return()
       }
+      if (!valid_mobile(input$n_mobile)) {
+        showNotification("A valid 10-digit mobile number is required.",
+                         type = "error"); return()
+      }
       id_new <- next_id(store_get("clients")$client_id, "CUST-")
       store_insert("clients", list(
         client_id = id_new, name = input$n_name, contact_person = input$n_contact,
-        mobile = input$n_mobile, email = input$n_email, gstin = input$n_gstin,
+        mobile = clean_mobile(input$n_mobile), email = input$n_email, gstin = input$n_gstin,
         pan = input$n_pan, city = input$n_city, state = "",
         billing_address = input$n_bill, pickup_address = input$n_bill,
         delivery_address = "", credit_limit = input$n_credit,
