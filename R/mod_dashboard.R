@@ -243,7 +243,7 @@ dashboard_server <- function(id, user, nav) {
             div(style = "flex:0 0 auto;", pill(r$status)),
             div(style = "min-width:0;",
                 div(style = "font-size:.8125rem;font-weight:600;color:#12275C;",
-                    paste0(r$subject, " — ", r$lr_no)),
+                    paste0(r$subject, " — ", r$cn_no)),
                 div(class = "tiny muted",
                     paste(cl$name[match(r$client_id, cl$client_id)],
                           "·", br$name[match(r$branch_id, br$branch_id)],
@@ -302,7 +302,7 @@ dashboard_server <- function(id, user, nav) {
       age_col <- ifelse(due[k] > 3, "red", ifelse(due[k] > 1, "orange", "grey"))
 
       df <- tibble::tibble(
-        Consignment = mapply(cell2, p$lr_no[k],
+        Consignment = mapply(cell2, p$cn_no[k],
                              paste(v$reg_no[match(cn$vehicle_id[i][k], v$vehicle_id)], "·",
                                    dr$name[match(cn$driver_id[i][k], dr$driver_id)])),
         Route   = paste(cn$origin_city[i][k], "→", cn$dest_city[i][k]),
