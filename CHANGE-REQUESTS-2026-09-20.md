@@ -338,7 +338,16 @@ maps to an existing field or a new product-type master.
 ### D-10
 **CR-21 — Which e-way bill provider?**
 
-> **Not answered, and it blocks the only partial item.** No provider is configured, so no e-way bill has been filed. Start this.
+> **Checked against NIC's own spec on 27 Sep — the answer is a GSP, not NIC directly.**
+>
+> NIC's *User Manual for API Interface (Site-to-Site integration)*, s.2.2, requires
+> **at least 1000 e-way bill activities per day**, an SSL/TLS domain, a **static IP**,
+> a pre-production system and 200+ test activities before go-live. A two-branch
+> carrier does not raise a thousand bills a day, and this deployment deliberately
+> has no static IP — it reaches the internet through a Cloudflare tunnel.
+>
+> So the question is no longer "NIC or a GSP" but **which GSP**. Still unanswered,
+> and still the only thing blocking CR-21.
 
 NIC directly, or a GSP? This needs credentials, a sandbox, and API access —
 typically the longest lead time on this list, so worth starting early even

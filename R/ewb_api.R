@@ -1,6 +1,28 @@
 # ==================================================================
 # E-way bill API adapter (CR-21, CR-22).
 #
+# WHICH INTERFACE THIS IS FOR — read before choosing a provider
+# -------------------------------------------------------------
+# Checked against NIC's own "User Manual for API Interface (Site-to-Site
+# integration)", docs.ewaybillgst.gov.in/Documents/EWB_API.pdf.
+#
+# Direct NIC access is almost certainly not available to this carrier. Its
+# stated pre-requisites (s.2.2) are:
+#
+#   * at least 1000 e-way bill activities PER DAY
+#   * an SSL/TLS domain name for the interface
+#   * a STATIC IP address
+#   * a pre-production system, and 200+ test activities before go-live
+#
+# A two-branch operator does not raise a thousand bills a day, and this
+# deployment reaches the internet through a Cloudflare tunnel precisely so it
+# does not need a static IP. So the realistic route is a GSP — a GST Suvidha
+# Provider — which holds the NIC connection and exposes its own wrapper.
+#
+# That matters for the code below: the auth exchange follows NIC's spec, and
+# a GSP will differ. Both go through .ewb_token() and .ewb_post(), which is
+# why they are the only two functions that touch the network.
+#
 # WHAT IS AND IS NOT PROVEN HERE
 # ------------------------------
 # The payload builders, the field mapping and the call flow below are written
@@ -249,6 +271,55 @@ ewb_part_b_payload <- function(ewb_no, vehicle_reg, from_place, from_state_code,
 # The HTTP boundary — the only part that talks to a provider
 # ------------------------------------------------------------------
 
+# Access token cache.
+#
+# NIC's spec (User Manual for API Interface, s.4) is a two-step exchange:
+# authenticate with the username and password to be issued an access token,
+# then send that token on every subsequent call. The token expires after 360
+# minutes and the same endpoint reissues it.
+#
+# The first version of this file skipped the exchange entirely and put the
+# username and password on every service call. That is how a GSP's wrapper
+# usually works, and it is not how NIC works — against NIC directly it would
+# have been rejected on the first request, with credentials that were never
+# valid for that shape of call.
+#
+# Refreshed a few minutes early: a token that expires mid-request fails the
+# request, and the cost of asking again is one round trip.
+.ewb_tok <- new.env(parent = emptyenv())
+.ewb_tok$token <- NULL
+.ewb_tok$until <- as.POSIXct(NA)
+
+EWB_TOKEN_MINUTES <- 360
+
+#' Fetch (or reuse) an access token. NULL when one cannot be had.
+.ewb_token <- function(cfg = ewb_api_config()) {
+  if (!is.null(.ewb_tok$token) && !is.na(.ewb_tok$until) &&
+      Sys.time() < .ewb_tok$until) {
+    return(.ewb_tok$token)
+  }
+  url <- paste0(sub("/+$", "", cfg$base_url), "/ewayapi/Authenticate")
+  tryCatch({
+    resp <- httr::POST(
+      url,
+      httr::add_headers(
+        "Content-Type"  = "application/json",
+        "username"      = cfg$username,
+        "password"      = cfg$password,
+        "gstin"         = cfg$gstin,
+        "client-id"     = cfg$client_id,
+        "client-secret" = cfg$client_secret),
+      httr::timeout(30))
+    if (httr::status_code(resp) >= 400) return(NULL)
+    body <- jsonlite::fromJSON(httr::content(resp, as = "text", encoding = "UTF-8"))
+    tok <- body$authtoken %||% body$authToken %||% body$Data$authtoken
+    if (is.null(tok) || !nzchar(as.character(tok))) return(NULL)
+    .ewb_tok$token <- as.character(tok)
+    .ewb_tok$until <- Sys.time() + (EWB_TOKEN_MINUTES - 5) * 60
+    .ewb_tok$token
+  }, error = function(e) NULL)
+}
+
 #' POST a payload to the provider.
 #'
 #' Kept as one function so that choosing NIC directly or going through a GSP
@@ -257,6 +328,16 @@ ewb_part_b_payload <- function(ewb_no, vehicle_reg, from_place, from_state_code,
 #' entry box, never as a stack trace over a half-saved booking.
 .ewb_post <- function(path, payload, cfg = ewb_api_config()) {
   if (!ewb_api_configured()) return(.ewb_not_configured("Request"))
+
+  tok <- .ewb_token(cfg)
+  if (is.null(tok)) {
+    return(list(ok = FALSE, configured = TRUE, status = NA, body = NULL,
+                payload = payload,
+                message = paste("Could not authenticate with the e-way bill provider.",
+                                "Check the credentials, and that this machine's IP is",
+                                "the one registered with them.")))
+  }
+
   url <- paste0(sub("/+$", "", cfg$base_url), "/", sub("^/+", "", path))
   out <- tryCatch({
     resp <- httr::POST(
@@ -265,6 +346,7 @@ ewb_part_b_payload <- function(ewb_no, vehicle_reg, from_place, from_state_code,
         "Content-Type" = "application/json",
         "username"     = cfg$username,
         "password"     = cfg$password,
+        "authtoken"    = tok,
         "gstin"        = cfg$gstin,
         "client-id"    = cfg$client_id,
         "client-secret"= cfg$client_secret),
