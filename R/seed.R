@@ -597,7 +597,7 @@ build_seed <- function() {
   bookings$entry_mode <- ifelse(manual, "Offline", "Online")
   bookings$manual_ref <- ifelse(
     manual,
-    paste0(toupper(substr(bookings$origin_city, 1, 3)), "/LR/",
+    paste0(toupper(substr(bookings$origin_city, 1, 3)), "/CN/",
            sprintf("%04d", sample(1000:9999, n_bk, TRUE))), "")
   bookings$manual_dt <- ifelse(
     manual, paste(bookings$booking_date, "07:40:00"), "")

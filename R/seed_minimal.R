@@ -278,7 +278,7 @@ build_seed_minimal <- function() {
       # keyed in afterwards, so it carries the original reference and the time
       # the load was actually accepted — not the time someone typed it up.
       entry_mode = c("Online", "Offline", "Online"),
-      manual_ref = c("", "DEL/LR/4471", ""),
+      manual_ref = c("", "DEL/CN/4471", ""),
       manual_dt  = c("", paste(TODAY - 2, "07:40:00"), ""),
 
       # Geography is a PIN pair resolved through the same master the booking

@@ -803,9 +803,23 @@ bookings_server <- function(id, user, nav) {
       gst <- if (rcm) 0 else round(fr * gp / 100)
       gst_note <- if (rcm) round(fr * gp / 100) else 0   # shown, never charged
 
-      # Insurance premium is 1.25% of the declared value, which the deck sets at
-      # roughly 30x freight for a fully declared consignment.
-      dv  <- if (identical(input$f_ins, "Insured")) round(fr * 30 / 1000) * 1000 else 0
+      # Insurance premium is 1.25 per mille of the declared value. What the
+      # goods are declared at now comes from the invoices (CR-15) rather than
+      # from a multiple of freight.
+      #
+      # Freight x 30 was a stand-in for a figure nobody had. Now the invoices
+      # are on the booking, that figure is known, and the stand-in is wrong in
+      # both directions: a dense, cheap load over-insures, and a light,
+      # valuable one under-insures — which is the expensive direction, because
+      # a claim is settled against the declared value and the customer finds
+      # out at the worst possible moment.
+      #
+      # The multiple survives only for a booking with no invoices, which after
+      # CR-18 means an older record rather than a new one.
+      inv_total <- sum(as_num(invoices()$invoice_value), na.rm = TRUE)
+      dv <- if (!identical(input$f_ins, "Insured")) 0
+            else if (inv_total > 0) inv_total
+            else round(fr * 30 / 1000) * 1000
       ins <- if (dv > 0) round(dv * 0.000125 / 10) * 10 else 0
 
       list(freight = fr, gst = gst, gst_pct = gp, rcm = rcm, gst_note = gst_note,
@@ -1228,7 +1242,7 @@ bookings_server <- function(id, user, nav) {
         div(class = "row g-3 mt-1",
             div(class = "col-md-6",
                 tags$label(class = "form-label req", "Paper reference"),
-                textInput(ns("m_ref"), NULL, placeholder = "NGP/LR/1042", width = "100%")),
+                textInput(ns("m_ref"), NULL, placeholder = "NGP/CN/1042", width = "100%")),
             div(class = "col-md-3",
                 tags$label(class = "form-label req", "Date taken"),
                 dateInput(ns("m_date"), NULL, value = Sys.Date(), width = "100%")),

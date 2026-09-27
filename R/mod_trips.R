@@ -95,7 +95,7 @@ trips_server <- function(id, user, nav) {
           dr$name[match(t$driver_id, dr$driver_id)]),
         ROUTE = paste(t$route_from, "→", t$route_to),
         DISTANCE = paste0(inr_group(t$distance_km), " km"),
-        LRS = n_lr,
+        NOTES = n_lr,
         DISPATCH = fmt_dt(t$dispatch_dt),
         ETA = fmt_dt(t$eta),
         STATUS = pill_html(t$status)
@@ -176,11 +176,48 @@ trips_server <- function(id, user, nav) {
         div(class = "d-flex gap-2 mt-3",
             btn_ghost(ns("track"), "Track", class = "flex-fill"),
             if (can(user()$role, "trips", "edit"))
-              btn_dark(ns("advance"), "Record advance", class = "flex-fill"))
+              btn_dark(ns("advance"), "Record advance", class = "flex-fill")),
+
+        # Consolidated e-way bill (CR-21). It lives on the trip and not on a
+        # consignment because that is what it consolidates: every bill on one
+        # vehicle for one journey, so a checkpost reads one number instead of
+        # thirty. It replaces none of them.
+        if (can(user()$role, "ewaybill", "create"))
+          div(class = "mt-2",
+              btn_ghost(ns("consolidated"), "Consolidated e-way bill",
+                        fontawesome::fa("layer-group"), class = "w-100"))
       )
     })
 
     observeEvent(input$track, nav("livegps"))
+
+    observeEvent(input$consolidated, {
+      t <- sel(); req(t)
+      if (!require_perm(session, user()$role, "ewaybill", "create")) return()
+      res <- ewb_api_generate_consolidated(t$trip_no)
+      audit(user()$user_id, "consolidated-ewb", "trips", t$trip_no)
+
+      n <- if (!is.null(res$payload)) length(res$payload$tripSheetEwbBills) else 0
+      showModal(modalDialog(
+        title = paste("Consolidated e-way bill ·", t$trip_no),
+        size = "l", easyClose = TRUE,
+        if (isTRUE(res$ok))
+          callout("Generated",
+                  sprintf("%d e-way bill(s) consolidated under one number.", n), "ok")
+        else
+          callout(if (isFALSE(res$configured)) "No e-way bill provider configured"
+                  else "The provider did not accept this",
+                  res$message,
+                  if (isFALSE(res$configured)) "warn" else "danger"),
+        if (!is.null(res$payload)) tagList(
+          p(class = "tiny muted mt-3",
+            sprintf("%d bill(s) on this trip. This is what would be sent.", n)),
+          tags$pre(style = "max-height:320px;overflow:auto;font-size:.75rem;",
+                   jsonlite::toJSON(res$payload, auto_unbox = TRUE,
+                                    null = "null", pretty = TRUE))),
+        footer = modalButton("Close")
+      ))
+    })
 
     observeEvent(input$advance, {
       t <- sel(); req(t)

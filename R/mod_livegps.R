@@ -58,7 +58,7 @@ livegps_server <- function(id, user, nav) {
       g$route  <- paste(tr$route_from[match(g$trip_no, tr$trip_no)], "→",
                         tr$route_to[match(g$trip_no, tr$trip_no)])
       g$eta    <- tr$eta[match(g$trip_no, tr$trip_no)]
-      g$lr     <- cn$lr_no[match(g$trip_no, cn$trip_no)]
+      g$lr     <- cn$cn_no[match(g$trip_no, cn$trip_no)]
       g
     })
 
@@ -117,7 +117,7 @@ livegps_server <- function(id, user, nav) {
           layerId = ~vehicle_id,
           label = ~sprintf("%s · %s km/h · %s", reg, speed, status),
           popup = ~sprintf(
-            "<b>%s</b><br/>%s · %s<br/>%s km/h · %s<br/>Route: %s<br/>LR: %s",
+            "<b>%s</b><br/>%s · %s<br/>%s km/h · %s<br/>Route: %s<br/>Note: %s",
             reg, model, body, speed, status, route, lr %||% "—")
         ) |>
         leaflet::addLegend("bottomleft", colors = unname(cols), labels = names(cols),
@@ -214,7 +214,7 @@ livegps_server <- function(id, user, nav) {
           "ETA"             = fmt_dt(r$eta),
           "Driver"          = r$driver %||% "—",
           "Idle time today" = fmt_idle(r$idle_min),
-          "Current LR"      = r$lr %||% "—"
+          "Current note"      = r$lr %||% "—"
         ),
         footer = tagList(modalButton("Close"),
                          btn_dark(ns("go_track"), "Track shipment"))

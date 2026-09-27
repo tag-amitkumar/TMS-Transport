@@ -345,7 +345,7 @@ cargo_moto_server <- function(id, user, nav) {
                             setNames(avail_dr$driver_id, avail_dr$name)))),
         uiOutput(ns("a_check")),
         footer = tagList(modalButton("Cancel"),
-                         btn_primary(ns("a_save"), "Allocate & generate LR"))
+                         btn_primary(ns("a_save"), "Allocate & generate note"))
       ))
     }
 

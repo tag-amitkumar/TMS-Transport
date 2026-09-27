@@ -923,6 +923,34 @@ local({
      isFALSE(ewb_api_generate_part_a("BKG-DOES-NOT-EXIST")$ok))
 })
 
+cat("\n== Consolidated e-way bill (CR-21) ==\n")
+local({
+  tr <- get_trips(); cn <- get_consignments(); eb <- get_ewaybills()
+  # A trip whose consignments actually carry bills is the only case that can
+  # consolidate; anything else must say so rather than build a bill of nothing.
+  with_bills <- tr$trip_no[vapply(tr$trip_no, function(t) {
+    cs <- cn$cn_no[cn$trip_no == t]
+    any(eb$cn_no %in% cs & nzchar(eb$ewb_no))
+  }, logical(1))]
+
+  if (length(with_bills)) {
+    p <- ewb_consolidated_payload(with_bills[1])
+    ok("a trip carrying bills builds a consolidated payload", !is.null(p))
+    ok("it lists at least one bill", length(p$tripSheetEwbBills) >= 1)
+    ok("it is road transport", identical(p$transMode, "1"))
+    ok("it carries the vehicle", nzchar(p$vehicleNo))
+    ok("it serialises",
+       !is.null(jsonlite::fromJSON(jsonlite::toJSON(p, auto_unbox = TRUE, null = "null"))))
+  } else {
+    ok("(no seeded trip carries an e-way bill — consolidation not exercised)", TRUE)
+  }
+
+  ok("a trip that does not exist consolidates nothing",
+     is.null(ewb_consolidated_payload("TRP-NOPE")))
+  r <- ewb_api_generate_consolidated("TRP-NOPE")
+  ok("and says so rather than erroring", isFALSE(r$ok) && nzchar(r$message))
+})
+
 cat("\n== Change-request constants ==\n")
 local({
   ok("LTL is the first dispatch option (CR-10)", DISPATCH_TYPES[1] == "LTL")

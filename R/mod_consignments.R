@@ -258,7 +258,7 @@ consignments_server <- function(id, user, nav) {
           title = "Split Shipment · One Booking → Multiple Consignments",
           sub = "Single pickup, several delivery points",
           callout("No active splits",
-                  "Use New Split / Consolidation to break a booking into child consignments. Each child gets its own LR and e-way bill but shares the parent booking reference for billing.",
+                  "Use New Split / Consolidation to break a booking into child consignments. Each child gets its own consignment note and e-way bill but shares the parent booking reference for billing.",
                   "info")
         ))
       }
@@ -285,8 +285,8 @@ consignments_server <- function(id, user, nav) {
               rownames = FALSE, selection = "none", escape = FALSE,
               options = list(dom = "t", pageLength = 8))),
         div(class = "mt-3",
-            callout("One booking, several LRs",
-                    "Each child consignment gets its own LR and e-way bill but shares the parent booking reference for billing.",
+            callout("One booking, several consignment notes",
+                    "Each child consignment gets its own note and e-way bill but shares the parent booking reference for billing.",
                     "info"))
       )
     })
@@ -333,7 +333,7 @@ consignments_server <- function(id, user, nav) {
           "Dispatch" = fmt_dt(t$dispatch_dt)
         ),
         tags$hr(class = "soft"),
-        div(class = "form-section", paste0("Consolidated Bookings (", nrow(l), " LRs)")),
+        div(class = "form-section", paste0("Consolidated Bookings (", nrow(l), " notes)")),
         div(class = "tms-table",
             DT::datatable(
               tibble::tibble(`CN NO.` = l$cn_no,
@@ -372,7 +372,7 @@ consignments_server <- function(id, user, nav) {
                                                 " · ", fmt_wt(base$weight_t)))),
         numericInput(ns("sp_n"), "Number of delivery points", 2, 2, 6, 1),
         callout("How the split works",
-                "The parent load is divided evenly across the chosen number of drop points. Each child gets its own CN and LR, and keeps the parent booking reference for billing.",
+                "The parent load is divided evenly across the chosen number of drop points. Each child gets its own consignment note, and keeps the parent booking reference for billing.",
                 "info"),
         footer = tagList(modalButton("Cancel"), btn_primary(ns("sp_save"), "Create split"))
       ))
@@ -423,7 +423,7 @@ consignments_server <- function(id, user, nav) {
                 agg$cap <- v$capacity_t[match(agg$vehicle_id, v$vehicle_id)]
                 agg$reg <- v$reg_no[match(agg$vehicle_id, v$vehicle_id)]
                 agg <- agg[order(-agg$lrs), ][seq_len(min(15, nrow(agg))), ]
-                tibble::tibble(TRIP = agg$trip_no, VEHICLE = agg$reg, LRS = agg$lrs,
+                tibble::tibble(TRIP = agg$trip_no, VEHICLE = agg$reg, NOTES = agg$lrs,
                                USED = fmt_wt(agg$used), CAPACITY = fmt_wt(agg$cap),
                                `UTILISATION` = paste0(round(agg$used / agg$cap * 100), "%"))
               }),
