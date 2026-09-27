@@ -373,7 +373,7 @@ bookings_server <- function(id, user, nav) {
                   "Trip"    = tr$trip_no[1],
                   "Vehicle" = span(class = "mono", v$reg_no[match(tr$vehicle_id[1], v$vehicle_id)]),
                   "Driver"  = dr$name[match(tr$driver_id[1], dr$driver_id)],
-                  "LR"      = if (nrow(cn)) cn$lr_no[1] else "—")
+                  "Consignment note" = if (nrow(cn)) cn$cn_no[1] else "—")
                 else callout("Not yet allocated",
                              "This booking has no vehicle assigned. Allocate it from Cargo Moto.",
                              "warn"))),
@@ -398,7 +398,7 @@ bookings_server <- function(id, user, nav) {
       show_lr_print(list(
         company   = setting("company_name", BRAND$company),
         office    = setting("registered_office", ""),
-        lr_no     = if (nrow(c1)) c1$lr_no[1] else paste0("(LR on allocation) ", b$booking_no),
+        lr_no     = if (nrow(c1)) c1$lr_no[1] else "",
         cn_no     = if (nrow(c1)) c1$cn_no[1] else b$booking_no,
         date      = fmt_date(b$booking_date),
         consignor = if (nzchar(b$consignor_name %||% "")) b$consignor_name

@@ -76,7 +76,7 @@ pod_server <- function(id, user) {
               div(class = "doc-thumb",
                   if (pending) fontawesome::fa("plus") else fontawesome::fa("file-lines")),
               div(class = "doc-meta",
-                  div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$lr_no),
+                  div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$cn_no),
                   div(class = "tiny muted", paste0(nm, " ", when)),
                   div(class = "mt-2", pill(r$status)))
             ))
@@ -112,10 +112,10 @@ pod_server <- function(id, user) {
       c1 <- cn[cn$cn_no == r$cn_no, ]
 
       showModal(modalDialog(
-        title = paste("POD ·", r$lr_no), size = "l", easyClose = TRUE,
+        title = paste("POD ·", r$cn_no), size = "l", easyClose = TRUE,
         div(class = "row g-3",
             div(class = "col-md-6", dl_rows(
-              "LR number"  = r$lr_no,
+              "Consignment note" = r$cn_no,
               "Consignment"= r$cn_no,
               "Customer"   = cl$name[match(r$client_id, cl$client_id)],
               "Route"      = if (nrow(c1)) paste(c1$origin_city[1], "→", c1$dest_city[1]) else "—")),
@@ -171,7 +171,7 @@ pod_server <- function(id, user) {
       showModal(modalDialog(
         title = "Upload POD", easyClose = TRUE,
         selectInput(ns("u_pod"), "Consignment",
-                    setNames(pend$pod_id, paste0(pend$lr_no, " · ",
+                    setNames(pend$pod_id, paste0(pend$cn_no, " · ",
                                                  cl$name[match(pend$client_id, cl$client_id)]))),
         fileInput(ns("u_file"), "Signed POD (photo or PDF)",
                   accept = c(".jpg", ".jpeg", ".png", ".pdf")),
