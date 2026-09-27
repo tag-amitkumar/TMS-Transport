@@ -22,6 +22,26 @@ else
   echo "[tms] $DATA_DIR already populated — preserving runtime data"
 fi
 
+# Tables added by a release that the running volume has never seen.
+#
+# The seed above only fires on a completely empty volume, which is right for
+# runtime data — nobody wants last week's bookings replaced on restart. But it
+# means a release introducing a NEW table installs nothing: the volume is not
+# empty, so the branch, rate card and product masters added in September would
+# simply be absent, and the app would run with an empty rate card and no
+# serviceability lists rather than failing loudly.
+#
+# So: install any seed table the volume does not have, and never touch one it
+# does. A file that exists is the operator's data and is left alone.
+for seed_file in "$SEED_DIR"/*.csv; do
+  [ -e "$seed_file" ] || continue
+  name=$(basename "$seed_file")
+  if [ ! -e "$DATA_DIR/$name" ]; then
+    echo "[tms] new table since this volume was created — installing $name"
+    cp -a "$seed_file" "$DATA_DIR/$name"
+  fi
+done
+
 # data/reference/ (pincodes, cities, city_aliases) is static master data built
 # offline by tools/build-pincodes.R, not runtime state — R/github_sync.R's
 # SYNC_SKIP list says as much by refusing to ever push it back.

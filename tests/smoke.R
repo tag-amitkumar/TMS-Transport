@@ -812,6 +812,48 @@ local({
      freight_breakup(0, br$pincode[1], br$branch_id[1], "LTL", "Normal")$freight == 0)
 })
 
+cat("\n== Masters survive a CSV round-trip ==\n")
+local({
+  # The bug this guards against: an empty CSV field reads back as NA, not "".
+  # `x == "682001"` is then NA, and subsetting a data frame by NA returns a row
+  # of NAs rather than no rows — so a lookup "matches" a row that does not
+  # exist and returns NA where a rate was expected. Setting the tables from
+  # tibbles in a test never reproduces it; only a write-then-read does.
+  store_set("freight_rates", tibble::tibble(
+    pincode     = c("", "", ""),
+    branch_id   = c("", "BR-001", "BR-001"),
+    dispatch    = c("", "LTL", "FTL"),
+    rate_per_kg = c("12", "14", "9")))
+  store_refresh("freight_rates")          # force the next read off disk
+  fr <- store_get("freight_rates")
+  ok("blank CSV fields read back as NA, not empty string",
+     any(is.na(fr$pincode)))
+
+  r <- freight_rate("682001", "BR-001", "LTL")
+  ok("an unmatched PIN code falls through to the branch rate, not NA",
+     is.finite(r$rate) && r$rate == 14)
+  ok("the fallback says which rule applied", nzchar(r$basis))
+
+  b <- freight_breakup(2000, "682001", "BR-001", "LTL", "ODA")
+  ok("freight is a real number after a round-trip", is.finite(b$freight))
+  ok("no charge line is NA",
+     all(vapply(b$lines, function(l) is.finite(l$amount), logical(1))))
+
+  # Same trap, other masters.
+  ok("product exemption survives a round-trip",
+     isTRUE(product_exempt("Books & printed")))
+  ok("an unlisted product is not exempt", isFALSE(product_exempt("Nonesuch")))
+
+  # An unrated destination must quote zero, not NA, so validate_form can
+  # refuse it with a message instead of the summary blanking out.
+  store_set("freight_rates", tibble::tibble(
+    pincode = character(), branch_id = character(),
+    dispatch = character(), rate_per_kg = character()))
+  z <- freight_breakup(1000, "682001", "BR-999", "LTL", "Normal")
+  ok("an empty rate card quotes zero rather than NA",
+     is.finite(z$freight) && z$freight == 0)
+})
+
 cat("\n== E-way bill threshold (CR-16/17/19) ==\n")
 local({
   ok("intrastate below 1 lakh does not need one",

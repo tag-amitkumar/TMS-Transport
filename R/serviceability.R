@@ -12,6 +12,30 @@
 # ==================================================================
 
 # ------------------------------------------------------------------
+# NA-safe helpers
+#
+# Every master here is read back from CSV as character, and an empty field
+# comes back NA rather than "". That matters more than it looks: `x == "440001"`
+# is NA when x is NA, and subsetting a data frame by a vector containing NA
+# returns a row of NAs rather than no row at all. A lookup then "matches" a
+# row that does not exist and hands back NA where a number was expected — which
+# is how an empty pincode in the rate card produced an NA freight and took the
+# whole booking summary down with it.
+#
+# So: normalise blanks on the way in, and never compare raw.
+# ------------------------------------------------------------------
+
+#' "" for anything absent, the string otherwise.
+blank <- function(x) {
+  v <- as.character(x)
+  v[is.na(v)] <- ""
+  v
+}
+
+#' Equality that answers TRUE or FALSE and never NA.
+eq <- function(x, value) blank(x) == blank(value)[1]
+
+# ------------------------------------------------------------------
 # Branch pincode master (CR-14, CR-20)
 # ------------------------------------------------------------------
 
@@ -27,7 +51,7 @@ branch_for_pincode <- function(pincode) {
   if (!nzchar(p)) return(store_get("branch_pincodes")[0, , drop = FALSE])
   bp <- branch_pincodes()
   if (!nrow(bp)) return(bp)
-  bp[as.character(bp$pincode) == p, , drop = FALSE]
+  bp[eq(bp$pincode, p), , drop = FALSE]
 }
 
 #' Nearest branch to a pincode, by straight-line distance.
@@ -141,18 +165,18 @@ freight_rate <- function(dest_pincode, branch_id = "", dispatch = "LTL") {
   # Dispatch mode narrows first where the card distinguishes it; an entry with
   # a blank dispatch applies to both.
   if ("dispatch" %in% names(fr)) {
-    keep <- fr$dispatch == dispatch | !nzchar(fr$dispatch %||% "")
+    keep <- eq(fr$dispatch, dispatch) | !nzchar(blank(fr$dispatch))
     if (any(keep)) fr <- fr[keep, , drop = FALSE]
   }
 
-  p <- trimws(as.character(dest_pincode %||% ""))
+  p <- trimws(blank(dest_pincode)[1])
   if (nzchar(p) && "pincode" %in% names(fr)) {
-    hit <- fr[as.character(fr$pincode) == p, , drop = FALSE]
+    hit <- fr[eq(fr$pincode, p), , drop = FALSE]
     if (nrow(hit)) return(list(rate = hit$rate_per_kg[1],
                                basis = paste("PIN code rate for", p)))
   }
-  if (nzchar(branch_id %||% "") && "branch_id" %in% names(fr)) {
-    hit <- fr[fr$branch_id == branch_id & !nzchar(fr$pincode %||% ""), , drop = FALSE]
+  if (nzchar(blank(branch_id)[1]) && "branch_id" %in% names(fr)) {
+    hit <- fr[eq(fr$branch_id, branch_id) & !nzchar(blank(fr$pincode)), , drop = FALSE]
     if (nrow(hit)) {
       br <- store_get("branches")
       nm <- br$name[match(branch_id, br$branch_id)]
@@ -160,7 +184,7 @@ freight_rate <- function(dest_pincode, branch_id = "", dispatch = "LTL") {
                   basis = paste("Branch rate —", nm %||% branch_id)))
     }
   }
-  std <- fr[!nzchar(fr$pincode %||% "") & !nzchar(fr$branch_id %||% ""), , drop = FALSE]
+  std <- fr[!nzchar(blank(fr$pincode)) & !nzchar(blank(fr$branch_id)), , drop = FALSE]
   if (nrow(std)) return(list(rate = std$rate_per_kg[1], basis = "Standard rate"))
   fallback
 }
@@ -188,6 +212,10 @@ freight_breakup <- function(weight_kg, dest_pincode, branch_id = "",
   if (is.na(w) || w < 0) w <- 0
 
   r    <- freight_rate(dest_pincode, branch_id, dispatch)
+  # A non-finite rate here would propagate NA through every line and blank the
+  # whole summary rather than showing a zero. Quote nothing instead, and let
+  # validate_form() refuse the booking with a message about the rate card.
+  if (!is.finite(r$rate)) r$rate <- 0
   base <- round(w * r$rate)
   minimum <- freight_minimum()
 
@@ -225,7 +253,7 @@ product_exempt <- function(product_type) {
   if (!nzchar(p)) return(FALSE)
   pt <- store_get("product_types")
   if (!nrow(pt) || !"name" %in% names(pt)) return(FALSE)
-  row <- pt[pt$name == p, , drop = FALSE]
+  row <- pt[eq(pt$name, p), , drop = FALSE]
   if (!nrow(row)) return(FALSE)
   isTRUE(as.logical(row$ewb_exempt[1]))
 }
@@ -279,7 +307,7 @@ ewb_required <- function(invoice_total, origin_state, dest_state,
 booking_invoices <- function(booking_no) {
   bi <- store_typed("booking_invoices", num = "invoice_value")
   if (!nrow(bi)) return(bi)
-  bi[bi$booking_no == (booking_no %||% ""), , drop = FALSE]
+  bi[eq(bi$booking_no, booking_no), , drop = FALSE]
 }
 
 #' Summed invoice value for a booking — the figure the threshold tests.
