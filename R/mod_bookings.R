@@ -28,9 +28,13 @@ bookings_ui <- function(id) {
 booking_new_ui <- function(id) {
   ns <- NS(id)
   div(
-    class = "row g-3",
+    class = "row g-3 booking-form",
     div(
-      class = "col-xl-8",
+      # 9/3 rather than 8/4. The aside holds a payment select, a charge list
+      # and two buttons — none of which needs 390px — while the form was
+      # running a third of a screen past the fold. The width is worth more to
+      # the column that has forty fields in it.
+      class = "col-xl-8 col-xxl-9",
       # One card of sections rather than three stacked cards. Three cards cost
       # roughly 150px in headers, borders and gaps — enough that the Confirm
       # button fell below the fold on a laptop, and a booking screen whose
@@ -143,9 +147,12 @@ booking_new_ui <- function(id) {
         div(class = "form-group-sep"),
         div(class = "form-section", "Material & charges"),
         div(class = "row g-3",
-            div(class = "col-12",
+            div(class = "col-md-6",
                 tags$label(class = "form-label req", "Material details"),
                 textInput(ns("f_material"), NULL, width = "100%")),
+            div(class = "col-md-6",
+                tags$label(class = "form-label", "Remarks"),
+                textInput(ns("f_remarks"), NULL, width = "100%")),
             div(class = "col-md-2",
                 tags$label(class = "form-label req", "Weight (T)"),
                 numericInput(ns("f_weight"), NULL, 10, 0.1, 60, 0.1, width = "100%")),
@@ -182,9 +189,7 @@ booking_new_ui <- function(id) {
                 tags$label(class = "form-label", "Negotiated freight (₹)"),
                 textInput(ns("f_freight"), NULL, width = "100%",
                           placeholder = "rate card")),
-            div(class = "col-md-12",
-                tags$label(class = "form-label", "Remarks"),
-                textInput(ns("f_remarks"), NULL, width = "100%"))),
+            ),
 
         div(class = "form-group-sep"),
         # Invoices (CR-15, CR-18). "Material value" is gone: what the
@@ -217,9 +222,9 @@ booking_new_ui <- function(id) {
     # two balanced columns is what makes the screen fit without cutting
     # anything from it.
     div(
-      class = "col-xl-4",
+      class = "col-xl-4 col-xxl-3",
       div(
-        class = "form-aside",
+        class = "form-aside form-aside-tight",
         card_panel(
           title = "Payment terms",
           sub = "Who settles the freight, and when — printed on the consignment note",
@@ -855,8 +860,13 @@ bookings_server <- function(id, user, nav) {
         charge_names <- c(charge_names, "Freight")
       }
       charge_rows <- c(charge_rows, list(
-        if (ch$rcm) HTML(paste0('<span class="muted">', inr(ch$gst_note),
-                                " payable by recipient</span>")) else inr(ch$gst),
+        # The amount on its own line, the reason beneath it. Run together as
+        # one string it wrapped into three ragged lines in the narrowed aside,
+        # which read as a layout fault rather than as a figure with a note.
+        if (ch$rcm) HTML(paste0(
+          inr(ch$gst_note),
+          '<span class="tiny muted d-block" style="font-weight:400;">',
+          "payable by recipient</span>")) else inr(ch$gst),
         inr(ch$insurance)))
       charge_names <- c(charge_names,
                         sprintf("GST (%s%% · %s)", ch$gst_pct, gst_mode()),
