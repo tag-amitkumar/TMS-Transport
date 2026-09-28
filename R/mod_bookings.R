@@ -41,6 +41,13 @@ booking_new_ui <- function(id) {
       # submit you have to scroll for is a booking screen people get wrong.
       card_panel(
         title = "Booking details",
+        # The offline route, offered here as well as on the register (CR-26).
+        # A clerk who has opened New Booking and then realises the load was
+        # taken on paper should not have to go back a screen to say so — that
+        # is the moment they are most likely to key it in as an online booking
+        # instead, which loses the paper reference and the time the load was
+        # actually accepted.
+        actions = uiOutput(ns("offline_btn_form"), inline = TRUE),
         # The booking number and who is raising it. Both were fields — one a
         # caption, one a read-only box costing a whole grid row for a value
         # nobody can change. They belong in the header: they say what this
@@ -303,6 +310,15 @@ bookings_server <- function(id, user, nav) {
     output$manual_btn <- renderUI({
       if (!can(user()$role, "bookings", "create")) return(NULL)
       btn_ghost(ns("manual_entry"), "Offline Entry", fontawesome::fa("pen"))
+    })
+
+    # The same action from the New Booking header. Two buttons cannot share one
+    # input id — the id has to be unique in the DOM or only one of them ever
+    # reports — so it has its own, and both are routed into one handler.
+    output$offline_btn_form <- renderUI({
+      if (!can(user()$role, "bookings", "create")) return(NULL)
+      btn_ghost(ns("manual_entry_form"), "Offline Entry",
+                fontawesome::fa("pen"), class = "btn-tms-sm")
     })
 
     output$tbl <- renderDT({
@@ -1238,7 +1254,10 @@ bookings_server <- function(id, user, nav) {
     # reference and the time the load was actually taken — so the register
     # does not claim a job was booked at 4pm when the truck left at 7am.
 
-    observeEvent(input$manual_entry, {
+    # Both Offline Entry buttons open the same modal. Kept as one function
+    # rather than two observers with the same body: a second copy is a second
+    # thing to forget when the form changes, and this form has changed a lot.
+    show_offline_entry <- function() {
       if (!require_perm(session, user()$role, "bookings", "create")) return()
       cl <- scope_branch(get_clients(), user())
       br <- scope_branch(store_get("branches"), user())
@@ -1361,7 +1380,10 @@ bookings_server <- function(id, user, nav) {
         footer = tagList(modalButton("Cancel"),
                          btn_primary(ns("m_save"), "Create booking"))
       ))
-    })
+    }
+
+    observeEvent(input$manual_entry,      show_offline_entry())
+    observeEvent(input$manual_entry_form, show_offline_entry())
 
     # ---------------- offline entry: invoices and the e-way bill gate ----------------
     m_inv <- reactiveVal(tibble::tibble(
