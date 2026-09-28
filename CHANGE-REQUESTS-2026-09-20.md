@@ -6,14 +6,16 @@ who was in the room can check the interpretation.
 
 ## Status — 27 September 2026
 
-All 27 are implemented, on branch `feat/cr-2026-09-20`. 401 tests pass. The
+All 27 are implemented, on branch `feat/cr-2026-09-20`. 415 tests pass. The
 work is local: nothing has been pushed.
+
+**One item is genuinely outstanding — CR-21 — and it is blocked on a business
+decision, not on code.**
 
 | State | Count | Means |
 |---|---|---|
-| **Done** | 21 | Implemented, unit-tested, and driven in the running app |
-| Built | 5 | Implemented and unit-tested; not yet clicked through in the UI |
-| **Partial** | 1 | CR-21 — see below |
+| **Done** | 26 | Implemented, unit-tested, and driven in the running app |
+| **Partial** | 1 | CR-21 — built and reachable, but blocked on a provider |
 
 **CR-21 is the one to not trust yet.** The e-way bill adapter is wired end to
 end and reachable from the E-Way Bill and Trip screens, and it shows exactly
@@ -23,10 +25,11 @@ placeholder*, which looks identical to a real 12-digit number and only fails
 at a checkpost. The screen says so. Treat e-way bill generation as unbuilt
 until D-10 is answered and tested against a sandbox.
 
-**Built, not clicked:** CR-05 and CR-06 (the TBB gate and reference flow),
-CR-17 (product-type exemption), CR-22 (Part-B on a vehicle change), and the
-offline half of CR-26. All are covered by tests; none has been exercised by
-hand. Worth a look before this is relied on.
+**Everything else has been exercised by hand**, including the four that were
+outstanding: the TBB gate issued a reference (`TBB-DEL-…`) and unblocked the
+booking; a ₹5,00,000 interstate load of books flipped to *not required* on the
+Rule 138(14) exemption; Part-B built its payload against a vehicle change; and
+the offline form refused a ₹60,000 interstate load with no e-way bill number.
 
 **The twelve decisions were not answered** — the work proceeded under a stated
 assumption for each rather than stopping. Three of those assumptions are
@@ -87,8 +90,8 @@ Worth knowing so these are not rebuilt from scratch:
 
 | # | Status | Change | Original note |
 |---|---|---|---|
-| CR-05 | Built | TBB offered **on request only, and only to an operator** | *TBB - on request - if operator* |
-| CR-06 | Built | TBB generates a **reference number**; booking cannot complete until it is received | *TBB - reference number generate and only book if reference number received* |
+| CR-05 | **Done** | TBB offered **on request only, and only to an operator** | *TBB - on request - if operator* |
+| CR-06 | **Done** | TBB generates a **reference number**; booking cannot complete until it is received | *TBB - reference number generate and only book if reference number received* |
 
 ### D · Branch master and serviceability
 
@@ -117,9 +120,9 @@ Worth knowing so these are not rebuilt from scratch:
 | CR-18 | **Done** | **Multiple invoices** per booking, entered in a table: invoice no., value, e-way bill no. | *Option for multiple invoice - option as tabe to add, invoice number, value, e-way bill number* |
 | CR-16 | **Done** | E-way bill **mandatory** at ≥ ₹1 lakh intrastate, ≥ ₹50 000 interstate | *e-Way-bill field mandatory in case billing >=1 lakh in same state, >= 50k for interstate* |
 | CR-19 | **Done** | Thresholds apply to the **sum of all invoices**, not each one | *In case of sum for al the entered value same as >1l and 50k.* |
-| CR-17 | Built | Threshold depends on **product type** — some goods exempt | *It is based on product type - in case of book, etc* |
+| CR-17 | **Done** | Threshold depends on **product type** — some goods exempt | *It is based on product type - in case of book, etc* |
 | CR-21 | **Partial** | **API to generate the e-way bill** — Part-A and consolidated movement detail | *Api for generate the e-waybill. Part-A and movemnet detail cosolidated e-way bill* |
-| CR-22 | Built | **Part-B** filed on vehicle change, or left for the transporter to update later | *Part-B in case of changing the vehichle number - or transporter will update later.* |
+| CR-22 | **Done** | **Part-B** filed on vehicle change, or left for the transporter to update later | *Part-B in case of changing the vehichle number - or transporter will update later.* |
 
 ### G · Consignment note
 
@@ -133,7 +136,7 @@ Worth knowing so these are not rebuilt from scratch:
 
 | # | Status | Change | Original note |
 |---|---|---|---|
-| CR-26 | Built | Online / offline booking option | *Add online offline booking option.* |
+| CR-26 | **Done** | Online / offline booking option | *Add online offline booking option.* |
 
 ---
 
