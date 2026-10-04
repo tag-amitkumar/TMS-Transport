@@ -254,5 +254,31 @@ JSON disagree on the UUID, or the JSON was not copied into `cloudflared/`.
 runtime. The package name is in the last lines of the build output; it usually
 means a missing system library to add to the `apt-get` list in the Dockerfile.
 
+**Cloudflare Error 1033 after a reboot** — the tunnel has nothing to reach:
+Colima is down. Check it first:
+
+```bash
+colima status
+LIMA_HOME=~/.colima/_lima limactl list
+```
+
+A status of **Broken** with `vz driver is running but host agent is not` is the
+known aftermath of an unclean shutdown. Colima records the VM's process id in
+`~/.colima/_lima/colima/vz.pid` and checks on the next boot whether that pid
+exists — but after a reboot the number has usually been reissued to something
+unrelated, so Colima believes the VM is already up and refuses to start it.
+
+`deploy/colima-boot.sh` handles this and is what the LaunchAgent runs. To do it
+by hand: confirm nothing owns the pid, delete the file, start again.
+
+```bash
+ps -p "$(cat ~/.colima/_lima/colima/vz.pid)" -o comm=
+rm ~/.colima/_lima/colima/vz.pid
+colima start
+```
+
+The containers carry `restart: unless-stopped`, so they come back on their own
+once the VM is up; there is nothing else to restart.
+
 **`docker: command not found` in a launchd job or cron** — those get a minimal
 PATH; use the absolute `/Users/mac/.local/bin/docker`.

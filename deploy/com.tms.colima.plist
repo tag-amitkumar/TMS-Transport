@@ -19,10 +19,14 @@
     <key>Label</key>
     <string>com.tms.colima</string>
 
+    <!-- Runs colima-boot.sh rather than `colima start` directly. A plain
+         start cannot recover from the stale vz.pid an unclean shutdown
+         leaves behind, which is precisely the case this job exists for:
+         after the 3 Oct 2026 reboot it failed and the site stayed down for
+         a day and a half. See the script for the detail. -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/mac/.local/bin/colima</string>
-        <string>start</string>
+        <string>/Users/mac/apps/TMS-Transport/deploy/colima-boot.sh</string>
     </array>
 
     <key>RunAtLoad</key>
