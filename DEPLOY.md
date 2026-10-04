@@ -105,7 +105,8 @@ seconds, because the package layer is cached above the source copy.
 | `tms restart` | Restarts both containers |
 | `tms rebuild` | Rebuilds the image from source and restarts — use after a code change |
 | `tms stop` | Stops the containers, leaves Colima running |
-| `tms halt` | Stops the containers *and* Colima |
+| `tms halt` | Stops the containers *and* Colima — the end-of-day one |
+| `tms down` | **Removes** the containers (keeps the data volume) — only before a rebuild |
 | `tms logs` | Follows the app log (`tms logs cloudflared` for the tunnel) |
 | `tms doctor` | Everything above plus the Lima instance, the boot job, auto-login and recent errors |
 | `tms url` | Prints the public address |
@@ -126,6 +127,12 @@ docker compose up -d --build       # after a git pull
 docker compose down                # stop the containers (data volume survives)
 colima stop                        # stop the VM as well
 ```
+
+Use `docker compose stop`, not `down`, for an ordinary shutdown. `down`
+*removes* the containers, so a later `colima start` gives you a running VM
+with nothing in it, the tunnel container no longer exists, and Cloudflare
+answers 1033 — which looks exactly like a fault and is not one. `tms stop`
+and `tms halt` use `stop` for this reason.
 
 Local check without going through Cloudflare, from the Mac mini itself:
 

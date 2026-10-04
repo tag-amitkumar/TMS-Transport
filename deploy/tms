@@ -40,9 +40,20 @@ case "${1:-status}" in
     printf '  local  %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:3838/ 2>/dev/null || echo 'no answer')"
     printf '  live   %s  %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/" 2>/dev/null || echo 'no answer')" "$URL"
     ;;
+  # stop/halt use `compose stop`, not `compose down`.
+  #
+  # `down` removes the containers as well as stopping them, so a later
+  # `colima start` brings back a running VM with nothing in it — the tunnel
+  # container no longer exists, and Cloudflare answers 1033. That is a
+  # perfectly reasonable thing to type and a thoroughly confusing thing to
+  # come back to. Stopping leaves them in place to be started again.
+  #
+  # `tms down` is still here for when removing them is actually what you
+  # want — before a rebuild, say. It says what it did.
   start)   up; docker compose up -d && echo "• started" ;;
-  stop)    docker compose down && echo "• containers stopped (Colima left running)" ;;
-  halt)    docker compose down; colima stop && echo "• containers and Colima stopped" ;;
+  stop)    docker compose stop && echo "• containers stopped — 'tms start' brings them back" ;;
+  halt)    docker compose stop; colima stop && echo "• containers and Colima stopped — 'tms start' brings both back" ;;
+  down)    docker compose down && echo "• containers REMOVED (data volume kept) — 'tms start' recreates them" ;;
   restart) up; docker compose restart && echo "• restarted" ;;
   rebuild) up; docker compose up -d --build && echo "• rebuilt from source and restarted" ;;
   logs)    docker compose logs -f --tail=100 "${2:-app}" ;;
@@ -66,5 +77,5 @@ case "${1:-status}" in
     echo "── Recent app errors ──"
     docker compose logs app 2>/dev/null | grep -iE "error|failed" | tail -5 | sed 's/^/  /' || echo "  none"
     ;;
-  *) echo "usage: tms {status|start|stop|halt|restart|rebuild|logs [app|cloudflared]|url|doctor}"; exit 1 ;;
+  *) echo "usage: tms {status|start|stop|halt|restart|rebuild|down|logs [app|cloudflared]|url|doctor}"; exit 1 ;;
 esac
