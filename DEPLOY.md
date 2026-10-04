@@ -95,13 +95,36 @@ seconds, because the package layer is cached above the source copy.
 
 ## Day-to-day
 
+`tms` wraps the lot. It lives in `deploy/tms`, is symlinked into
+`~/.local/bin`, and works from any directory:
+
+| Command | What it does |
+|---|---|
+| `tms status` | Colima, both containers, and whether local and live answer |
+| `tms start` | Starts Colima if needed (with recovery), then the containers |
+| `tms restart` | Restarts both containers |
+| `tms rebuild` | Rebuilds the image from source and restarts — use after a code change |
+| `tms stop` | Stops the containers, leaves Colima running |
+| `tms halt` | Stops the containers *and* Colima |
+| `tms logs` | Follows the app log (`tms logs cloudflared` for the tunnel) |
+| `tms doctor` | Everything above plus the Lima instance, the boot job, auto-login and recent errors |
+| `tms url` | Prints the public address |
+
+Data survives all of these — it is in the `tms-data` volume, not the
+containers.
+
+The same thing by hand, if you would rather not use the wrapper:
+
 ```bash
+cd /Users/mac/apps/TMS-Transport
+colima status                      # is the VM up at all
 docker compose ps                  # what is running and healthy
 docker compose logs -f app         # Shiny's own output
 docker compose logs -f cloudflared # tunnel connections
 docker compose restart app         # restart just the app
 docker compose up -d --build       # after a git pull
-docker compose down                # stop everything (data volume survives)
+docker compose down                # stop the containers (data volume survives)
+colima stop                        # stop the VM as well
 ```
 
 Local check without going through Cloudflare, from the Mac mini itself:

@@ -1,0 +1,70 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# tms — one command for running the app day to day.
+#
+#   tms status | start | stop | restart | rebuild | logs | url | doctor
+#
+# Everything it does is a docker compose or colima call you could type
+# yourself; it exists so that "is it up?" and "turn it off and on again" are
+# one word each, and so the Colima recovery after an unclean shutdown is not
+# something anyone has to remember at the time.
+#
+# Install:  sudo ln -sf /Users/mac/apps/TMS-Transport/deploy/tms /usr/local/bin/tms
+# ------------------------------------------------------------------
+set -u
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+APP_DIR="/Users/mac/apps/TMS-Transport"
+URL="https://tms.katxel.in"
+cd "$APP_DIR" || { echo "cannot find $APP_DIR"; exit 1; }
+
+up() {                      # the VM has to exist before compose can do anything
+  if ! colima status >/dev/null 2>&1; then
+    echo "• Colima is down — starting it (with recovery)"
+    "$APP_DIR/deploy/colima-boot.sh" || exit 1
+  fi
+}
+
+case "${1:-status}" in
+  status)
+    echo "── Colima ──"
+    colima status 2>&1 | sed 's/^/  /' | head -4
+    echo
+    echo "── Containers ──"
+    if colima status >/dev/null 2>&1; then
+      docker compose ps --format 'table {{.Name}}\t{{.Status}}' 2>&1 | sed 's/^/  /'
+    else
+      echo "  (Colima down — nothing can be running)"
+    fi
+    echo
+    echo "── Reachable ──"
+    printf '  local  %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:3838/ 2>/dev/null || echo 'no answer')"
+    printf '  live   %s  %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/" 2>/dev/null || echo 'no answer')" "$URL"
+    ;;
+  start)   up; docker compose up -d && echo "• started" ;;
+  stop)    docker compose down && echo "• containers stopped (Colima left running)" ;;
+  halt)    docker compose down; colima stop && echo "• containers and Colima stopped" ;;
+  restart) up; docker compose restart && echo "• restarted" ;;
+  rebuild) up; docker compose up -d --build && echo "• rebuilt from source and restarted" ;;
+  logs)    docker compose logs -f --tail=100 "${2:-app}" ;;
+  url)     echo "$URL" ;;
+  doctor)
+    echo "── Colima ──";       colima status 2>&1 | sed 's/^/  /' | head -3
+    echo "── Lima instance ──"; LIMA_HOME="$HOME/.colima/_lima" limactl list 2>&1 | sed 's/^/  /' | tail -2
+    echo "── Boot job ──";      launchctl list 2>/dev/null | grep -i colima | sed 's/^/  /' || echo "  not loaded"
+    echo "── Auto-login ──"
+    # Capture first: in `a | sed || b` the exit status is sed's, which is
+    # always 0, so the fallback never fires and the check silently says
+    # nothing - which is the one answer it must never give.
+    autologin=$(defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser 2>/dev/null)
+    if [ -n "$autologin" ]; then
+      echo "  on, user: $autologin"
+    else
+      echo "  OFF — after a power cut the app stays down until someone signs in"
+    fi
+    echo "── Tunnel ──"
+    docker compose logs cloudflared 2>/dev/null | grep -c "Registered tunnel connection" | sed 's/^/  connections registered: /'
+    echo "── Recent app errors ──"
+    docker compose logs app 2>/dev/null | grep -iE "error|failed" | tail -5 | sed 's/^/  /' || echo "  none"
+    ;;
+  *) echo "usage: tms {status|start|stop|halt|restart|rebuild|logs [app|cloudflared]|url|doctor}"; exit 1 ;;
+esac
