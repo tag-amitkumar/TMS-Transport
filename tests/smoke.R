@@ -18,6 +18,36 @@ suppressPackageStartupMessages({
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
 })
 
+# ------------------------------------------------------------------
+# Leave data/ exactly as it was found.
+#
+# This suite exercises the real store, so every store_set() it makes writes
+# through to data/*.csv — the files that are committed and baked into the
+# image. That bit once: a test run left two fabricated WhatsApp consent
+# records in the seed, they were committed, and the next deploy installed
+# them into the live volume. A seeded opt-in is the one row that table must
+# never hold.
+#
+# Restoring on exit is cheaper than remembering to, and it covers the failure
+# path too — a suite that dies half way through used to leave the seed in
+# whatever state it had reached.
+# ------------------------------------------------------------------
+.seed_backup <- file.path(tempdir(), "smoke-seed-backup")
+if (dir.exists("data")) {
+  unlink(.seed_backup, recursive = TRUE)
+  dir.create(.seed_backup, recursive = TRUE, showWarnings = FALSE)
+  file.copy(list.files("data", full.names = TRUE), .seed_backup,
+            recursive = TRUE, copy.date = TRUE)
+}
+reg.finally <- function() {
+  if (!dir.exists(.seed_backup)) return(invisible(NULL))
+  file.copy(list.files(.seed_backup, full.names = TRUE), "data",
+            overwrite = TRUE, recursive = TRUE, copy.date = TRUE)
+  unlink(.seed_backup, recursive = TRUE)
+  invisible(NULL)
+}
+reg.finalizer(environment(), function(e) reg.finally(), onexit = TRUE)
+
 pass <- 0; fail <- 0
 ok <- function(label, cond) {
   if (isTRUE(cond)) { pass <<- pass + 1 }
@@ -1043,6 +1073,31 @@ local({
   ok("and says what is missing", grepl("TMS_WA_", r$message))
 
   ok("nothing was ever actually sent", !any(store_get("notification_outbox")$state == "sent"))
+
+  # Put the tables back. This suite writes through the real store, so whatever
+  # it leaves behind is what gets committed and baked into the image — and on
+  # the first run of these tests that is exactly what happened: two fabricated
+  # consent records shipped in the seed. A seeded opt-in is the one thing this
+  # table must never contain, since its whole purpose is to evidence that a
+  # real person agreed.
+  store_set("wa_optin", blank(msisdn=character(),state=character(),source=character(),
+                              client_id=character(),recorded_by=character(),recorded_dt=character()))
+  store_set("notification_outbox", blank(outbox_id=character(),stage=character(),cn_no=character(),
+    msisdn=character(),to_name=character(),template=character(),body=character(),state=character(),
+    detail=character(),queued_dt=character(),sent_dt=character(),message_id=character(),queued_by=character()))
+})
+
+cat("\n== The shipped seed carries no invented consent ==\n")
+local({
+  # Read the files, not the store: the store is whatever this suite has just
+  # done to it, and the question here is what is on disk to be committed.
+  for (f in c("wa_optin", "notification_outbox")) {
+    path <- file.path("data", paste0(f, ".csv"))
+    n <- if (file.exists(path)) max(0L, length(readLines(path, warn = FALSE)) - 1L) else 0L
+    ok(paste0("data/", f, ".csv ships empty"), n == 0L)
+  }
+  ok("no template ships marked Approved",
+     !any(readr::read_csv("data/message_templates.csv", show_col_types = FALSE)$status == "Approved"))
 })
 
 cat("\n== Change-request constants ==\n")
@@ -1064,6 +1119,8 @@ local({
      length(LR_COPIES) == 2 && all(lengths(LR_COPIES) == 2))
   ok("the consignor copy comes first (CR-25)", LR_COPIES[[1]][1] == "Consignor Copy")
 })
+
+reg.finally()   # put data/ back before reporting
 
 cat(sprintf("\n%s  %d passed, %d failed\n\n",
             if (fail == 0) "PASS" else "FAIL", pass, fail))
