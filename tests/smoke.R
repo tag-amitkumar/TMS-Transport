@@ -11,6 +11,7 @@
 suppressPackageStartupMessages({
   source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
   source("R/serviceability.R"); source("R/ewb_api.R")
+  source("R/meta_api.R"); source("R/notify_templates.R"); source("R/notify.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   source("R/github_sync.R")
@@ -977,6 +978,71 @@ local({
   ok("the offline form resolves serviceability", grepl("resolve_delivery\\(input\\$m_to_pin", src))
   ok("no hand-rolled mobile regex remains outside global.R",
      !grepl("6-9\\]\\[0-9\\]\\{9\\}", src))
+})
+
+cat("\n== Customer notifications ==\n")
+local({
+  store_set("message_templates", seed_message_templates())
+  blank <- function(...) tibble::tibble(...)
+  store_set("wa_optin", blank(msisdn=character(),state=character(),source=character(),
+                              client_id=character(),recorded_by=character(),recorded_dt=character()))
+  store_set("notification_outbox", blank(outbox_id=character(),stage=character(),cn_no=character(),
+    msisdn=character(),to_name=character(),template=character(),body=character(),state=character(),
+    detail=character(),queued_dt=character(),sent_dt=character(),message_id=character(),queued_by=character()))
+
+  t <- store_get("message_templates")
+  ok("every customer-facing stage has a template", all(NOTIFY_STAGES %in% t$stage))
+  ok("all templates are UTILITY, not MARKETING", all(t$category == "UTILITY"))
+  ok("none ships pre-approved", !any(t$status == "Approved"))
+  ok("every template declares its variables", all(nzchar(t$vars)))
+  ok("no template body is empty", all(nchar(t$body) > 40))
+  ok("every template body fits WhatsApp's 1024-char limit", all(nchar(t$body) <= 1024))
+
+  ok("a ten-digit number gets the country code", identical(wa_msisdn("9876543210"), "919876543210"))
+  ok("spacing and +91 are tolerated", identical(wa_msisdn("+91 98765 43210"), "919876543210"))
+  ok("a leading zero is dropped", identical(wa_msisdn("09876543210"), "919876543210"))
+  ok("rubbish yields nothing rather than a bad number", identical(wa_msisdn("abc"), ""))
+
+  v <- c("Ravi","CN-00009","Nagpur","Delhi","12 Oct 2026")
+  tpl <- t$body[t$stage == "booking_confirmed"][1]
+  filled <- template_fill(tpl, v)
+  ok("variables are substituted", grepl("CN-00009", filled, fixed = TRUE))
+  ok("no placeholder survives a full fill", !grepl("\\{\\{[0-9]+\\}\\}", filled))
+  ok("values survive the body round-trip",
+     identical(notify_vars_from_body(tpl, filled)[2], "CN-00009"))
+
+  # The gate. Consent is the one that must never be bypassed.
+  notify_stage("booking_confirmed", "CN-00009", "9812345678", "Ravi", v)
+  ob <- store_get("notification_outbox")
+  ok("nothing is queued to a number that has not consented", ob$state[1] == "blocked")
+  ok("and the reason names consent", grepl("consent", ob$detail[1], ignore.case = TRUE))
+
+  wa_set_optin("9812345678", "opted_in", source = "test")
+  ok("consent is recorded", wa_opted_in("9812345678"))
+  notify_stage("booking_confirmed", "CN-00009", "9812345678", "Ravi", v)
+  ob <- store_get("notification_outbox")
+  ok("an unapproved template still blocks", ob$state[2] == "blocked")
+  ok("and says the template is not approved",
+     grepl("not approved", ob$detail[2], fixed = TRUE))
+
+  wa_set_optin("9812345678", "opted_out", source = "STOP")
+  ok("opt-out overrides earlier consent", !wa_opted_in("9812345678"))
+  notify_stage("delivered", "CN-00009", "9812345678", "Ravi", v)
+  ob <- store_get("notification_outbox")
+  ok("an opt-out is called out explicitly, not folded into 'no consent'",
+     grepl("opted OUT", ob$detail[3], fixed = TRUE))
+
+  ok("no sender is configured yet", !meta_configured())
+  p <- meta_template_payload("9812345678", "tms_delivered", "en", c("Ravi", "CN-00009"))
+  ok("the payload is a template send", identical(p$type, "template"))
+  ok("it addresses an E.164 number", identical(p$to, "919812345678"))
+  ok("it serialises",
+     !is.null(jsonlite::fromJSON(jsonlite::toJSON(p, auto_unbox = TRUE, null = "null"))))
+  r <- meta_send(p)
+  ok("sending without a sender fails softly", isFALSE(r$ok))
+  ok("and says what is missing", grepl("TMS_WA_", r$message))
+
+  ok("nothing was ever actually sent", !any(store_get("notification_outbox")$state == "sent"))
 })
 
 cat("\n== Change-request constants ==\n")

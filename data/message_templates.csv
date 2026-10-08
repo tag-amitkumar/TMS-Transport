@@ -1,0 +1,40 @@
+template_id,stage,meta_name,category,language,status,vars,body
+TPL-001,booking_confirmed,tms_booking_confirmed,UTILITY,en,Draft,1=consignee name|2=consignment no|3=origin|4=destination|5=expected delivery date,"Hello {{1}}, your consignment {{2}} has been booked with MoveWing Logistics.
+
+From: {{3}}
+To: {{4}}
+Expected delivery: {{5}}
+
+Track it any time with your consignment number and delivery PIN code."
+TPL-002,vehicle_allocated,tms_vehicle_allocated,UTILITY,en,Draft,1=consignee name|2=consignment no|3=vehicle number|4=driver name|5=driver mobile,"Hello {{1}}, a vehicle has been allotted to consignment {{2}}.
+
+Vehicle: {{3}}
+Driver: {{4}} ({{5}})
+
+You will hear from us again when it leaves our branch."
+TPL-003,dispatched,tms_dispatched,UTILITY,en,Draft,1=consignee name|2=consignment no|3=destination|4=expected delivery date|5=vehicle number,"Hello {{1}}, consignment {{2}} has left our branch and is on its way to {{3}}.
+
+Expected delivery: {{4}}
+Vehicle: {{5}}
+
+We will message you again before the vehicle reaches you."
+TPL-004,out_for_delivery,tms_out_for_delivery,UTILITY,en,Draft,1=consignee name|2=consignment no|3=driver name|4=driver mobile|5=number of packages,"Hello {{1}}, consignment {{2}} is out for delivery today.
+
+Driver: {{3}} ({{4}})
+Packages: {{5}}
+
+Please keep someone available to receive and sign for the goods."
+TPL-005,delivered,tms_delivered,UTILITY,en,Draft,1=consignee name|2=consignment no|3=delivery date and time|4=received by,"Hello {{1}}, consignment {{2}} was delivered on {{3}}.
+
+Received by: {{4}}
+
+Thank you for shipping with MoveWing Logistics."
+TPL-006,pod_uploaded,tms_pod_uploaded,UTILITY,en,Draft,1=consignee name|2=consignment no|3=delivery date,"Hello {{1}}, the signed proof of delivery for consignment {{2}} ({{3}}) is now on file.
+
+Ask your branch for a copy if you need one for your records."
+TPL-007,delivery_delayed,tms_delivery_delayed,UTILITY,en,Draft,1=consignee name|2=consignment no|3=reason|4=revised delivery date|5=branch phone,"Hello {{1}}, consignment {{2}} is running late.
+
+Reason: {{3}}
+Revised delivery: {{4}}
+
+We are sorry for the delay. Call us on {{5}} if this causes you a problem."

@@ -74,6 +74,24 @@ seed_cr_masters <- function(branches) {
     "Hazardous",         FALSE,       "Requires additional documentation"
   )
 
+  # Templates mirror what has been submitted to Meta. Seeded as Draft: none
+  # has been through review, and notify_send() refuses anything not Approved.
+  out$message_templates <- seed_message_templates()
+
+  # Consent and the send log both start empty. Consent is never seeded - a
+  # seeded opt-in would be a fabricated consent record, which is exactly the
+  # thing the table exists to prove.
+  out$wa_optin <- tibble::tibble(
+    msisdn = character(), state = character(), source = character(),
+    client_id = character(), recorded_by = character(), recorded_dt = character())
+
+  out$notification_outbox <- tibble::tibble(
+    outbox_id = character(), stage = character(), cn_no = character(),
+    msisdn = character(), to_name = character(), template = character(),
+    body = character(), state = character(), detail = character(),
+    queued_dt = character(), sent_dt = character(), message_id = character(),
+    queued_by = character())
+
   # One row per invoice on a booking (CR-15, CR-18). Empty on a fresh install.
   out$booking_invoices <- tibble::tibble(
     booking_no = character(), invoice_no = character(),

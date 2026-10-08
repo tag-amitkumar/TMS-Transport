@@ -212,7 +212,11 @@ TABLES <- c(
   # freight_rates are branch-maintained masters; booking_invoices is the
   # one-to-many the e-way bill threshold is summed over; product_types
   # carries the exemption flag.
-  "branch_pincodes", "freight_rates", "booking_invoices", "product_types"
+  "branch_pincodes", "freight_rates", "booking_invoices", "product_types",
+  # Customer notifications. message_templates mirrors what Meta has approved;
+  # wa_optin is the consent record; notification_outbox is every attempt and
+  # why it did or did not go.
+  "message_templates", "wa_optin", "notification_outbox"
 )
 
 tbl_path <- function(name) file.path(DATA_DIR, paste0(name, ".csv"))
