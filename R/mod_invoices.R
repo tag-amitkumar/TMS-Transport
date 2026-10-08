@@ -115,7 +115,7 @@ invoices_server <- function(id, user, nav) {
       df <- tibble::tibble(
         INVOICE = mapply(cell2, i$invoice_no,
                          paste(fmt_date(i$invoice_date, TRUE), "·",
-                               ifelse(i$source == "auto", "auto from LR", "manual"))),
+                               ifelse(i$source == "auto", "auto from consignment note", "manual"))),
         CLIENT = cl$name[match(i$client_id, cl$client_id)],
         `LR / BOOKING` = i$lr_no,
         AMOUNT = inr(i$total),

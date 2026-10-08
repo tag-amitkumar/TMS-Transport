@@ -216,7 +216,7 @@ if (!window.__mwHeroTabs) {
       div(class = "small-caps mb-2", "Quick preview as"),
       div(
         class = "d-flex flex-wrap justify-content-center gap-2",
-        lapply(DEMO_ROLES, function(r) {
+        lapply(demo_roles(), function(r) {
           div(class = "login-role-chip",
               onclick = sprintf("Shiny.setInputValue('%s', '%s', {priority:'event'})",
                                 ns("quick"), r),

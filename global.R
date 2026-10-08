@@ -182,15 +182,35 @@ SEED_PROFILE <- Sys.getenv("TMS_SEED_PROFILE", "minimal")
 
 # Roles offered as one-click previews on the login screen.
 #
-# Every chip needs something behind it — an active account for an internal role,
-# or a master record for Customer/Vendor — otherwise clicking it just produces
-# an error. The minimal profile has exactly two accounts, so it offers exactly
-# two chips.
-DEMO_ROLES <- if (identical(SEED_PROFILE, "minimal")) {
-  c("Super Admin", "Operations Manager", "Driver")
-} else {
-  c("Super Admin", "Branch Admin", "Dispatcher", "Accountant",
-    "HR Manager", "Vendor", "Customer")
+# Every chip needs something behind it — an active account for an internal
+# role, or a master record for Customer/Vendor — otherwise clicking it just
+# produces an error.
+#
+# Worked out from the data rather than listed per profile. The list used to be
+# hardcoded, which meant adding a user changed nothing on the login screen and
+# the chips quietly described a dataset that no longer existed. Asking the
+# question the comment above already poses — is there something behind this
+# chip? — keeps the two in step without anyone remembering to.
+#
+# A function, not a constant: global.R is sourced before the seed has
+# necessarily been written, so this cannot be answered at load time.
+demo_roles <- function() {
+  roles <- character()
+  u <- tryCatch(store_get("users"), error = function(e) NULL)
+  if (!is.null(u) && nrow(u)) {
+    live <- u[(u$status %||% "Active") == "Active", , drop = FALSE]
+    roles <- unique(live$role)
+  }
+  # Customer and Vendor sign in against the client/vendor master rather than a
+  # user row — see the quick-chip handler in R/mod_auth.R.
+  has_rows <- function(tbl) {
+    d <- tryCatch(store_get(tbl), error = function(e) NULL)
+    !is.null(d) && nrow(d) > 0
+  }
+  if (has_rows("clients")) roles <- c(roles, "Customer")
+  if (has_rows("vendors")) roles <- c(roles, "Vendor")
+  # Shown in the order the security matrix lists them, not discovery order.
+  intersect(ROLE_LEVELS, unique(roles))
 }
 
 # Receipt/POD photos come off phone cameras, which routinely exceed Shiny's

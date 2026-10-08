@@ -203,7 +203,7 @@ pod_server <- function(id, user) {
         fileInput(ns("m_files"), "Select several files", multiple = TRUE,
                   accept = c(".jpg", ".jpeg", ".png", ".pdf")),
         callout("Matched by filename",
-                "Files named POD_<LR number> are matched to their consignment automatically; anything unmatched is listed for manual assignment.",
+                "Files named POD_<consignment number> are matched automatically; anything unmatched is listed for manual assignment.",
                 "info"),
         footer = modalButton("Close")
       ))
