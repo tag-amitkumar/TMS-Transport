@@ -11,7 +11,7 @@
 suppressPackageStartupMessages({
   source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
   source("R/serviceability.R"); source("R/ewb_api.R")
-  source("R/meta_api.R"); source("R/notify_templates.R"); source("R/notify.R")
+  source("R/meta_api.R"); source("R/meta_signup.R"); source("R/notify_templates.R"); source("R/notify.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   source("R/github_sync.R")
@@ -1085,6 +1085,55 @@ local({
   store_set("notification_outbox", blank(outbox_id=character(),stage=character(),cn_no=character(),
     msisdn=character(),to_name=character(),template=character(),body=character(),state=character(),
     detail=character(),queued_dt=character(),sent_dt=character(),message_id=character(),queued_by=character()))
+})
+
+cat("\n== Meta Embedded Signup ==\n")
+local({
+  ok("signup is not offered without an app secret", !meta_signup_available())
+  ok("a code exchange is refused when the app is unconfigured",
+     isFALSE(meta_exchange_code("dummy-code")$ok))
+  ok("an empty code is refused outright", isFALSE(meta_exchange_code("")$ok))
+
+  # The token store must sit outside the repo, or it ends up in a commit.
+  pth <- path.expand(meta_cred_path())
+  ok("credentials default outside the project tree",
+     !grepl(normalizePath(".", mustWork = FALSE), pth, fixed = TRUE))
+
+  # Round-trip into a temporary location, so the test cannot touch a real one.
+  old <- Sys.getenv("TMS_WA_CREDENTIALS", NA_character_)
+  tmp <- file.path(tempdir(), "wa_test_credentials.json")
+  Sys.setenv(TMS_WA_CREDENTIALS = tmp)
+  meta_save_credentials("WABA-TEST", "PNID-TEST", "secret-token-value",
+                        display_number = "+91 90000 00000")
+  ok("credentials are written", file.exists(tmp))
+  ok("and are owner-only",
+     identical(substr(as.character(file.info(tmp)$mode), 1, 3), "600"))
+
+  cred <- meta_saved_credentials()
+  ok("they read back", identical(cred$waba_id, "WABA-TEST"))
+
+  # With no environment override, config falls through to the stored values.
+  ok("config picks up a stored connection",
+     identical(meta_config()$phone_number_id, "PNID-TEST"))
+  ok("a stored connection counts as configured", meta_configured())
+
+  # The environment must win, so a deliberately set variable is never
+  # silently overridden by an old stored connection.
+  Sys.setenv(TMS_WA_PHONE_NUMBER_ID = "PNID-FROM-ENV")
+  ok("the environment overrides the stored file",
+     identical(meta_config()$phone_number_id, "PNID-FROM-ENV"))
+  Sys.unsetenv("TMS_WA_PHONE_NUMBER_ID")
+
+  s <- meta_connection_summary()
+  ok("the summary reports the connection", isTRUE(s$connected))
+  ok("the summary never carries the token",
+     !any(grepl("secret-token-value", unlist(lapply(s, as.character)), fixed = TRUE)))
+
+  meta_forget_credentials()
+  ok("disconnect removes the file", !file.exists(tmp))
+  ok("and the app is unconfigured again", !meta_configured())
+
+  if (is.na(old)) Sys.unsetenv("TMS_WA_CREDENTIALS") else Sys.setenv(TMS_WA_CREDENTIALS = old)
 })
 
 cat("\n== The shipped seed carries no invented consent ==\n")

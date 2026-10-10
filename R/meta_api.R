@@ -47,12 +47,31 @@
 
 META_API_VERSION <- "v21.0"
 
-#' Credentials and ids, from the environment. Never from a file in the repo.
+#' Credentials and ids. Never from a file in the repo.
+#'
+#' Two sources, environment first. The environment is how an operator who has
+#' copied ids out of Business Manager configures this; the credentials file is
+#' what Embedded Signup writes when they connect through Facebook instead
+#' (see R/meta_signup.R). Environment wins so that a deliberately set variable
+#' is never silently overridden by an old stored connection.
 meta_config <- function() {
-  list(
+  env <- list(
     phone_number_id = Sys.getenv("TMS_WA_PHONE_NUMBER_ID", ""),
     waba_id         = Sys.getenv("TMS_WA_BUSINESS_ACCOUNT_ID", ""),
-    token           = Sys.getenv("TMS_WA_ACCESS_TOKEN", ""),
+    token           = Sys.getenv("TMS_WA_ACCESS_TOKEN", "")
+  )
+  saved <- if (exists("meta_saved_credentials", mode = "function"))
+    tryCatch(meta_saved_credentials(), error = function(e) NULL) else NULL
+
+  pick <- function(field) {
+    if (nzchar(env[[field]])) return(env[[field]])
+    v <- saved[[field]] %||% ""
+    if (length(v) == 0) "" else as.character(v)[1]
+  }
+  list(
+    phone_number_id = pick("phone_number_id"),
+    waba_id         = pick("waba_id"),
+    token           = pick("token"),
     api_version     = Sys.getenv("TMS_WA_API_VERSION", META_API_VERSION)
   )
 }

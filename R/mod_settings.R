@@ -168,7 +168,96 @@ settings_server <- function(id, user) {
                 div(class = "tiny muted", detail)))
       }
 
+      conn <- meta_connection_summary()
+      app  <- meta_app_config()
+
       div(class = "row g-3",
+        # ---- Connect with Facebook ----
+        div(class = "col-12", card_panel(
+          title = "Connect your WhatsApp Business Account",
+          sub = "Sign in with Facebook and pick the account to send from",
+          div(
+            if (conn$connected) tagList(
+              callout("Connected",
+                      HTML(paste0(
+                        "Sending as <b>", htmlEscape(conn$display_number %||% "—"), "</b>",
+                        if (nzchar(conn$business_name)) paste0(" for ", htmlEscape(conn$business_name)) else "",
+                        "<br/><span class='tiny muted'>WABA ", htmlEscape(conn$waba_id),
+                        " · connected via ", htmlEscape(conn$via),
+                        if (nzchar(conn$connected_dt)) paste0(" on ", htmlEscape(conn$connected_dt)) else "",
+                        "</span>")),
+                      "ok"),
+              div(class = "mt-2",
+                  btn_ghost(ns("wa_disconnect"), "Disconnect",
+                            fontawesome::fa("link-slash")))
+            )
+            else if (!conn$signup_offered) tagList(
+              callout("Facebook sign-in not available on this deployment",
+                      HTML(paste0(
+                        "Embedded Signup needs a Meta app of type Business with the ",
+                        "WhatsApp product. Set <code>TMS_META_APP_ID</code>, ",
+                        "<code>TMS_META_APP_SECRET</code> and ",
+                        "<code>TMS_META_CONFIG_ID</code>, then restart.",
+                        "<br/><span class='tiny muted'>The app secret is needed because the ",
+                        "authorisation code is exchanged for a token on the server — a secret ",
+                        "that reaches a browser is not a secret.</span>")),
+                      "warn"),
+              div(class = "tiny muted mt-2",
+                  "The ids can also be set directly as environment variables if you would ",
+                  "rather copy them out of Business Manager by hand.")
+            )
+            else tagList(
+              # Meta's own dialog. The operator signs in to Facebook and picks
+              # or creates the WABA; we never see their password, only the
+              # authorisation code the dialog hands back.
+              tags$script(src = "https://connect.facebook.net/en_US/sdk.js", async = NA, defer = NA),
+              tags$script(HTML(sprintf("
+window.fbAsyncInit = function() {
+  FB.init({ appId: '%s', autoLogAday: false, xfbml: false, version: '%s' });
+};
+// Meta posts the provisioned ids back through the opener rather than in the
+// login response, so both halves are collected before anything is sent on.
+window.__wa_ids = {};
+window.addEventListener('message', function (e) {
+  var h = '';
+  try { h = new URL(e.origin).hostname; } catch (err) { return; }
+  // Only Meta's own dialog may hand us ids. Suffix-checked with the leading
+  // dot so that a lookalike domain such as evilfacebook.com cannot match.
+  if (h !== 'facebook.com' && h.lastIndexOf('.facebook.com') !== h.length - 13) return;
+  try {
+    var d = JSON.parse(e.data);
+    if (d.type === 'WA_EMBEDDED_SIGNUP' && d.event === 'FINISH') {
+      window.__wa_ids = { waba_id: d.data.waba_id, phone_number_id: d.data.phone_number_id };
+    }
+  } catch (err) { /* not ours */ }
+});
+window.__waConnect = function () {
+  FB.login(function (r) {
+    var code = r && r.authResponse && r.authResponse.code;
+    Shiny.setInputValue('%s', {
+      code: code || '',
+      waba_id: window.__wa_ids.waba_id || '',
+      phone_number_id: window.__wa_ids.phone_number_id || ''
+    }, { priority: 'event' });
+  }, {
+    config_id: '%s',
+    response_type: 'code',
+    override_default_response_type: true,
+    extras: { setup: {}, featureType: '', sessionInfoVersion: '3' }
+  });
+};", app$app_id, app$api_version, ns("wa_signup"), app$config_id))),
+              tags$button(class = "btn btn-tms-primary", onclick = "window.__waConnect()",
+                          tagList(fontawesome::fa("facebook"), " Connect with Facebook")),
+              div(class = "tiny muted mt-2",
+                  paste("Opens Meta's own dialog. You choose the WhatsApp Business Account",
+                        "and the sender number; this app receives only an authorisation",
+                        "code, which it exchanges for a token on the server."))
+            ),
+            div(class = "tiny muted mt-3",
+                "This connects ", tags$b("your"), " business account. Customers never sign in ",
+                "— they are messaged on the number from the consignment note, with consent recorded.")
+          ))),
+
         div(class = "col-xl-7", card_panel(
           title = "WhatsApp Business",
           sub = "What must be true before a customer can be messaged",
@@ -370,6 +459,66 @@ settings_server <- function(id, user) {
       sync_tick(sync_tick() + 1L)
       audit(user()$user_id, "data-pull", "settings", "pulled data/ from GitHub")
       showNotification(gh_status()$msg, type = "message", duration = 6)
+    })
+
+    # ---------------- Embedded Signup ----------------
+    #
+    # The browser returns an authorisation code and the ids Meta provisioned.
+    # The code is exchanged for a token here, because the exchange needs the
+    # app secret.
+    observeEvent(input$wa_signup, {
+      if (!require_perm(session, user()$role, "settings", "edit")) return()
+      d <- input$wa_signup
+
+      if (!nzchar(d$code %||% "")) {
+        # The operator closed the dialog, or Meta declined. Not an error.
+        showNotification("Facebook sign-in was not completed.", type = "warning")
+        return()
+      }
+      if (!nzchar(d$waba_id %||% "") || !nzchar(d$phone_number_id %||% "")) {
+        showNotification(
+          paste("Facebook returned a sign-in but no WhatsApp account. Finish the",
+                "dialog through to choosing a sender number, then try again."),
+          type = "error", duration = 10)
+        return()
+      }
+
+      res <- meta_exchange_code(d$code)
+      if (!isTRUE(res$ok)) {
+        # Never echo the code or any part of the response — it is bearer-grade
+        # material even when the exchange fails.
+        showNotification(res$message, type = "error", duration = 12)
+        audit(user()$user_id, "wa-connect-failed", "settings", "code exchange refused")
+        return()
+      }
+
+      meta_save_credentials(
+        waba_id = d$waba_id, phone_number_id = d$phone_number_id,
+        token = res$token, display_number = d$display_number %||% "",
+        business_name = d$business_name %||% "")
+
+      sub <- meta_subscribe_waba(d$waba_id, res$token)
+      audit(user()$user_id, "wa-connect", "settings",
+            paste("WABA", d$waba_id, "number", d$phone_number_id))
+
+      showNotification(
+        if (isTRUE(sub$ok))
+          "WhatsApp connected. Submit the templates for approval to start sending."
+        else
+          paste("WhatsApp connected, but subscribing to delivery updates failed.",
+                "Messages can still be sent; statuses will not come back."),
+        type = if (isTRUE(sub$ok)) "message" else "warning", duration = 10)
+    })
+
+    observeEvent(input$wa_disconnect, {
+      if (!require_perm(session, user()$role, "settings", "edit")) return()
+      meta_forget_credentials()
+      audit(user()$user_id, "wa-disconnect", "settings", "credentials removed")
+      showNotification(
+        paste("Disconnected. The stored token has been deleted from this machine.",
+              "Revoke it in Meta Business Manager as well if the connection is",
+              "not to be reused."),
+        type = "message", duration = 10)
     })
 
     observeEvent(input$toggle, {

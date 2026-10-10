@@ -32,3 +32,8 @@ HANDBOOK_cache/
 cloudflared/*.json
 cloudflared/config.yml
 .env
+
+# Credentials obtained through Meta Embedded Signup. Written outside the repo
+# by default; this guards the case where someone points it inside.
+wa_credentials.json
+.tms/
