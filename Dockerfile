@@ -57,8 +57,15 @@ COPY . /srv/tms
 # The committed CSVs double as the seed snapshot; see docker/entrypoint.sh.
 RUN cp -a /srv/tms/data /srv/tms/data-seed
 
-# Run unprivileged. The app writes only to data/, so that is the only path
-# the runtime user needs to own.
+# Mount point for runtime credentials, created here so the named volume
+# inherits this ownership when Docker first initialises it. A volume mounted
+# over a path that does not exist in the image is created root-owned, and the
+# app runs unprivileged — which would mean Embedded Signup failing at the
+# exact moment it tried to save the token it had just obtained.
+RUN mkdir -p /srv/tms/.secrets
+
+# Run unprivileged. The app writes to data/ and to .secrets/, and those are
+# the only paths the runtime user needs to own.
 RUN useradd --create-home --shell /bin/bash tms \
     && chown -R tms:tms /srv/tms
 USER tms

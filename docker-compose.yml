@@ -30,10 +30,34 @@ services:
       TMS_GITHUB_PAT: ${TMS_GITHUB_PAT:-}
       TMS_GITHUB_BRANCH: ${TMS_GITHUB_BRANCH:-minimal-setup}
 
+      # WhatsApp Business (Meta Cloud API). The app id and signup config id
+      # are public — they are embedded in client-side JavaScript by design.
+      # The app secret is not, and like the GitHub PAT it is read from .env,
+      # which is gitignored.
+      TMS_META_APP_ID: ${TMS_META_APP_ID:-}
+      TMS_META_APP_SECRET: ${TMS_META_APP_SECRET:-}
+      TMS_META_CONFIG_ID: ${TMS_META_CONFIG_ID:-}
+
+      # Set directly only when connecting by hand instead of through the
+      # Facebook dialog; Embedded Signup writes them to the secrets volume.
+      TMS_WA_PHONE_NUMBER_ID: ${TMS_WA_PHONE_NUMBER_ID:-}
+      TMS_WA_BUSINESS_ACCOUNT_ID: ${TMS_WA_BUSINESS_ACCOUNT_ID:-}
+      TMS_WA_ACCESS_TOKEN: ${TMS_WA_ACCESS_TOKEN:-}
+
+      # The token obtained through Embedded Signup lands here. A volume, not
+      # the image: a rebuild must not silently disconnect WhatsApp and send
+      # someone back through the Facebook dialog. Separate from tms-data so a
+      # data reset cannot take the credentials with it.
+      TMS_WA_CREDENTIALS: /srv/tms/.secrets/wa_credentials.json
+
     volumes:
       # Everything the app persists is a CSV under data/. A named volume keeps
       # bookings, PODs and approvals across restarts and image rebuilds.
       - tms-data:/srv/tms/data
+      # Credentials obtained at runtime. Kept apart from the data volume so
+      # that resetting the dataset does not revoke the WhatsApp connection,
+      # and so a backup of one is not accidentally a backup of the other.
+      - tms-secrets:/srv/tms/.secrets
 
     # Bound to loopback on purpose. The public route is the tunnel; this
     # mapping exists so you can reach the app at http://localhost:3838 while
@@ -76,3 +100,5 @@ services:
 volumes:
   tms-data:
     name: tms-data
+  tms-secrets:
+    name: tms-secrets
