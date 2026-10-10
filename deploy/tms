@@ -54,7 +54,13 @@ case "${1:-status}" in
   stop)    docker compose stop && echo "• containers stopped — 'tms start' brings them back" ;;
   halt)    docker compose stop; colima stop && echo "• containers and Colima stopped — 'tms start' brings both back" ;;
   down)    docker compose down && echo "• containers REMOVED (data volume kept) — 'tms start' recreates them" ;;
-  restart) up; docker compose restart && echo "• restarted" ;;
+  # `compose restart` restarts a container with the environment it was
+  # CREATED with — .env is read at creation, not at restart. So editing .env
+  # and running `tms restart` silently changed nothing, which is precisely
+  # what someone would run after editing .env. `up -d --force-recreate`
+  # always restarts and always re-reads the environment. It costs the app's
+  # startup time; being quietly ignored costs far more.
+  restart) up; docker compose up -d --force-recreate && echo "• restarted (environment re-read)" ;;
   rebuild) up; docker compose up -d --build && echo "• rebuilt from source and restarted" ;;
   logs)    docker compose logs -f --tail=100 "${2:-app}" ;;
   url)     echo "$URL" ;;
