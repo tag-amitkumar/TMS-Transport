@@ -31,8 +31,8 @@ settings_server <- function(id, user) {
 
     output$tabs <- renderUI({
       tab_strip(ns, "tab",
-                setNames(c("Company", "Notifications", "Integrations", "Data retention"),
-                         c("Company", "Notifications", "Integrations", "Data retention")),
+                setNames(c("Company", "Notifications", "WhatsApp", "Integrations", "Data retention"),
+                         c("Company", "Notifications", "WhatsApp", "Integrations", "Data retention")),
                 selected = tab())
     })
     observeEvent(input$tab, tab(input$tab))
@@ -45,6 +45,7 @@ settings_server <- function(id, user) {
     output$body <- renderUI({
       switch(tab(),
         "Notifications"  = notif_panel(),
+        "WhatsApp"       = whatsapp_panel(),
         "Integrations"   = integ_panel(),
         "Data retention" = retain_panel(),
         company_panel())
@@ -141,6 +142,113 @@ settings_server <- function(id, user) {
                              columnDefs = list(list(className = "dt-center", targets = 1:4))))))))
     }
 
+    # ---------------- WhatsApp ----------------
+    #
+    # Read-only on purpose. Credentials come from the environment and are never
+    # rendered: a token on a screen is a token in a screenshot, in a support
+    # ticket, and eventually in a chat thread. This says whether each piece is
+    # present, not what it is.
+    #
+    # The four things that must all be true before a single message can go out
+    # are shown as four rows rather than one status, because "not working" is
+    # not actionable and "no template has been approved yet" is.
+    whatsapp_panel <- function() {
+      cfg  <- meta_config()
+      tpl  <- store_get("message_templates")
+      opt  <- store_get("wa_optin")
+      ob   <- store_get("notification_outbox")
+      appr <- sum(tpl$status == "Approved")
+      live <- sum(opt$state == "opted_in")
+
+      step <- function(label, done, detail) {
+        div(class = "d-flex align-items-start gap-2 py-2",
+            style = "border-bottom:1px solid var(--border-sub);",
+            div(pill(if (done) "ready" else "missing", if (done) "green" else "orange")),
+            div(div(style = "font-weight:600;font-size:.8125rem;", label),
+                div(class = "tiny muted", detail)))
+      }
+
+      div(class = "row g-3",
+        div(class = "col-xl-7", card_panel(
+          title = "WhatsApp Business",
+          sub = "What must be true before a customer can be messaged",
+          div(
+            step("Business verified with Meta",
+                 nzchar(cfg$waba_id),
+                 if (nzchar(cfg$waba_id)) paste("WABA", cfg$waba_id)
+                 else "No WhatsApp Business Account id. Set TMS_WA_BUSINESS_ACCOUNT_ID."),
+            step("Sender number registered",
+                 nzchar(cfg$phone_number_id),
+                 if (nzchar(cfg$phone_number_id)) paste("Phone number id", cfg$phone_number_id)
+                 else "No sender. Set TMS_WA_PHONE_NUMBER_ID — it must be a number not in use on the normal WhatsApp or Business app."),
+            step("Access token held",
+                 nzchar(cfg$token),
+                 if (nzchar(cfg$token)) "A token is set. Its value is never shown here."
+                 else "No token. Set TMS_WA_ACCESS_TOKEN from a system user with whatsapp_business_messaging."),
+            step("Templates approved by Meta",
+                 appr > 0,
+                 sprintf("%d of %d approved. Business-initiated messages can only use an approved template.",
+                         appr, nrow(tpl))),
+            div(class = "mt-3",
+              callout(
+                if (meta_configured() && appr > 0) "Ready to send"
+                else "Not sending",
+                if (meta_configured() && appr > 0)
+                  paste("Stage updates will be queued and delivered to customers who have",
+                        "consented.")
+                else
+                  paste("Nothing is sent while any row above is missing. Stage updates are",
+                        "still recorded in the outbox with the reason, so nothing is lost —",
+                        "they can be flushed once this is complete."),
+                if (meta_configured() && appr > 0) "ok" else "warn")),
+            div(class = "tiny muted mt-2",
+                "Customers do not sign in to receive updates. They need only the mobile ",
+                "number on the consignment note and a recorded consent.")
+          ))),
+
+        div(class = "col-xl-5",
+          card_panel(
+            title = "Consent",
+            sub = "Opt-in is required before any message",
+            div(class = "d-flex align-items-baseline gap-2",
+                div(style = "font-size:1.6rem;font-weight:700;", live),
+                div(class = "tiny muted", "numbers opted in")),
+            div(class = "tiny muted mt-2",
+                paste("Meta requires consent obtained outside WhatsApp. Messages to people",
+                      "who did not ask get reported, and a reported number loses quality",
+                      "rating and eventually throughput — one complaint degrades delivery",
+                      "for every customer."))),
+
+          div(class = "mt-3", card_panel(
+            title = "Outbox",
+            sub = "Every attempt, and why it did or did not go",
+            if (!nrow(ob)) div(class = "tiny muted", "Nothing queued yet.")
+            else div(
+              lapply(c("sent", "queued", "blocked", "failed"), function(st) {
+                n <- sum(ob$state == st)
+                if (!n) return(NULL)
+                div(class = "d-flex justify-content-between py-1",
+                    div(class = "tiny", st),
+                    div(style = "font-weight:600;font-size:.8125rem;", n))
+              }))))),
+
+        div(class = "col-12", card_panel(
+          title = "Message templates",
+          sub = "One per stage. The text is what Meta approved, not what we type.",
+          body_class = "tms-card-body p-0",
+          div(class = "tms-table",
+            tms_table(
+              tibble::tibble(
+                STAGE    = tpl$stage,
+                `META NAME` = mono(tpl$meta_name),
+                CATEGORY = tpl$category,
+                LANG     = tpl$language,
+                STATUS   = pill_html(tpl$status,
+                                     if (nrow(tpl)) ifelse(tpl$status == "Approved", "green", "orange") else NULL),
+                PREVIEW  = substr(gsub("\n", " ", tpl$body), 1, 90)
+              ), page = 10)))))
+    }
+
     # ---------------- Integrations ----------------
 
     integ_panel <- function() {
@@ -151,7 +259,15 @@ settings_server <- function(id, user) {
           div(
             lapply(seq_len(nrow(ig)), function(i) {
               r <- ig[i, ]
-              connected <- identical(r$status, "Connected")
+              # WhatsApp reports what is actually true, not what somebody
+              # ticked. The toggle on this row is a bookkeeping flag for
+              # connectors the app cannot verify; for this one the app CAN
+              # verify, and a row claiming "Connected" while meta_configured()
+              # is FALSE would be a lie told by our own settings screen —
+              # exactly where someone would go to check.
+              verified <- grepl("whatsapp", tolower(r$name))
+              connected <- if (verified) meta_configured()
+                           else identical(r$status, "Connected")
               div(class = "d-flex align-items-center gap-3 py-3",
                   style = if (i < nrow(ig)) "border-bottom:1px solid #EEF2F7;" else "",
                   div(class = "stat-ico", fontawesome::fa("plug")),
@@ -159,13 +275,20 @@ settings_server <- function(id, user) {
                       div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$name),
                       div(class = "tiny muted", r$provider)),
                   div(class = "ms-auto d-flex align-items-center gap-2",
-                      pill(r$status, if (connected) "green" else "grey"),
-                      if (can(user()$role, "settings", "edit"))
+                      pill(if (verified) (if (connected) "Connected" else "Not configured")
+                           else r$status,
+                           if (connected) "green" else "grey"),
+                      if (can(user()$role, "settings", "edit") && !verified)
                         actionButton(ns(paste0("tog_", i)),
                                      if (connected) "Disconnect" else "Configure",
                                      class = "btn-tms-ghost btn-tms-sm",
                                      onclick = sprintf("Shiny.setInputValue('%s','%s',{priority:'event'})",
-                                                       ns("toggle"), r$name))))
+                                                       ns("toggle"), r$name)),
+                      if (verified)
+                        actionButton(ns(paste0("see_", i)), "View setup",
+                                     class = "btn-tms-ghost btn-tms-sm",
+                                     onclick = sprintf("Shiny.setInputValue('%s','WhatsApp',{priority:'event'})",
+                                                       ns("tab")))))
             })))),
 
         div(class = "col-xl-5",
