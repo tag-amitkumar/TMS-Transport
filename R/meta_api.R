@@ -145,7 +145,8 @@ meta_send <- function(payload, cfg = meta_config()) {
          id = if (okay && !is.null(body$messages)) body$messages$id[1] else "",
          body = body, payload = payload,
          message = if (okay) "Accepted by Meta"
-                   else paste("Meta rejected the message:", txt))
+                   else paste("Meta rejected the message:",
+                              body$error$error_user_msg %||% body$error$message %||% txt))
   }, error = function(e) {
     list(ok = FALSE, configured = TRUE, status = NA, id = "", body = NULL,
          payload = payload,

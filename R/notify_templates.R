@@ -54,9 +54,15 @@ seed_message_templates <- function() {
 
     "TPL-001", "booking_confirmed", "tms_booking_confirmed", "UTILITY", "en", "Draft",
     "1=consignee name|2=consignment no|3=origin|4=destination|5=expected delivery date",
-    paste0("Hello {{1}}, your consignment {{2}} has been booked with MoveWing Logistics.\n\n",
-           "From: {{3}}\nTo: {{4}}\nExpected delivery: {{5}}\n\n",
-           "Track it any time with your consignment number and delivery PIN code."),
+    # Rejected by Meta first time round as INCORRECT_CATEGORY. The offending
+    # line was "Track it any time with your consignment number and delivery
+    # PIN code" — an invitation to engage, which reads as marketing however
+    # useful it is. A utility template states what happened to a transaction
+    # the customer is already party to and stops there. The company name went
+    # with it: the sender is already identified, and repeating it is brand
+    # presence, not information.
+    paste0("Hello {{1}}, consignment {{2}} has been booked.\n\n",
+           "From: {{3}}\nTo: {{4}}\nExpected delivery: {{5}}"),
 
     "TPL-002", "vehicle_allocated", "tms_vehicle_allocated", "UTILITY", "en", "Draft",
     "1=consignee name|2=consignment no|3=vehicle number|4=driver name|5=driver mobile",

@@ -150,3 +150,120 @@ meta_connection_summary <- function() {
     signup_offered = meta_signup_available()
   )
 }
+
+# ------------------------------------------------------------------
+# Template submission
+# ------------------------------------------------------------------
+
+#' Submit one template to Meta for review.
+#'
+#' Meta requires an example for every variable: the reviewer reads the message
+#' as a customer would, and a body full of {{1}} is rejected for being
+#' unreviewable. The examples come from the template's own `vars` map, so the
+#' thing a reviewer sees matches what the field actually carries.
+#'
+#' Returns the created id and status. A name already in the account comes back
+#' as an error and is reported, not retried under another name — duplicate
+#' near-identical templates are themselves a rejection reason.
+meta_submit_template <- function(stage, cfg = meta_config()) {
+  tpl <- template_for(stage)
+  if (is.null(tpl)) return(list(ok = FALSE, message = paste("No template for", stage)))
+  if (!meta_configured()) return(list(ok = FALSE, message = "WhatsApp is not connected."))
+
+  # One plausible example per {{n}}, taken from what the variable means.
+  n_vars <- length(gregexpr("\\{\\{[0-9]+\\}\\}", tpl$body)[[1]])
+  n_vars <- if (n_vars == 1 && attr(gregexpr("\\{\\{[0-9]+\\}\\}", tpl$body)[[1]], "match.length")[1] == -1) 0 else n_vars
+  labels <- strsplit(tpl$vars, "|", fixed = TRUE)[[1]]
+  example <- vapply(seq_len(max(n_vars, 0)), function(i) {
+    lbl <- tolower(sub("^[0-9]+=", "", labels[i] %||% ""))
+    if (grepl("name", lbl))        "Ravi Kumar"
+    else if (grepl("consignment", lbl)) "CN-00042"
+    else if (grepl("vehicle", lbl))     "MH-31 GH 6612"
+    else if (grepl("mobile", lbl))      "9876543210"
+    else if (grepl("date", lbl))        "14 Oct 2026"
+    else if (grepl("origin", lbl))      "Nagpur"
+    else if (grepl("destination|dest", lbl)) "Kochi"
+    else if (grepl("package", lbl))     "12"
+    else if (grepl("reason", lbl))      "Vehicle breakdown en route"
+    else if (grepl("branch phone|phone", lbl)) "0712 2345678"
+    else if (grepl("received", lbl))    "Store supervisor"
+    else "Sample"
+  }, character(1))
+
+  body <- list(
+    name = tpl$meta_name,
+    language = tpl$language,
+    category = tpl$category,
+    components = list(c(
+      list(type = "BODY", text = tpl$body),
+      if (length(example)) list(example = list(body_text = list(example))) else NULL
+    ))
+  )
+
+  url <- sprintf("https://graph.facebook.com/%s/%s/message_templates",
+                 cfg$api_version, cfg$waba_id)
+  tryCatch({
+    resp <- httr::POST(url,
+      httr::add_headers(Authorization = paste("Bearer", cfg$token),
+                        "Content-Type" = "application/json"),
+      body = jsonlite::toJSON(body, auto_unbox = TRUE, null = "null"),
+      encode = "raw", httr::timeout(30))
+    out <- jsonlite::fromJSON(httr::content(resp, as = "text", encoding = "UTF-8"))
+    if (httr::status_code(resp) >= 400) {
+      # error_user_msg is the one a human can act on; error.message is the
+      # generic. "Invalid parameter" says nothing, while "English content is
+      # being deleted, try again in under a minute" says exactly what to do.
+      e <- out$error
+      return(list(ok = FALSE,
+                  message = e$error_user_msg %||% e$message %||% "rejected",
+                  subcode = e$error_subcode %||% NA))
+    }
+    list(ok = TRUE, id = out$id, status = out$status %||% "PENDING",
+         message = paste("submitted as", out$status %||% "PENDING"))
+  }, error = function(e) list(ok = FALSE, message = conditionMessage(e)))
+}
+
+#' Pull template approval status back from Meta.
+#'
+#' Approval happens at Meta, on Meta's timetable, and nothing tells this app
+#' when it lands. Without a sync the local status stays Pending for ever and
+#' notify_stage() goes on refusing to send a template that was approved hours
+#' ago — the most frustrating possible failure, because everything looks
+#' correct from both ends.
+#'
+#' Returns what changed, so the operator sees it rather than having to compare.
+meta_sync_templates <- function(cfg = meta_config()) {
+  if (!meta_configured()) return(list(ok = FALSE, message = "WhatsApp is not connected."))
+  url <- sprintf("https://graph.facebook.com/%s/%s/message_templates?limit=100&fields=name,status,rejected_reason",
+                 cfg$api_version, cfg$waba_id)
+  res <- tryCatch({
+    r <- httr::GET(url, httr::add_headers(Authorization = paste("Bearer", cfg$token)),
+                   httr::timeout(30))
+    jsonlite::fromJSON(httr::content(r, as = "text", encoding = "UTF-8"))
+  }, error = function(e) NULL)
+  if (is.null(res) || is.null(res$data))
+    return(list(ok = FALSE, message = "Could not read templates from Meta."))
+
+  remote <- res$data
+  local  <- store_get("message_templates")
+  changed <- character()
+  for (i in seq_len(nrow(local))) {
+    hit <- remote[remote$name == local$meta_name[i], , drop = FALSE]
+    if (!nrow(hit)) next
+    # Meta's vocabulary is upper case; ours is title case, because it is read
+    # on a settings screen rather than in a payload.
+    new <- switch(toupper(hit$status[1]),
+                  "APPROVED" = "Approved", "PENDING" = "Pending",
+                  "REJECTED" = "Rejected", "PAUSED" = "Paused",
+                  "DISABLED" = "Disabled", hit$status[1])
+    if (!identical(new, local$status[i])) {
+      store_update("message_templates", list(meta_name = local$meta_name[i]),
+                   list(status = new))
+      changed <- c(changed, sprintf("%s: %s -> %s", local$meta_name[i],
+                                    local$status[i], new))
+    }
+  }
+  list(ok = TRUE, changed = changed,
+       message = if (length(changed)) paste(length(changed), "template(s) updated")
+                 else "No change")
+}
