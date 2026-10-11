@@ -399,7 +399,12 @@ bookings_server <- function(id, user, nav) {
                              "This booking has no vehicle assigned. Allocate it from Cargo Moto.",
                              "warn"))),
         div(class = "d-flex gap-2 mt-3",
-            btn_dark(ns("print_note"), "Print consignment note (3 copies)",
+            # Counted from LR_COPIES rather than written out. It said three
+            # long after CR-24 made it four, because a hardcoded count has no
+            # reason to change when the thing it counts does.
+            btn_dark(ns("print_note"),
+                     sprintf("Print consignment note (%d copies)",
+                             sum(lengths(LR_COPIES))),
                      fontawesome::fa("print")))
       ))
     })

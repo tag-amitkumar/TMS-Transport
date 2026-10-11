@@ -516,7 +516,7 @@ lr_slip <- function(copy, d) {
 #' The full A4 sheet: three slips, cut lines between.
 #' Four copies across two A4 sheets (CR-24).
 #'
-#' Was three copies on one sheet — consignor, consignee, driver. The change
+#' Was three copies on one sheet — consignor, consignee, driver. That change
 #' adds an office copy and a POD copy, and the POD copy is the reason the
 #' driver copy is not simply renamed: the sheet that comes back signed is
 #' filed as proof of delivery, and it cannot be the same piece of paper the

@@ -1166,6 +1166,11 @@ local({
                 paste(readLines("R/ui_helpers.R", warn = FALSE), collapse = "\n"))))
   ok("four copies are printed across two sheets (CR-24)",
      length(LR_COPIES) == 2 && all(lengths(LR_COPIES) == 2))
+  # The button label once said three while the print emitted four. Anything
+  # that states the count must derive it, not repeat it.
+  ok("no screen states a copy count that contradicts LR_COPIES",
+     !any(grepl("\\(3 copies\\)|three copies to an A4",
+                paste(readLines("R/mod_bookings.R", warn = FALSE), collapse = "\n"))))
   ok("the consignor copy comes first (CR-25)", LR_COPIES[[1]][1] == "Consignor Copy")
 })
 

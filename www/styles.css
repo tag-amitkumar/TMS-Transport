@@ -638,7 +638,9 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 }
 
 /* ==================================================================
-   Printable consignment note — three copies to an A4 sheet.
+   Printable consignment note — four copies across two A4 sheets (CR-24).
+   Two to a sheet: consignor and office on the first, POD and consignee on
+   the second.
 
    The same markup serves the on-screen preview and the printed page. On
    screen it is scaled down inside a modal; on paper the @media print block
