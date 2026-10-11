@@ -10,11 +10,43 @@
 
 suppressPackageStartupMessages({
   source("global.R"); source("R/store.R"); source("R/geo.R"); source("R/ewb.R"); source("R/rbac.R")
+  source("R/serviceability.R"); source("R/ewb_api.R")
+  source("R/meta_api.R"); source("R/meta_signup.R"); source("R/notify_templates.R"); source("R/notify.R")
   source("R/seed.R"); source("R/seed_minimal.R")
   source("R/theme.R"); source("R/ui_helpers.R"); source("R/nav.R")
   source("R/github_sync.R")
   for (f in list.files("R", pattern = "^mod_.*\\.R$", full.names = TRUE)) source(f)
 })
+
+# ------------------------------------------------------------------
+# Leave data/ exactly as it was found.
+#
+# This suite exercises the real store, so every store_set() it makes writes
+# through to data/*.csv — the files that are committed and baked into the
+# image. That bit once: a test run left two fabricated WhatsApp consent
+# records in the seed, they were committed, and the next deploy installed
+# them into the live volume. A seeded opt-in is the one row that table must
+# never hold.
+#
+# Restoring on exit is cheaper than remembering to, and it covers the failure
+# path too — a suite that dies half way through used to leave the seed in
+# whatever state it had reached.
+# ------------------------------------------------------------------
+.seed_backup <- file.path(tempdir(), "smoke-seed-backup")
+if (dir.exists("data")) {
+  unlink(.seed_backup, recursive = TRUE)
+  dir.create(.seed_backup, recursive = TRUE, showWarnings = FALSE)
+  file.copy(list.files("data", full.names = TRUE), .seed_backup,
+            recursive = TRUE, copy.date = TRUE)
+}
+reg.finally <- function() {
+  if (!dir.exists(.seed_backup)) return(invisible(NULL))
+  file.copy(list.files(.seed_backup, full.names = TRUE), "data",
+            overwrite = TRUE, recursive = TRUE, copy.date = TRUE)
+  unlink(.seed_backup, recursive = TRUE)
+  invisible(NULL)
+}
+reg.finalizer(environment(), function(e) reg.finally(), onexit = TRUE)
 
 pass <- 0; fail <- 0
 ok <- function(label, cond) {
@@ -755,6 +787,394 @@ local({
   ok(".Renviron is gitignored",
      any(grepl("^\\.Renviron\\s*$", readLines(".gitignore", warn = FALSE))))
 })
+
+cat("\n== Serviceability — which branch, and is it ODA (CR-09/11/12/20) ==\n")
+local({
+  m <- seed_cr_masters(store_get("branches"))
+  for (n in names(m)) store_set(n, m[[n]])
+  br <- store_get("branches")
+
+  own <- resolve_delivery(br$pincode[1])
+  ok("a branch's own PIN code is delivered by that branch",
+     identical(own$branch_id, br$branch_id[1]))
+  ok("a branch's own PIN code is Normal, not ODA",
+     identical(own$delivery_type, "Normal"))
+
+  # An unlisted PIN code falls through to the distance rule. Somewhere far
+  # from every branch must come back ODA whatever the branch list says.
+  far <- resolve_delivery("682001")   # Kochi
+  ok("a distant unlisted PIN code is ODA", identical(far$delivery_type, "ODA"))
+  ok("ODA by distance says how far it was", grepl("km", far$basis))
+
+  ok("an unknown PIN code is Unserviceable, not ODA",
+     identical(resolve_delivery("999999")$delivery_type, "Unserviceable"))
+  ok("a blank PIN code is Unserviceable",
+     identical(resolve_delivery("")$delivery_type, "Unserviceable"))
+
+  # An explicit listing beats the distance rule — that is the whole point of
+  # the list, and it is how an exception gets recorded.
+  store_insert("branch_pincodes", list(branch_id = br$branch_id[1],
+                                       pincode = "682001", delivery_type = "Normal"))
+  ok("an explicit listing overrides the distance rule",
+     identical(resolve_delivery("682001")$delivery_type, "Normal"))
+})
+
+cat("\n== Freight breakup (CR-07/08) ==\n")
+local({
+  br <- store_get("branches")
+  b  <- freight_breakup(1000, br$pincode[1], br$branch_id[1], "LTL", "Normal")
+  ok("freight is rate x weight", b$base == round(1000 * b$rate))
+  ok("a normal delivery carries no ODA surcharge", b$oda == 0)
+  ok("every line is named", all(nzchar(vapply(b$lines, `[[`, character(1), "label"))))
+  ok("no zero-value line is printed",
+     all(vapply(b$lines, function(l) l$amount > 0, logical(1))))
+
+  o <- freight_breakup(1000, br$pincode[1], br$branch_id[1], "LTL", "ODA")
+  ok("an ODA delivery costs more than the same load to a normal one",
+     o$freight > b$freight)
+  ok("the ODA difference is exactly the surcharge",
+     o$freight - b$freight == oda_charge())
+
+  tiny <- freight_breakup(1, br$pincode[1], br$branch_id[1], "LTL", "Normal")
+  ok("a tiny parcel bills at the minimum", tiny$freight == freight_minimum())
+  ok("the minimum shows as a top-up line, not a silently raised rate",
+     tiny$minimum_topup > 0)
+  ok("zero weight quotes nothing rather than the minimum",
+     freight_breakup(0, br$pincode[1], br$branch_id[1], "LTL", "Normal")$freight == 0)
+})
+
+cat("\n== Masters survive a CSV round-trip ==\n")
+local({
+  # The bug this guards against: an empty CSV field reads back as NA, not "".
+  # `x == "682001"` is then NA, and subsetting a data frame by NA returns a row
+  # of NAs rather than no rows — so a lookup "matches" a row that does not
+  # exist and returns NA where a rate was expected. Setting the tables from
+  # tibbles in a test never reproduces it; only a write-then-read does.
+  store_set("freight_rates", tibble::tibble(
+    pincode     = c("", "", ""),
+    branch_id   = c("", "BR-001", "BR-001"),
+    dispatch    = c("", "LTL", "FTL"),
+    rate_per_kg = c("12", "14", "9")))
+  store_refresh("freight_rates")          # force the next read off disk
+  fr <- store_get("freight_rates")
+  ok("blank CSV fields read back as NA, not empty string",
+     any(is.na(fr$pincode)))
+
+  r <- freight_rate("682001", "BR-001", "LTL")
+  ok("an unmatched PIN code falls through to the branch rate, not NA",
+     is.finite(r$rate) && r$rate == 14)
+  ok("the fallback says which rule applied", nzchar(r$basis))
+
+  b <- freight_breakup(2000, "682001", "BR-001", "LTL", "ODA")
+  ok("freight is a real number after a round-trip", is.finite(b$freight))
+  ok("no charge line is NA",
+     all(vapply(b$lines, function(l) is.finite(l$amount), logical(1))))
+
+  # Same trap, other masters.
+  ok("product exemption survives a round-trip",
+     isTRUE(product_exempt("Books & printed")))
+  ok("an unlisted product is not exempt", isFALSE(product_exempt("Nonesuch")))
+
+  # An unrated destination must quote zero, not NA, so validate_form can
+  # refuse it with a message instead of the summary blanking out.
+  store_set("freight_rates", tibble::tibble(
+    pincode = character(), branch_id = character(),
+    dispatch = character(), rate_per_kg = character()))
+  z <- freight_breakup(1000, "682001", "BR-999", "LTL", "Normal")
+  ok("an empty rate card quotes zero rather than NA",
+     is.finite(z$freight) && z$freight == 0)
+})
+
+cat("\n== E-way bill threshold (CR-16/17/19) ==\n")
+local({
+  ok("intrastate below 1 lakh does not need one",
+     !ewb_required(99999, "Maharashtra", "Maharashtra", "General goods")$required)
+  ok("intrastate at 1 lakh does",
+     ewb_required(100000, "Maharashtra", "Maharashtra", "General goods")$required)
+  ok("interstate below 50k does not",
+     !ewb_required(49999, "Maharashtra", "Delhi", "General goods")$required)
+  ok("interstate at 50k does",
+     ewb_required(50000, "Maharashtra", "Delhi", "General goods")$required)
+
+  # CR-19: the test is on the sum, which is what stops a load being split
+  # across invoices to duck the limit.
+  store_set("booking_invoices", tibble::tibble(
+    booking_no = rep("BKG-TEST", 3), invoice_no = c("A", "B", "C"),
+    invoice_value = c("20000", "20000", "20000"), ewb_no = c("", "", "")))
+  tot <- booking_invoice_total("BKG-TEST")
+  ok("invoice values sum across the booking", tot == 60000)
+  ok("three invoices under the limit still require one together",
+     ewb_required(tot, "Maharashtra", "Delhi", "General goods")$required)
+
+  ok("an exempt product never needs one, however valuable",
+     !ewb_required(5000000, "Maharashtra", "Delhi", "Books & printed")$required)
+  ok("a non-exempt product of the same value does",
+     ewb_required(5000000, "Maharashtra", "Delhi", "Electronics")$required)
+
+  # An unresolved destination must take the stricter limit. The other way
+  # round lets an interstate load leave with no bill.
+  ok("an unknown destination state uses the stricter interstate limit",
+     ewb_required(60000, "Maharashtra", "", "General goods")$required)
+})
+
+cat("\n== E-way bill payload (CR-21/22) ==\n")
+local({
+  ok("no provider is configured yet", !ewb_api_configured())
+
+  ok("state code comes from the GSTIN prefix when there is one",
+     identical(ewb_state_code("27AAACA1234F1Z1", ""), "27"))
+  ok("state code falls back to the name", identical(ewb_state_code("", "Delhi"), "07"))
+  ok("an unknown state yields blank, not a wrong code",
+     identical(ewb_state_code("", "Atlantis"), ""))
+
+  bk <- store_get("bookings")
+  bn <- bk$booking_no[1]
+  store_set("booking_invoices", tibble::tibble(
+    booking_no = bn, invoice_no = "INV-T1", invoice_value = "120000", ewb_no = ""))
+  p <- ewb_part_a_payload(bn)
+  ok("Part-A builds for a real booking", !is.null(p))
+  ok("Part-A declares the invoice total", p$totInvValue == 120000)
+  ok("Part-A is road transport", identical(p$transMode, "1"))
+  ok("Part-A serialises to valid JSON",
+     !is.null(jsonlite::fromJSON(jsonlite::toJSON(p, auto_unbox = TRUE, null = "null"))))
+
+  # act*StateCode is the physical movement; *StateCode is the registration.
+  # Deriving the physical one from a GSTIN files cross-state deliveries against
+  # the wrong state.
+  b1 <- bk[bk$booking_no == bn, ]
+  ok("the physical destination code follows the address, not the GSTIN",
+     identical(p$actToStateCode, ewb_state_code("", b1$dest_state[1])))
+
+  r <- ewb_api_generate_part_a(bn)
+  ok("an unconfigured provider fails softly rather than erroring", isFALSE(r$ok))
+  ok("it says why", grepl("no e-way bill provider is configured", r$message))
+  ok("it still shows what would have been sent", !is.null(r$payload))
+
+  ok("a booking with no invoices sends nothing",
+     isFALSE(ewb_api_generate_part_a("BKG-DOES-NOT-EXIST")$ok))
+})
+
+cat("\n== Consolidated e-way bill (CR-21) ==\n")
+local({
+  tr <- get_trips(); cn <- get_consignments(); eb <- get_ewaybills()
+  # A trip whose consignments actually carry bills is the only case that can
+  # consolidate; anything else must say so rather than build a bill of nothing.
+  with_bills <- tr$trip_no[vapply(tr$trip_no, function(t) {
+    cs <- cn$cn_no[cn$trip_no == t]
+    any(eb$cn_no %in% cs & nzchar(eb$ewb_no))
+  }, logical(1))]
+
+  if (length(with_bills)) {
+    p <- ewb_consolidated_payload(with_bills[1])
+    ok("a trip carrying bills builds a consolidated payload", !is.null(p))
+    ok("it lists at least one bill", length(p$tripSheetEwbBills) >= 1)
+    ok("it is road transport", identical(p$transMode, "1"))
+    ok("it carries the vehicle", nzchar(p$vehicleNo))
+    ok("it serialises",
+       !is.null(jsonlite::fromJSON(jsonlite::toJSON(p, auto_unbox = TRUE, null = "null"))))
+  } else {
+    ok("(no seeded trip carries an e-way bill — consolidation not exercised)", TRUE)
+  }
+
+  ok("a trip that does not exist consolidates nothing",
+     is.null(ewb_consolidated_payload("TRP-NOPE")))
+  r <- ewb_api_generate_consolidated("TRP-NOPE")
+  ok("and says so rather than erroring", isFALSE(r$ok) && nzchar(r$message))
+})
+
+cat("\n== One rule for mobiles, one rule for e-way bills ==\n")
+local({
+  ok("a plain 10-digit mobile is valid", valid_mobile("9876543210"))
+  ok("+91 and spacing are accepted", valid_mobile("+91 98765 43210"))
+  ok("punctuation is stripped for storage",
+     identical(clean_mobile("+91-98765 43210"), "9876543210"))
+  ok("a landline-style number is refused", !valid_mobile("1234567890"))
+  ok("nine digits is refused", !valid_mobile("987654321"))
+  ok("blank is refused", !valid_mobile(""))
+
+  # The offline booking path must reach the same verdict as the online one for
+  # the same load. It used to skip the test entirely, which made the rule
+  # avoidable by choosing that screen.
+  a <- ewb_required(60000, "Maharashtra", "Delhi", "General goods")
+  ok("the same load gives the same verdict whichever screen books it",
+     isTRUE(a$required))
+  ok("and the reason is stated either way", nzchar(a$reason))
+
+  src <- paste(readLines("R/mod_bookings.R", warn = FALSE), collapse = "\n")
+  ok("the offline form collects invoices", grepl("mi_add", src))
+  ok("the offline form runs the e-way bill test", grepl("m_ewb\\(\\)", src))
+  ok("the offline form asks for a dispatch type", grepl("m_dispatch", src))
+  ok("the offline form asks for a product type", grepl("m_product", src))
+  ok("the offline form resolves serviceability", grepl("resolve_delivery\\(input\\$m_to_pin", src))
+  ok("no hand-rolled mobile regex remains outside global.R",
+     !grepl("6-9\\]\\[0-9\\]\\{9\\}", src))
+})
+
+cat("\n== Customer notifications ==\n")
+local({
+  store_set("message_templates", seed_message_templates())
+  blank <- function(...) tibble::tibble(...)
+  store_set("wa_optin", blank(msisdn=character(),state=character(),source=character(),
+                              client_id=character(),recorded_by=character(),recorded_dt=character()))
+  store_set("notification_outbox", blank(outbox_id=character(),stage=character(),cn_no=character(),
+    msisdn=character(),to_name=character(),template=character(),body=character(),state=character(),
+    detail=character(),queued_dt=character(),sent_dt=character(),message_id=character(),queued_by=character()))
+
+  t <- store_get("message_templates")
+  ok("every customer-facing stage has a template", all(NOTIFY_STAGES %in% t$stage))
+  ok("all templates are UTILITY, not MARKETING", all(t$category == "UTILITY"))
+  ok("none ships pre-approved", !any(t$status == "Approved"))
+  ok("every template declares its variables", all(nzchar(t$vars)))
+  ok("no template body is empty", all(nchar(t$body) > 40))
+  ok("every template body fits WhatsApp's 1024-char limit", all(nchar(t$body) <= 1024))
+
+  ok("a ten-digit number gets the country code", identical(wa_msisdn("9876543210"), "919876543210"))
+  ok("spacing and +91 are tolerated", identical(wa_msisdn("+91 98765 43210"), "919876543210"))
+  ok("a leading zero is dropped", identical(wa_msisdn("09876543210"), "919876543210"))
+  ok("rubbish yields nothing rather than a bad number", identical(wa_msisdn("abc"), ""))
+
+  v <- c("Ravi","CN-00009","Nagpur","Delhi","12 Oct 2026")
+  tpl <- t$body[t$stage == "booking_confirmed"][1]
+  filled <- template_fill(tpl, v)
+  ok("variables are substituted", grepl("CN-00009", filled, fixed = TRUE))
+  ok("no placeholder survives a full fill", !grepl("\\{\\{[0-9]+\\}\\}", filled))
+  ok("values survive the body round-trip",
+     identical(notify_vars_from_body(tpl, filled)[2], "CN-00009"))
+
+  # The gate. Consent is the one that must never be bypassed.
+  notify_stage("booking_confirmed", "CN-00009", "9812345678", "Ravi", v)
+  ob <- store_get("notification_outbox")
+  ok("nothing is queued to a number that has not consented", ob$state[1] == "blocked")
+  ok("and the reason names consent", grepl("consent", ob$detail[1], ignore.case = TRUE))
+
+  wa_set_optin("9812345678", "opted_in", source = "test")
+  ok("consent is recorded", wa_opted_in("9812345678"))
+  notify_stage("booking_confirmed", "CN-00009", "9812345678", "Ravi", v)
+  ob <- store_get("notification_outbox")
+  ok("an unapproved template still blocks", ob$state[2] == "blocked")
+  ok("and says the template is not approved",
+     grepl("not approved", ob$detail[2], fixed = TRUE))
+
+  wa_set_optin("9812345678", "opted_out", source = "STOP")
+  ok("opt-out overrides earlier consent", !wa_opted_in("9812345678"))
+  notify_stage("delivered", "CN-00009", "9812345678", "Ravi", v)
+  ob <- store_get("notification_outbox")
+  ok("an opt-out is called out explicitly, not folded into 'no consent'",
+     grepl("opted OUT", ob$detail[3], fixed = TRUE))
+
+  ok("no sender is configured yet", !meta_configured())
+  p <- meta_template_payload("9812345678", "tms_delivered", "en", c("Ravi", "CN-00009"))
+  ok("the payload is a template send", identical(p$type, "template"))
+  ok("it addresses an E.164 number", identical(p$to, "919812345678"))
+  ok("it serialises",
+     !is.null(jsonlite::fromJSON(jsonlite::toJSON(p, auto_unbox = TRUE, null = "null"))))
+  r <- meta_send(p)
+  ok("sending without a sender fails softly", isFALSE(r$ok))
+  ok("and says what is missing", grepl("TMS_WA_", r$message))
+
+  ok("nothing was ever actually sent", !any(store_get("notification_outbox")$state == "sent"))
+
+  # Put the tables back. This suite writes through the real store, so whatever
+  # it leaves behind is what gets committed and baked into the image — and on
+  # the first run of these tests that is exactly what happened: two fabricated
+  # consent records shipped in the seed. A seeded opt-in is the one thing this
+  # table must never contain, since its whole purpose is to evidence that a
+  # real person agreed.
+  store_set("wa_optin", blank(msisdn=character(),state=character(),source=character(),
+                              client_id=character(),recorded_by=character(),recorded_dt=character()))
+  store_set("notification_outbox", blank(outbox_id=character(),stage=character(),cn_no=character(),
+    msisdn=character(),to_name=character(),template=character(),body=character(),state=character(),
+    detail=character(),queued_dt=character(),sent_dt=character(),message_id=character(),queued_by=character()))
+})
+
+cat("\n== Meta Embedded Signup ==\n")
+local({
+  ok("signup is not offered without an app secret", !meta_signup_available())
+  ok("a code exchange is refused when the app is unconfigured",
+     isFALSE(meta_exchange_code("dummy-code")$ok))
+  ok("an empty code is refused outright", isFALSE(meta_exchange_code("")$ok))
+
+  # The token store must sit outside the repo, or it ends up in a commit.
+  pth <- path.expand(meta_cred_path())
+  ok("credentials default outside the project tree",
+     !grepl(normalizePath(".", mustWork = FALSE), pth, fixed = TRUE))
+
+  # Round-trip into a temporary location, so the test cannot touch a real one.
+  old <- Sys.getenv("TMS_WA_CREDENTIALS", NA_character_)
+  tmp <- file.path(tempdir(), "wa_test_credentials.json")
+  Sys.setenv(TMS_WA_CREDENTIALS = tmp)
+  meta_save_credentials("WABA-TEST", "PNID-TEST", "secret-token-value",
+                        display_number = "+91 90000 00000")
+  ok("credentials are written", file.exists(tmp))
+  ok("and are owner-only",
+     identical(substr(as.character(file.info(tmp)$mode), 1, 3), "600"))
+
+  cred <- meta_saved_credentials()
+  ok("they read back", identical(cred$waba_id, "WABA-TEST"))
+
+  # With no environment override, config falls through to the stored values.
+  ok("config picks up a stored connection",
+     identical(meta_config()$phone_number_id, "PNID-TEST"))
+  ok("a stored connection counts as configured", meta_configured())
+
+  # The environment must win, so a deliberately set variable is never
+  # silently overridden by an old stored connection.
+  Sys.setenv(TMS_WA_PHONE_NUMBER_ID = "PNID-FROM-ENV")
+  ok("the environment overrides the stored file",
+     identical(meta_config()$phone_number_id, "PNID-FROM-ENV"))
+  Sys.unsetenv("TMS_WA_PHONE_NUMBER_ID")
+
+  s <- meta_connection_summary()
+  ok("the summary reports the connection", isTRUE(s$connected))
+  ok("the summary never carries the token",
+     !any(grepl("secret-token-value", unlist(lapply(s, as.character)), fixed = TRUE)))
+
+  meta_forget_credentials()
+  ok("disconnect removes the file", !file.exists(tmp))
+  ok("and the app is unconfigured again", !meta_configured())
+
+  if (is.na(old)) Sys.unsetenv("TMS_WA_CREDENTIALS") else Sys.setenv(TMS_WA_CREDENTIALS = old)
+})
+
+cat("\n== The shipped seed carries no invented consent ==\n")
+local({
+  # Read the files, not the store: the store is whatever this suite has just
+  # done to it, and the question here is what is on disk to be committed.
+  for (f in c("wa_optin", "notification_outbox")) {
+    path <- file.path("data", paste0(f, ".csv"))
+    n <- if (file.exists(path)) max(0L, length(readLines(path, warn = FALSE)) - 1L) else 0L
+    ok(paste0("data/", f, ".csv ships empty"), n == 0L)
+  }
+  ok("no template ships marked Approved",
+     !any(readr::read_csv("data/message_templates.csv", show_col_types = FALSE)$status == "Approved"))
+})
+
+cat("\n== Change-request constants ==\n")
+local({
+  ok("LTL is the first dispatch option (CR-10)", DISPATCH_TYPES[1] == "LTL")
+  ok("FTL is the second", DISPATCH_TYPES[2] == "FTL")
+  ok("both dispatch types are labelled", all(nzchar(DISPATCH_LABEL[DISPATCH_TYPES])))
+  ok("the ODA radius is 15 km (CR-11)", ODA_RADIUS_KM == 15)
+  ok("operator roles exist for the TBB gate (CR-05/13)", length(OPERATOR_ROLES) > 0)
+  ok("Customer is not an operator", !("Customer" %in% OPERATOR_ROLES))
+  ok("Driver is not an operator", !("Driver" %in% OPERATOR_ROLES))
+  ok("the four new masters are registered tables",
+     all(c("branch_pincodes", "freight_rates", "booking_invoices",
+           "product_types") %in% TABLES))
+  ok("the consignment note is no longer called a lorry receipt (CR-23)",
+     !any(grepl("LORRY RECEIPT",
+                paste(readLines("R/ui_helpers.R", warn = FALSE), collapse = "\n"))))
+  ok("four copies are printed across two sheets (CR-24)",
+     length(LR_COPIES) == 2 && all(lengths(LR_COPIES) == 2))
+  # The button label once said three while the print emitted four. Anything
+  # that states the count must derive it, not repeat it.
+  ok("no screen states a copy count that contradicts LR_COPIES",
+     !any(grepl("\\(3 copies\\)|three copies to an A4",
+                paste(readLines("R/mod_bookings.R", warn = FALSE), collapse = "\n"))))
+  ok("the consignor copy comes first (CR-25)", LR_COPIES[[1]][1] == "Consignor Copy")
+})
+
+reg.finally()   # put data/ back before reporting
 
 cat(sprintf("\n%s  %d passed, %d failed\n\n",
             if (fail == 0) "PASS" else "FAIL", pass, fail))

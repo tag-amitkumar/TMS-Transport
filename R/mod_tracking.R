@@ -128,13 +128,13 @@ tracking_server <- function(id, user) {
         class = "row g-3",
         div(class = "col-xl-5", card_panel(
           div(class = "d-flex align-items-start justify-content-between gap-2 mb-3",
-              div(h6(class = "tms-card-title", paste(c$cn_no, "·", c$lr_no)),
+              div(h6(class = "tms-card-title", c$cn_no),
                   p(class = "tms-card-sub",
                     paste0(cl$name[match(c$client_id, cl$client_id)], " — ",
                            c$origin_city, " → ", c$dest_city))),
               pill(c$status)),
           dl_rows(
-            "LR No."        = c$lr_no,
+            "Consignment note" = c$cn_no,
             "Customer"      = cl$name[match(c$client_id, cl$client_id)],
             "Route"         = paste(c$origin_city, "→", c$dest_city),
             "Vehicle / Driver" = HTML(paste0(

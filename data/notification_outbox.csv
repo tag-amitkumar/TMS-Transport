@@ -1,0 +1,20 @@
+outbox_id,stage,cn_no,msisdn,to_name,template,body,state,detail,queued_dt,sent_dt,message_id,queued_by
+MSG-00001,booking_confirmed,CN-00009,919812345678,Ravi,tms_booking_confirmed,"Hello Ravi, your consignment CN-00009 has been booked with MoveWing Logistics.
+
+From: Nagpur
+To: Delhi
+Expected delivery: 12 Oct 2026
+
+Track it any time with your consignment number and delivery PIN code.",blocked,"No consent on file for this number; Template tms_booking_confirmed is draft, not approved by Meta; No WhatsApp sender configured",2026-10-08 19:33:29,,,system
+MSG-00002,booking_confirmed,CN-00009,919812345678,Ravi,tms_booking_confirmed,"Hello Ravi, your consignment CN-00009 has been booked with MoveWing Logistics.
+
+From: Nagpur
+To: Delhi
+Expected delivery: 12 Oct 2026
+
+Track it any time with your consignment number and delivery PIN code.",blocked,"Template tms_booking_confirmed is draft, not approved by Meta; No WhatsApp sender configured",2026-10-08 19:33:29,,,system
+MSG-00003,delivered,CN-00009,919812345678,Ravi,tms_delivered,"Hello Ravi, consignment CN-00009 was delivered on Nagpur.
+
+Received by: Delhi
+
+Thank you for shipping with MoveWing Logistics.",blocked,"Number has opted OUT — do not message it; Template tms_delivered is draft, not approved by Meta; No WhatsApp sender configured",2026-10-08 19:33:29,,,system

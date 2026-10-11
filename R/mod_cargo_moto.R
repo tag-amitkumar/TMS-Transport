@@ -154,7 +154,7 @@ cargo_moto_server <- function(id, user, nav) {
                   "Vehicle" = span(class = "mono", v$reg_no[match(t$vehicle_id[1], v$vehicle_id)]),
                   "Driver"  = dr$name[match(t$driver_id[1], dr$driver_id)],
                   "Dispatch"= fmt_dt(t$dispatch_dt[1]),
-                  "LR"      = if (nrow(c1)) c1$lr_no[1] else "—")
+                  "Consignment note" = if (nrow(c1)) c1$cn_no[1] else "—")
                 else callout("No vehicle allocated",
                              "Use Allocate Cargo to assign a vehicle and driver.", "warn"))),
         footer = tagList(
@@ -213,7 +213,7 @@ cargo_moto_server <- function(id, user, nav) {
             event_dt = format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
         }
         audit(user()$user_id, "dispatch", "cargo_moto", paste(no, "·", c1$lr_no))
-        showNotification(sprintf("%s dispatched · %s is on the road.", no, c1$lr_no),
+        showNotification(sprintf("%s dispatched · %s is on the road.", no, c1$cn_no),
                          type = "message", duration = 6)
 
       } else if (identical(to, "Delivered")) {
@@ -345,7 +345,7 @@ cargo_moto_server <- function(id, user, nav) {
                             setNames(avail_dr$driver_id, avail_dr$name)))),
         uiOutput(ns("a_check")),
         footer = tagList(modalButton("Cancel"),
-                         btn_primary(ns("a_save"), "Allocate & generate LR"))
+                         btn_primary(ns("a_save"), "Allocate & generate note"))
       ))
     }
 

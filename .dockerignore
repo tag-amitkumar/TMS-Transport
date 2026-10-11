@@ -1,0 +1,41 @@
+# Keep the build context small — it is sent to the daemon on every build.
+
+# 19 MB of history the runtime never reads
+.git
+.gitignore
+.claude
+
+# 13 MB rendered handbook + 9 MB of its screenshots: documentation, not runtime
+HANDBOOK.html
+HANDBOOK.Rmd
+HANDBOOK_files/
+HANDBOOK_cache/
+docs/
+
+# Screenshot tooling and its node_modules
+tools/
+
+# Docs
+README.md
+DESIGN-REVIEW.md
+DEPLOY.md
+LICENSE
+
+# Deployment scaffolding — the Dockerfile copies what it needs explicitly,
+# and cloudflared credentials must never end up in an image layer
+docker-compose.yml
+cloudflared/
+.env
+.env.example
+
+# R / editor / OS scratch
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.Renviron
+rsconnect/
+.DS_Store
+*.log
+www/uploads/

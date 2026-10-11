@@ -58,7 +58,7 @@ livegps_server <- function(id, user, nav) {
       g$route  <- paste(tr$route_from[match(g$trip_no, tr$trip_no)], "→",
                         tr$route_to[match(g$trip_no, tr$trip_no)])
       g$eta    <- tr$eta[match(g$trip_no, tr$trip_no)]
-      g$lr     <- cn$lr_no[match(g$trip_no, cn$trip_no)]
+      g$lr     <- cn$cn_no[match(g$trip_no, cn$trip_no)]
       g
     })
 
@@ -72,14 +72,23 @@ livegps_server <- function(id, user, nav) {
     })
     observeEvent(input$filt, filt(input$filt))
 
+    # The pill reports the age of the newest fix, not merely that rows exist.
+    # A handset stops reporting without raising anything the app can see, so a
+    # feed that is hours old is indistinguishable from a live one here unless
+    # the age is what decides the colour.
     output$feed <- renderUI({
       g <- pings()
       if (!nrow(g)) return(pill("No feed", "grey"))
-      age <- round(as.numeric(difftime(Sys.time(), max(g$ts, na.rm = TRUE), units = "secs")))
+      state <- gps_feed_state(g$ts)
+      spec <- switch(state,
+        live    = list("GPS feed · live",    "green"),
+        delayed = list("GPS feed · delayed", "orange"),
+        stale   = list("GPS feed · stale",   "red"),
+        list("No feed", "grey"))
       tagList(
-        pill("GPS feed · live", "green"),
+        pill(spec[[1]], spec[[2]]),
         span(class = "tiny muted ms-2",
-             sprintf("Last poll %s", if (age < 90) paste0(age, " s") else paste0(round(age / 60), " min")))
+             sprintf("Last fix %s ago", gps_feed_age(g$ts)))
       )
     })
 
@@ -108,7 +117,7 @@ livegps_server <- function(id, user, nav) {
           layerId = ~vehicle_id,
           label = ~sprintf("%s · %s km/h · %s", reg, speed, status),
           popup = ~sprintf(
-            "<b>%s</b><br/>%s · %s<br/>%s km/h · %s<br/>Route: %s<br/>LR: %s",
+            "<b>%s</b><br/>%s · %s<br/>%s km/h · %s<br/>Route: %s<br/>Note: %s",
             reg, model, body, speed, status, route, lr %||% "—")
         ) |>
         leaflet::addLegend("bottomleft", colors = unname(cols), labels = names(cols),
@@ -205,7 +214,7 @@ livegps_server <- function(id, user, nav) {
           "ETA"             = fmt_dt(r$eta),
           "Driver"          = r$driver %||% "—",
           "Idle time today" = fmt_idle(r$idle_min),
-          "Current LR"      = r$lr %||% "—"
+          "Current note"      = r$lr %||% "—"
         ),
         footer = tagList(modalButton("Close"),
                          btn_dark(ns("go_track"), "Track shipment"))

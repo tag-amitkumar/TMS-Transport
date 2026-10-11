@@ -1,8 +1,10 @@
 # ==================================================================
-# Consignments — the lorry receipt (LR) register, plus split/consolidation.
+# Consignments — the consignment note register, plus split/consolidation.
 #
 # Two identifiers per consignment, as the deck draws them: CN- is the internal
-# record id, LR- is the number printed on the physical lorry receipt the driver
+# record id, LR- is the legacy number still carried on each row — see CR-23 in
+# CHANGE-REQUESTS-2026-09-20.md for why it is kept in the data but no longer
+# printed or shown. The driver
 # carries and the consignee signs. They are kept separate because the LR series
 # is a statutory document series, while CN is free to be renumbered.
 # ==================================================================
@@ -70,8 +72,11 @@ consignments_server <- function(id, user, nav) {
     output$tbl <- renderDT({
       c <- rows(); v <- store_get("vehicles"); dr <- store_get("drivers")
       df <- tibble::tibble(
+        # The LR column that sat here is gone with the LR (CR-23), and it is
+        # not replaced by a CN column: the first cell already carries the
+        # consignment number. Two columns showing the same number is how a
+        # rename usually leaves a table.
         `CONSIGNMENT / BOOKING` = mapply(cell2, c$cn_no, paste("Ref", c$booking_no)),
-        `LR NO.` = mono(c$lr_no),
         `VEHICLE / DRIVER` = mapply(function(rg, dn) paste0(
           '<div class="mono" style="font-weight:600;">', htmlEscape(rg),
           '</div><div style="font-size:.6875rem;color:#64748B;">', htmlEscape(dn), "</div>"),
@@ -91,17 +96,17 @@ consignments_server <- function(id, user, nav) {
       rows()[i[1], ]
     })
 
-    # ---------------- Lorry receipt preview ----------------
+    # ---------------- Consignment note preview ----------------
 
     output$lr_preview <- renderUI({
       c <- sel()
-      if (is.null(c)) return(card_panel(empty_panel("Select a consignment to preview its LR")))
+      if (is.null(c)) return(card_panel(empty_panel("Select a consignment to preview its consignment note")))
       v <- store_get("vehicles"); dr <- store_get("drivers"); br <- store_get("branches")
       d <- dr[dr$driver_id == c$driver_id, ]
 
       card_panel(
-        title = paste("Lorry Receipt Preview ·", c$lr_no),
-        sub = paste("Consignment", c$cn_no, "· from", c$booking_no),
+        title = paste("Consignment Note ·", c$cn_no),
+        sub = paste("From booking", c$booking_no),
         actions = pill(c$status),
 
         div(
@@ -111,8 +116,8 @@ consignments_server <- function(id, user, nav) {
               # in front of a customer. 34px is where the wordmark inside the
               # artwork stays readable.
               brand_logo(34),
-              span(class = "small-caps", style = "letter-spacing:.1em;", "Lorry Receipt"),
-              span(class = "ms-auto mono", style = "font-weight:650;", c$lr_no)),
+              span(class = "small-caps", style = "letter-spacing:.1em;", "Consignment Note"),
+              span(class = "ms-auto mono", style = "font-weight:650;", c$cn_no)),
           dl_rows(
             "Origin Branch"      = paste0(c$origin_city, " — ",
                                           br$address[match(c$branch_id, br$branch_id)]),
@@ -126,7 +131,7 @@ consignments_server <- function(id, user, nav) {
           )
         ),
         div(class = "d-flex gap-2 mt-3",
-            btn_ghost(ns("print_lr"), "Print LR", class = "flex-fill"),
+            btn_ghost(ns("print_lr"), "Print note", class = "flex-fill"),
             btn_dark(ns("link_ewb"), "Link E-Way Bill", class = "flex-fill"))
       )
     })
@@ -176,8 +181,16 @@ consignments_server <- function(id, user, nav) {
         office    = setting("registered_office", ""),
         lr_no     = c$lr_no, cn_no = c$cn_no,
         date      = fmt_date(c$dispatch_date),
-        consignor = if (nrow(cr)) cr$name[1] else "—",
-        consignee = c$dest_city,
+        # Consignor and consignee are captured on the booking now (CR-01,
+        # CR-02, CR-25). Older consignments predate those columns, so the
+        # customer record and the destination city remain the fallback.
+        consignor = if (nrow(b) && nzchar(b$consignor_name[1] %||% ""))
+                      b$consignor_name[1]
+                    else if (nrow(cr)) cr$name[1] else "—",
+        consignor_mobile = if (nrow(b)) (b$consignor_mobile[1] %||% "") else "",
+        consignee = if (nrow(b) && nzchar(b$consignee_name[1] %||% ""))
+                      b$consignee_name[1] else c$dest_city,
+        consignee_mobile = if (nrow(b)) (b$consignee_mobile[1] %||% "") else "",
         from_addr = c$origin_addr, to_addr = c$dest_addr,
         from = c$origin_city, to = c$dest_city,
         vehicle = v$reg_no[match(c$vehicle_id, v$vehicle_id)] %||% "—",
@@ -199,11 +212,11 @@ consignments_server <- function(id, user, nav) {
               else if (nrow(b)) inr(b$gst_amount[1]) else "—",
         insurance = if (nrow(b)) inr(b$insurance_amt[1]) else inr(0),
         total = if (nrow(b)) inr(b$total[1]) else inr(c$freight),
-        manual_note = if (nrow(b) && identical(b$entry_mode[1] %||% "", "Manual"))
-          paste0("Entered manually from paper reference ", b$manual_ref[1],
+        manual_note = if (nrow(b) && (b$entry_mode[1] %||% "") %in% c("Manual", "Offline"))
+          paste0("Booked offline from paper reference ", b$manual_ref[1],
                  " · load accepted ", fmt_dt(b$manual_dt[1])) else ""
-      ), title = paste("Lorry receipt —", c$lr_no))
-      audit(user()$user_id, "print", "consignments", c$lr_no)
+      ), title = paste("Consignment note —", c$cn_no))
+      audit(user()$user_id, "print", "consignments", c$cn_no)
     })
     observeEvent(input$link_ewb, nav("ewaybill"))
     observeEvent(input$from_booking, nav("cargo_moto"))
@@ -245,7 +258,7 @@ consignments_server <- function(id, user, nav) {
           title = "Split Shipment · One Booking → Multiple Consignments",
           sub = "Single pickup, several delivery points",
           callout("No active splits",
-                  "Use New Split / Consolidation to break a booking into child consignments. Each child gets its own LR and e-way bill but shares the parent booking reference for billing.",
+                  "Use New Split / Consolidation to break a booking into child consignments. Each child gets its own consignment note and e-way bill but shares the parent booking reference for billing.",
                   "info")
         ))
       }
@@ -265,15 +278,15 @@ consignments_server <- function(id, user, nav) {
         div(class = "form-section", paste0("Child Consignments (", nrow(k), ")")),
         div(class = "tms-table",
             DT::datatable(
-              tibble::tibble(CONSIGNMENT = k$cn_no, `LR NO.` = k$lr_no,
+              tibble::tibble(CONSIGNMENT = k$cn_no, `BOOKING` = k$booking_no,
                              `DELIVERY ADDRESS` = k$dest_addr,
                              WEIGHT = fmt_wt(k$weight_t),
                              STATUS = pill_html(k$status)),
               rownames = FALSE, selection = "none", escape = FALSE,
               options = list(dom = "t", pageLength = 8))),
         div(class = "mt-3",
-            callout("One booking, several LRs",
-                    "Each child consignment gets its own LR and e-way bill but shares the parent booking reference for billing.",
+            callout("One booking, several consignment notes",
+                    "Each child consignment gets its own note and e-way bill but shares the parent booking reference for billing.",
                     "info"))
       )
     })
@@ -320,10 +333,10 @@ consignments_server <- function(id, user, nav) {
           "Dispatch" = fmt_dt(t$dispatch_dt)
         ),
         tags$hr(class = "soft"),
-        div(class = "form-section", paste0("Consolidated Bookings (", nrow(l), " LRs)")),
+        div(class = "form-section", paste0("Consolidated Bookings (", nrow(l), " notes)")),
         div(class = "tms-table",
             DT::datatable(
-              tibble::tibble(`LR NO.` = l$lr_no,
+              tibble::tibble(`CN NO.` = l$cn_no,
                              CUSTOMER = cl$name[match(l$client_id, cl$client_id)],
                              DROP = l$dest_city,
                              WEIGHT = fmt_wt(l$weight_t)),
@@ -359,7 +372,7 @@ consignments_server <- function(id, user, nav) {
                                                 " · ", fmt_wt(base$weight_t)))),
         numericInput(ns("sp_n"), "Number of delivery points", 2, 2, 6, 1),
         callout("How the split works",
-                "The parent load is divided evenly across the chosen number of drop points. Each child gets its own CN and LR, and keeps the parent booking reference for billing.",
+                "The parent load is divided evenly across the chosen number of drop points. Each child gets its own consignment note, and keeps the parent booking reference for billing.",
                 "info"),
         footer = tagList(modalButton("Cancel"), btn_primary(ns("sp_save"), "Create split"))
       ))
@@ -410,7 +423,7 @@ consignments_server <- function(id, user, nav) {
                 agg$cap <- v$capacity_t[match(agg$vehicle_id, v$vehicle_id)]
                 agg$reg <- v$reg_no[match(agg$vehicle_id, v$vehicle_id)]
                 agg <- agg[order(-agg$lrs), ][seq_len(min(15, nrow(agg))), ]
-                tibble::tibble(TRIP = agg$trip_no, VEHICLE = agg$reg, LRS = agg$lrs,
+                tibble::tibble(TRIP = agg$trip_no, VEHICLE = agg$reg, NOTES = agg$lrs,
                                USED = fmt_wt(agg$used), CAPACITY = fmt_wt(agg$cap),
                                `UTILISATION` = paste0(round(agg$used / agg$cap * 100), "%"))
               }),

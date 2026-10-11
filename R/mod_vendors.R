@@ -155,10 +155,14 @@ vendors_server <- function(id, user) {
       if (!nzchar(input$n_name %||% "")) {
         showNotification("Vendor name is required.", type = "error"); return()
       }
+      if (!valid_mobile(input$n_mobile)) {
+        showNotification("A valid 10-digit mobile number is required.",
+                         type = "error"); return()
+      }
       id_new <- next_id(store_get("vendors")$vendor_id, "VND-")
       store_insert("vendors", list(
         vendor_id = id_new, name = input$n_name, owner_name = input$n_owner,
-        mobile = input$n_mobile, gstin = input$n_gstin, pan = input$n_pan,
+        mobile = clean_mobile(input$n_mobile), gstin = input$n_gstin, pan = input$n_pan,
         city = "", branch_id = input$n_branch, payment_terms = input$n_terms,
         bank_name = input$n_bank, account_no = input$n_acct, ifsc = input$n_ifsc,
         since = as.character(Sys.Date()), status = "Active"

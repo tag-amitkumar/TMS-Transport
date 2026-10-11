@@ -1,0 +1,3 @@
+msisdn,state,source,client_id,recorded_by,recorded_dt
+919812345678,opted_in,test,,system,2026-10-08 19:33:29
+919812345678,opted_out,STOP,,system,2026-10-08 19:33:29

@@ -638,7 +638,9 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 }
 
 /* ==================================================================
-   Printable consignment note — three copies to an A4 sheet.
+   Printable consignment note — four copies across two A4 sheets (CR-24).
+   Two to a sheet: consignor and office on the first, POD and consignee on
+   the second.
 
    The same markup serves the on-screen preview and the printed page. On
    screen it is scaled down inside a modal; on paper the @media print block
@@ -796,6 +798,10 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 
   .lr-sheet  { width: 100%; }
   .lr-slip   { page-break-inside: avoid; }
+  /* Four copies now print across two sheets (CR-24). Each sheet after the
+     first starts a new page; without this the second pair flows onto the
+     bottom of the first and both get cut in half by the page edge. */
+  .lr-sheet + .lr-sheet { page-break-before: always; }
 }
 
 /* Small static tables inside modals.
@@ -1194,3 +1200,56 @@ hr.soft { border-color: var(--border-sub); margin: .9rem 0; opacity: 1; }
 @media (min-width: 1200px) {
   .form-aside { position: sticky; top: 1rem; }
 }
+
+/* Booking aside — denser than a normal card stack.
+   Everything here is read at a glance and confirmed, not filled in: a payment
+   select, a list of charges and two buttons. It was set at the same rhythm as
+   the form beside it, which bought whitespace nobody was using and pushed
+   Confirm below the fold on a 900px screen. Tightened only inside this
+   aside, so cards everywhere else keep the roomier default. */
+.form-aside-tight .tms-card { margin-bottom: .6rem; }
+.form-aside-tight .tms-card-body { padding: .7rem .85rem; }
+.form-aside-tight .tms-card-head { padding: .6rem .85rem .4rem; }
+.form-aside-tight .tms-card-title { font-size: .9rem; }
+.form-aside-tight .tms-card-sub { font-size: .66rem; line-height: 1.35; }
+
+/* The charge list is the densest thing on the page and the most read.
+   dl_rows() renders a .dl grid of dt/dd pairs, so the row rhythm is the
+   grid's gap rather than per-row padding. */
+/* The figure gets its natural width and the label yields, not the other way
+   round. The base .dl pins dt to nowrap, which in a 250px aside let a long
+   charge label ("Freight - 10000 kg @ Rs12/kg") push a lakh-scale figure off
+   the edge of the panel. The number is the thing being read; it is never the
+   part that should be clipped. */
+.form-aside-tight .dl {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .26rem .6rem;
+  font-size: .78rem;
+}
+.form-aside-tight .dl dt {
+  font-size: .72rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.form-aside-tight .dl dd { white-space: nowrap; }
+.form-aside-tight .dl dd .tiny { white-space: normal; }
+.form-aside-tight hr.soft { margin: .45rem 0; }
+.form-aside-tight .callout { padding: .5rem .6rem; font-size: .72rem; }
+.form-aside-tight .tiny { font-size: .66rem; }
+
+/* Confirm and Save sit on one line and stay reachable. */
+.form-aside-tight .btn { padding-top: .42rem; padding-bottom: .42rem; }
+
+/* A wrapped value stays readable: right-aligned, tight leading, and its
+   caption sits under the figure rather than trailing off the end of it. */
+.form-aside-tight .dl dd { line-height: 1.3; }
+.form-aside-tight .dl dd .tiny { line-height: 1.25; margin-top: .05rem; }
+
+/* The booking form's own rhythm, on this page only.
+   Four sections of stacked label-over-input rows add up faster than they
+   look; trimming the label gap and the row gutter buys back most of a
+   section's worth of height without crowding any single field. */
+.booking-form .form-label { margin-bottom: .2rem; }
+.booking-form .tms-card-body > .row.g-3 { --bs-gutter-y: .45rem; }
+.booking-form .form-group-sep { margin: .5rem 0 .45rem; padding-top: .5rem; }
+.booking-form .form-section { margin-bottom: .3rem; }

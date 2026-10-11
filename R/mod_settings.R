@@ -31,8 +31,8 @@ settings_server <- function(id, user) {
 
     output$tabs <- renderUI({
       tab_strip(ns, "tab",
-                setNames(c("Company", "Notifications", "Integrations", "Data retention"),
-                         c("Company", "Notifications", "Integrations", "Data retention")),
+                setNames(c("Company", "Notifications", "WhatsApp", "Integrations", "Data retention"),
+                         c("Company", "Notifications", "WhatsApp", "Integrations", "Data retention")),
                 selected = tab())
     })
     observeEvent(input$tab, tab(input$tab))
@@ -45,6 +45,7 @@ settings_server <- function(id, user) {
     output$body <- renderUI({
       switch(tab(),
         "Notifications"  = notif_panel(),
+        "WhatsApp"       = whatsapp_panel(),
         "Integrations"   = integ_panel(),
         "Data retention" = retain_panel(),
         company_panel())
@@ -141,6 +142,202 @@ settings_server <- function(id, user) {
                              columnDefs = list(list(className = "dt-center", targets = 1:4))))))))
     }
 
+    # ---------------- WhatsApp ----------------
+    #
+    # Read-only on purpose. Credentials come from the environment and are never
+    # rendered: a token on a screen is a token in a screenshot, in a support
+    # ticket, and eventually in a chat thread. This says whether each piece is
+    # present, not what it is.
+    #
+    # The four things that must all be true before a single message can go out
+    # are shown as four rows rather than one status, because "not working" is
+    # not actionable and "no template has been approved yet" is.
+    whatsapp_panel <- function() {
+      cfg  <- meta_config()
+      tpl  <- store_get("message_templates")
+      opt  <- store_get("wa_optin")
+      ob   <- store_get("notification_outbox")
+      appr <- sum(tpl$status == "Approved")
+      live <- sum(opt$state == "opted_in")
+
+      step <- function(label, done, detail) {
+        div(class = "d-flex align-items-start gap-2 py-2",
+            style = "border-bottom:1px solid var(--border-sub);",
+            div(pill(if (done) "ready" else "missing", if (done) "green" else "orange")),
+            div(div(style = "font-weight:600;font-size:.8125rem;", label),
+                div(class = "tiny muted", detail)))
+      }
+
+      conn <- meta_connection_summary()
+      app  <- meta_app_config()
+
+      div(class = "row g-3",
+        # ---- Connect with Facebook ----
+        div(class = "col-12", card_panel(
+          title = "Connect your WhatsApp Business Account",
+          sub = "Sign in with Facebook and pick the account to send from",
+          div(
+            if (conn$connected) tagList(
+              callout("Connected",
+                      HTML(paste0(
+                        "Sending as <b>", htmlEscape(conn$display_number %||% "—"), "</b>",
+                        if (nzchar(conn$business_name)) paste0(" for ", htmlEscape(conn$business_name)) else "",
+                        "<br/><span class='tiny muted'>WABA ", htmlEscape(conn$waba_id),
+                        " · connected via ", htmlEscape(conn$via),
+                        if (nzchar(conn$connected_dt)) paste0(" on ", htmlEscape(conn$connected_dt)) else "",
+                        "</span>")),
+                      "ok"),
+              div(class = "mt-2",
+                  btn_ghost(ns("wa_disconnect"), "Disconnect",
+                            fontawesome::fa("link-slash")))
+            )
+            else if (!conn$signup_offered) tagList(
+              callout("Facebook sign-in not available on this deployment",
+                      HTML(paste0(
+                        "Embedded Signup needs a Meta app of type Business with the ",
+                        "WhatsApp product. Set <code>TMS_META_APP_ID</code>, ",
+                        "<code>TMS_META_APP_SECRET</code> and ",
+                        "<code>TMS_META_CONFIG_ID</code>, then restart.",
+                        "<br/><span class='tiny muted'>The app secret is needed because the ",
+                        "authorisation code is exchanged for a token on the server — a secret ",
+                        "that reaches a browser is not a secret.</span>")),
+                      "warn"),
+              div(class = "tiny muted mt-2",
+                  "The ids can also be set directly as environment variables if you would ",
+                  "rather copy them out of Business Manager by hand.")
+            )
+            else tagList(
+              # Meta's own dialog. The operator signs in to Facebook and picks
+              # or creates the WABA; we never see their password, only the
+              # authorisation code the dialog hands back.
+              tags$script(src = "https://connect.facebook.net/en_US/sdk.js", async = NA, defer = NA),
+              tags$script(HTML(sprintf("
+window.fbAsyncInit = function() {
+  FB.init({ appId: '%s', autoLogAday: false, xfbml: false, version: '%s' });
+};
+// Meta posts the provisioned ids back through the opener rather than in the
+// login response, so both halves are collected before anything is sent on.
+window.__wa_ids = {};
+window.addEventListener('message', function (e) {
+  var h = '';
+  try { h = new URL(e.origin).hostname; } catch (err) { return; }
+  // Only Meta's own dialog may hand us ids. Suffix-checked with the leading
+  // dot so that a lookalike domain such as evilfacebook.com cannot match.
+  if (h !== 'facebook.com' && h.lastIndexOf('.facebook.com') !== h.length - 13) return;
+  try {
+    var d = JSON.parse(e.data);
+    if (d.type === 'WA_EMBEDDED_SIGNUP' && d.event === 'FINISH') {
+      window.__wa_ids = { waba_id: d.data.waba_id, phone_number_id: d.data.phone_number_id };
+    }
+  } catch (err) { /* not ours */ }
+});
+window.__waConnect = function () {
+  FB.login(function (r) {
+    var code = r && r.authResponse && r.authResponse.code;
+    Shiny.setInputValue('%s', {
+      code: code || '',
+      waba_id: window.__wa_ids.waba_id || '',
+      phone_number_id: window.__wa_ids.phone_number_id || ''
+    }, { priority: 'event' });
+  }, {
+    config_id: '%s',
+    response_type: 'code',
+    override_default_response_type: true,
+    extras: { setup: {}, featureType: '', sessionInfoVersion: '3' }
+  });
+};", app$app_id, app$api_version, ns("wa_signup"), app$config_id))),
+              tags$button(class = "btn btn-tms-primary", onclick = "window.__waConnect()",
+                          tagList(fontawesome::fa("facebook"), " Connect with Facebook")),
+              div(class = "tiny muted mt-2",
+                  paste("Opens Meta's own dialog. You choose the WhatsApp Business Account",
+                        "and the sender number; this app receives only an authorisation",
+                        "code, which it exchanges for a token on the server."))
+            ),
+            div(class = "tiny muted mt-3",
+                "This connects ", tags$b("your"), " business account. Customers never sign in ",
+                "— they are messaged on the number from the consignment note, with consent recorded.")
+          ))),
+
+        div(class = "col-xl-7", card_panel(
+          title = "WhatsApp Business",
+          sub = "What must be true before a customer can be messaged",
+          div(
+            step("Business verified with Meta",
+                 nzchar(cfg$waba_id),
+                 if (nzchar(cfg$waba_id)) paste("WABA", cfg$waba_id)
+                 else "No WhatsApp Business Account id. Set TMS_WA_BUSINESS_ACCOUNT_ID."),
+            step("Sender number registered",
+                 nzchar(cfg$phone_number_id),
+                 if (nzchar(cfg$phone_number_id)) paste("Phone number id", cfg$phone_number_id)
+                 else "No sender. Set TMS_WA_PHONE_NUMBER_ID — it must be a number not in use on the normal WhatsApp or Business app."),
+            step("Access token held",
+                 nzchar(cfg$token),
+                 if (nzchar(cfg$token)) "A token is set. Its value is never shown here."
+                 else "No token. Set TMS_WA_ACCESS_TOKEN from a system user with whatsapp_business_messaging."),
+            step("Templates approved by Meta",
+                 appr > 0,
+                 sprintf("%d of %d approved. Business-initiated messages can only use an approved template.",
+                         appr, nrow(tpl))),
+            div(class = "mt-3",
+              callout(
+                if (meta_configured() && appr > 0) "Ready to send"
+                else "Not sending",
+                if (meta_configured() && appr > 0)
+                  paste("Stage updates will be queued and delivered to customers who have",
+                        "consented.")
+                else
+                  paste("Nothing is sent while any row above is missing. Stage updates are",
+                        "still recorded in the outbox with the reason, so nothing is lost —",
+                        "they can be flushed once this is complete."),
+                if (meta_configured() && appr > 0) "ok" else "warn")),
+            div(class = "tiny muted mt-2",
+                "Customers do not sign in to receive updates. They need only the mobile ",
+                "number on the consignment note and a recorded consent.")
+          ))),
+
+        div(class = "col-xl-5",
+          card_panel(
+            title = "Consent",
+            sub = "Opt-in is required before any message",
+            div(class = "d-flex align-items-baseline gap-2",
+                div(style = "font-size:1.6rem;font-weight:700;", live),
+                div(class = "tiny muted", "numbers opted in")),
+            div(class = "tiny muted mt-2",
+                paste("Meta requires consent obtained outside WhatsApp. Messages to people",
+                      "who did not ask get reported, and a reported number loses quality",
+                      "rating and eventually throughput — one complaint degrades delivery",
+                      "for every customer."))),
+
+          div(class = "mt-3", card_panel(
+            title = "Outbox",
+            sub = "Every attempt, and why it did or did not go",
+            if (!nrow(ob)) div(class = "tiny muted", "Nothing queued yet.")
+            else div(
+              lapply(c("sent", "queued", "blocked", "failed"), function(st) {
+                n <- sum(ob$state == st)
+                if (!n) return(NULL)
+                div(class = "d-flex justify-content-between py-1",
+                    div(class = "tiny", st),
+                    div(style = "font-weight:600;font-size:.8125rem;", n))
+              }))))),
+
+        div(class = "col-12", card_panel(
+          title = "Message templates",
+          sub = "One per stage. The text is what Meta approved, not what we type.",
+          body_class = "tms-card-body p-0",
+          div(class = "tms-table",
+            tms_table(
+              tibble::tibble(
+                STAGE    = tpl$stage,
+                `META NAME` = mono(tpl$meta_name),
+                CATEGORY = tpl$category,
+                LANG     = tpl$language,
+                STATUS   = pill_html(tpl$status,
+                                     if (nrow(tpl)) ifelse(tpl$status == "Approved", "green", "orange") else NULL),
+                PREVIEW  = substr(gsub("\n", " ", tpl$body), 1, 90)
+              ), page = 10)))))
+    }
+
     # ---------------- Integrations ----------------
 
     integ_panel <- function() {
@@ -151,7 +348,15 @@ settings_server <- function(id, user) {
           div(
             lapply(seq_len(nrow(ig)), function(i) {
               r <- ig[i, ]
-              connected <- identical(r$status, "Connected")
+              # WhatsApp reports what is actually true, not what somebody
+              # ticked. The toggle on this row is a bookkeeping flag for
+              # connectors the app cannot verify; for this one the app CAN
+              # verify, and a row claiming "Connected" while meta_configured()
+              # is FALSE would be a lie told by our own settings screen —
+              # exactly where someone would go to check.
+              verified <- grepl("whatsapp", tolower(r$name))
+              connected <- if (verified) meta_configured()
+                           else identical(r$status, "Connected")
               div(class = "d-flex align-items-center gap-3 py-3",
                   style = if (i < nrow(ig)) "border-bottom:1px solid #EEF2F7;" else "",
                   div(class = "stat-ico", fontawesome::fa("plug")),
@@ -159,13 +364,20 @@ settings_server <- function(id, user) {
                       div(style = "font-weight:650;font-size:.8125rem;color:#12275C;", r$name),
                       div(class = "tiny muted", r$provider)),
                   div(class = "ms-auto d-flex align-items-center gap-2",
-                      pill(r$status, if (connected) "green" else "grey"),
-                      if (can(user()$role, "settings", "edit"))
+                      pill(if (verified) (if (connected) "Connected" else "Not configured")
+                           else r$status,
+                           if (connected) "green" else "grey"),
+                      if (can(user()$role, "settings", "edit") && !verified)
                         actionButton(ns(paste0("tog_", i)),
                                      if (connected) "Disconnect" else "Configure",
                                      class = "btn-tms-ghost btn-tms-sm",
                                      onclick = sprintf("Shiny.setInputValue('%s','%s',{priority:'event'})",
-                                                       ns("toggle"), r$name))))
+                                                       ns("toggle"), r$name)),
+                      if (verified)
+                        actionButton(ns(paste0("see_", i)), "View setup",
+                                     class = "btn-tms-ghost btn-tms-sm",
+                                     onclick = sprintf("Shiny.setInputValue('%s','WhatsApp',{priority:'event'})",
+                                                       ns("tab")))))
             })))),
 
         div(class = "col-xl-5",
@@ -247,6 +459,66 @@ settings_server <- function(id, user) {
       sync_tick(sync_tick() + 1L)
       audit(user()$user_id, "data-pull", "settings", "pulled data/ from GitHub")
       showNotification(gh_status()$msg, type = "message", duration = 6)
+    })
+
+    # ---------------- Embedded Signup ----------------
+    #
+    # The browser returns an authorisation code and the ids Meta provisioned.
+    # The code is exchanged for a token here, because the exchange needs the
+    # app secret.
+    observeEvent(input$wa_signup, {
+      if (!require_perm(session, user()$role, "settings", "edit")) return()
+      d <- input$wa_signup
+
+      if (!nzchar(d$code %||% "")) {
+        # The operator closed the dialog, or Meta declined. Not an error.
+        showNotification("Facebook sign-in was not completed.", type = "warning")
+        return()
+      }
+      if (!nzchar(d$waba_id %||% "") || !nzchar(d$phone_number_id %||% "")) {
+        showNotification(
+          paste("Facebook returned a sign-in but no WhatsApp account. Finish the",
+                "dialog through to choosing a sender number, then try again."),
+          type = "error", duration = 10)
+        return()
+      }
+
+      res <- meta_exchange_code(d$code)
+      if (!isTRUE(res$ok)) {
+        # Never echo the code or any part of the response — it is bearer-grade
+        # material even when the exchange fails.
+        showNotification(res$message, type = "error", duration = 12)
+        audit(user()$user_id, "wa-connect-failed", "settings", "code exchange refused")
+        return()
+      }
+
+      meta_save_credentials(
+        waba_id = d$waba_id, phone_number_id = d$phone_number_id,
+        token = res$token, display_number = d$display_number %||% "",
+        business_name = d$business_name %||% "")
+
+      sub <- meta_subscribe_waba(d$waba_id, res$token)
+      audit(user()$user_id, "wa-connect", "settings",
+            paste("WABA", d$waba_id, "number", d$phone_number_id))
+
+      showNotification(
+        if (isTRUE(sub$ok))
+          "WhatsApp connected. Submit the templates for approval to start sending."
+        else
+          paste("WhatsApp connected, but subscribing to delivery updates failed.",
+                "Messages can still be sent; statuses will not come back."),
+        type = if (isTRUE(sub$ok)) "message" else "warning", duration = 10)
+    })
+
+    observeEvent(input$wa_disconnect, {
+      if (!require_perm(session, user()$role, "settings", "edit")) return()
+      meta_forget_credentials()
+      audit(user()$user_id, "wa-disconnect", "settings", "credentials removed")
+      showNotification(
+        paste("Disconnected. The stored token has been deleted from this machine.",
+              "Revoke it in Meta Business Manager as well if the connection is",
+              "not to be reused."),
+        type = "message", duration = 10)
     })
 
     observeEvent(input$toggle, {

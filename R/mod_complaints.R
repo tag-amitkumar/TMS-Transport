@@ -100,7 +100,7 @@ complaints_server <- function(id, user) {
           kanban_card(
             ns, "card", r$complaint_id,
             title = paste(r$complaint_id, "·", nm),
-            meta = paste0(r$lr_no, " · ", r$subject),
+            meta = paste0(r$cn_no, " · ", r$subject),
             footer = tagList(
               pill(r$category, "grey"),
               if (lane %in% c("New", "Assigned")) pill(r$priority),
@@ -140,7 +140,7 @@ complaints_server <- function(id, user) {
         size = "l", easyClose = TRUE,
         div(class = "row g-3",
             div(class = "col-md-6", dl_rows(
-              "Consignment" = r$lr_no,
+              "Consignment" = r$cn_no,
               "Branch"      = b$name[match(r$branch_id, b$branch_id)],
               "Category"    = r$category,
               "Priority"    = pill(r$priority),
@@ -235,7 +235,7 @@ complaints_server <- function(id, user) {
             div(class = "col-12",
                 selectizeInput(ns("c_cn"), "Consignment",
                                choices = setNames(cn$cn_no,
-                                                  paste0(cn$lr_no, " · ",
+                                                  paste0(cn$cn_no, " · ",
                                                          cl$name[match(cn$client_id, cl$client_id)],
                                                          " · ", cn$origin_city, " → ", cn$dest_city)),
                                width = "100%")),

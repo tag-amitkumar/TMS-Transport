@@ -10,7 +10,13 @@
 source("global.R")
 source("R/store.R")
 source("R/geo.R")
+source("R/serviceability.R")
 source("R/ewb.R")
+source("R/ewb_api.R")
+source("R/meta_api.R")
+source("R/meta_signup.R")
+source("R/notify_templates.R")
+source("R/notify.R")
 source("R/rbac.R")
 source("R/seed.R")
 source("R/seed_minimal.R")
@@ -61,7 +67,9 @@ ui <- fluidPage(
     # The tab icon. Only emitted when the artwork is actually there — a link to
     # a missing favicon is a 404 on every page load.
     if (brand_has_logo()) tags$link(rel = "icon", type = "image/png", href = BRAND$logo),
-    tags$link(rel = "stylesheet", href = "styles.css"),
+    # Content-hashed so a CDN cannot serve the previous release's stylesheet
+    # against this release's markup — see asset_url() in global.R.
+    tags$link(rel = "stylesheet", href = asset_url("styles.css")),
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
     # Strip fluidPage's gutters — the shell manages its own spacing.
     tags$style(HTML(".container-fluid{padding:0;max-width:none;}"))

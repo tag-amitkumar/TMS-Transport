@@ -456,22 +456,29 @@ lr_slip <- function(copy, d) {
             div(div(class = "lr-co", d$company),
                 div(class = "lr-sub", d$office))),
         div(class = "lr-title",
-            div(class = "lr-doc", "LORRY RECEIPT"),
+            div(class = "lr-doc", "CONSIGNMENT NOTE"),
             div(class = "lr-copy", copy)),
+        # The consignment number is the document's identity now (CR-23). The
+        # LR number is still carried in the data, but a customer copy showing
+        # two different references for one shipment is exactly the confusion
+        # the change was asked for.
         div(class = "lr-nos",
-            div(tags$b(d$lr_no)),
-            div(class = "lr-sub", d$cn_no),
+            div(tags$b(d$cn_no)),
             div(class = "lr-sub", paste("Date", d$date)))),
 
     div(class = "lr-grid",
         div(class = "lr-cell",
             div(class = "lr-lbl", "Consignor"),
             div(class = "lr-val", d$consignor),
-            div(class = "lr-sm", d$from_addr)),
+            div(class = "lr-sm", d$from_addr),
+            if (nzchar(d$consignor_mobile %||% ""))
+              div(class = "lr-sm lr-mono", d$consignor_mobile)),
         div(class = "lr-cell",
             div(class = "lr-lbl", "Consignee"),
             div(class = "lr-val", d$consignee),
-            div(class = "lr-sm", d$to_addr))),
+            div(class = "lr-sm", d$to_addr),
+            if (nzchar(d$consignee_mobile %||% ""))
+              div(class = "lr-sm lr-mono", d$consignee_mobile))),
 
     div(class = "lr-grid4",
         div(class = "lr-cell", div(class = "lr-lbl", "From"),    div(class = "lr-val", d$from)),
@@ -507,17 +514,37 @@ lr_slip <- function(copy, d) {
 }
 
 #' The full A4 sheet: three slips, cut lines between.
+#' Four copies across two A4 sheets (CR-24).
+#'
+#' Was three copies on one sheet — consignor, consignee, driver. That change
+#' adds an office copy and a POD copy, and the POD copy is the reason the
+#' driver copy is not simply renamed: the sheet that comes back signed is
+#' filed as proof of delivery, and it cannot be the same piece of paper the
+#' consignee keeps.
+#'
+#' Two slips per sheet rather than four, because four to an A4 leaves each
+#' slip too short for the signature blocks at the foot, and a consignment note
+#' nobody can sign is not a consignment note.
+LR_COPIES <- list(
+  c("Consignor Copy", "Office Copy"),
+  c("POD Copy",       "Consignee Copy")
+)
+
 lr_print_sheet <- function(d) {
-  copies <- c("Consignor Copy", "Consignee Copy", "Driver Copy")
   div(
     id = "tms-print",
-    div(class = "lr-sheet",
+    lapply(seq_along(LR_COPIES), function(sheet) {
+      copies <- LR_COPIES[[sheet]]
+      div(
+        class = "lr-sheet",
         lapply(seq_along(copies), function(i) {
           tagList(
             lr_slip(copies[i], d),
             if (i < length(copies)) div(class = "lr-cut")
           )
-        }))
+        })
+      )
+    })
   )
 }
 
@@ -529,8 +556,8 @@ show_lr_print <- function(d, title = "Print consignment note") {
     # to paper.
     title = title, size = "xl", easyClose = TRUE,
     div(class = "tiny muted mb-2",
-        "Three copies on one A4 sheet — consignor, consignee and driver. ",
-        "Cut along the dashed lines."),
+        "Four copies across two A4 sheets — consignor and office on the first, ",
+        "POD and consignee on the second. Cut along the dashed lines."),
     lr_print_sheet(d),
     footer = tagList(
       modalButton("Close"),

@@ -8,6 +8,7 @@ branches_ui <- function(id) {
     page_head("Branch Master", textOutput(ns("sub"), inline = TRUE),
               actions = tagList(
                 btn_ghost(ns("filters"), "Filters", fontawesome::fa("filter")),
+                uiOutput(ns("pins_btn"), inline = TRUE),
                 uiOutput(ns("add_btn"), inline = TRUE)
               )),
     split_view(
@@ -125,6 +126,113 @@ branches_server <- function(id, user) {
       ))
     })
 
+    # ---------------- served pincodes (CR-14, CR-20) ----------------
+    #
+    # The list that decides who delivers a pincode and whether it is ODA.
+    # Editable by whoever can change the branch master, because it is part of
+    # the branch master: a branch is defined as much by its beat as by its
+    # address.
+    output$pins_btn <- renderUI({
+      if (!can(user()$role, "branches", "update")) return(NULL)
+      btn_ghost(ns("pins"), "Served PIN codes", fontawesome::fa("map-location-dot"))
+    })
+
+    observeEvent(input$pins, {
+      if (!require_perm(session, user()$role, "branches", "update")) return()
+      br <- rows()
+      showModal(modalDialog(
+        title = "Served PIN codes", size = "l", easyClose = TRUE,
+        p(class = "tiny muted",
+          paste("A PIN code listed here is delivered by that branch, as Normal or",
+                "as ODA. A PIN code listed nowhere falls back to distance —",
+                "inside", ODA_RADIUS_KM, "km of the nearest branch counts as",
+                "Normal, beyond it as ODA. Listing one always wins over the",
+                "distance rule, so this is where an exception goes.")),
+        div(class = "row g-2 align-items-end mt-1",
+            div(class = "col-md-4",
+                selectInput(ns("p_branch"), "Branch",
+                            choices = setNames(br$branch_id, br$name), width = "100%")),
+            div(class = "col-md-3",
+                textInput(ns("p_pin"), "PIN code", placeholder = "440001", width = "100%")),
+            div(class = "col-md-3",
+                selectInput(ns("p_type"), "Delivers as",
+                            choices = DELIVERY_TYPES, width = "100%")),
+            div(class = "col-md-2",
+                btn_primary(ns("p_add"), "Add", fontawesome::fa("plus")))),
+        div(class = "mt-3", uiOutput(ns("p_list"))),
+        footer = modalButton("Done")
+      ))
+    })
+
+    output$p_list <- renderUI({
+      bp <- store_get("branch_pincodes")
+      br <- store_get("branches")
+      if (!nrow(bp)) return(div(class = "tiny muted", "No PIN codes listed yet."))
+      bp <- bp[order(bp$branch_id, bp$pincode), , drop = FALSE]
+      rows_ui <- lapply(seq_len(nrow(bp)), function(i) {
+        tags$tr(
+          tags$td(br$name[match(bp$branch_id[i], br$branch_id)] %||% bp$branch_id[i]),
+          tags$td(class = "mono", bp$pincode[i]),
+          tags$td(pill(bp$delivery_type[i],
+                       if (identical(bp$delivery_type[i], "ODA")) "orange" else "green")),
+          tags$td(class = "text-end",
+                  tags$button(
+                    class = "btn btn-sm btn-link p-0 text-danger",
+                    onclick = sprintf("Shiny.setInputValue('%s', '%s', {priority:'event'})",
+                                      ns("p_del"),
+                                      paste0(bp$branch_id[i], "|", bp$pincode[i])),
+                    "Remove")))
+      })
+      div(class = "tms-table",
+          tags$table(class = "table table-sm mb-0",
+            tags$thead(tags$tr(tags$th("BRANCH"), tags$th("PIN CODE"),
+                               tags$th("DELIVERS AS"), tags$th(""))),
+            tags$tbody(rows_ui)))
+    })
+
+    observeEvent(input$p_add, {
+      if (!require_perm(session, user()$role, "branches", "update")) return()
+      pin <- trimws(input$p_pin %||% "")
+      if (!grepl("^[1-9][0-9]{5}$", pin)) {
+        showNotification("PIN code must be six digits.", type = "error"); return()
+      }
+      # Refuse a PIN code the master does not know. A typo here silently
+      # reroutes every future booking for the real pincode.
+      if (is.null(geo_pin(pin))) {
+        showNotification(paste0(pin, " is not in the PIN code master."),
+                         type = "error"); return()
+      }
+      bp <- store_get("branch_pincodes")
+      dup <- nrow(bp) && any(bp$branch_id == input$p_branch & bp$pincode == pin)
+      if (dup) {
+        store_update("branch_pincodes",
+                     list(branch_id = input$p_branch, pincode = pin),
+                     list(delivery_type = input$p_type))
+        showNotification(paste0(pin, " updated to ", input$p_type, "."),
+                         type = "message")
+      } else {
+        store_insert("branch_pincodes", list(
+          branch_id = input$p_branch, pincode = pin,
+          delivery_type = input$p_type %||% "Normal"))
+        showNotification(paste0(pin, " added as ", input$p_type, "."),
+                         type = "message")
+      }
+      audit(user()$user_id, "serviceability", "branches",
+            paste(input$p_branch, pin, input$p_type))
+      updateTextInput(session, "p_pin", value = "")
+    })
+
+    observeEvent(input$p_del, {
+      if (!require_perm(session, user()$role, "branches", "update")) return()
+      parts <- strsplit(input$p_del, "|", fixed = TRUE)[[1]]
+      if (length(parts) != 2) return()
+      bp <- store_get("branch_pincodes")
+      keep <- !(bp$branch_id == parts[1] & bp$pincode == parts[2])
+      store_set("branch_pincodes", bp[keep, , drop = FALSE])
+      audit(user()$user_id, "serviceability-remove", "branches",
+            paste(parts, collapse = " "))
+    })
+
     observeEvent(input$add, {
       if (!require_perm(session, user()$role, "branches", "create")) return()
       showModal(modalDialog(
@@ -137,8 +245,16 @@ branches_server <- function(id, user) {
             div(class = "col-4", textInput(ns("n_state"), "State")),
             div(class = "col-4", textInput(ns("n_pin"), "Pincode")),
             div(class = "col-6", textInput(ns("n_mgr"), "Manager")),
-            div(class = "col-6", textInput(ns("n_contact"), "Contact")),
-            div(class = "col-6", textInput(ns("n_gstin"), "GSTIN"))),
+            # Mobile, and it is required (CR-14, CR-27). A branch nobody can
+            # telephone is no use to a driver at its gate at 2am.
+            div(class = "col-6", textInput(ns("n_contact"), "Branch mobile *",
+                                           placeholder = "9876543210")),
+            div(class = "col-6", textInput(ns("n_gstin"), "GSTIN")),
+            # The branch's own pincode is claimed as it is created (CR-20),
+            # so a new branch is never a hole in the serviceability map.
+            div(class = "col-6",
+                selectInput(ns("n_delivery"), "Own pincode delivers as",
+                            choices = DELIVERY_TYPES, selected = "Normal"))),
         footer = tagList(modalButton("Cancel"), btn_primary(ns("save"), "Save branch"))
       ))
     })
@@ -147,6 +263,18 @@ branches_server <- function(id, user) {
       if (!require_perm(session, user()$role, "branches", "create")) return()
       if (!nzchar(input$n_name %||% "")) {
         showNotification("Branch name is required.", type = "error"); return()
+      }
+      mob <- gsub("[ -]", "", trimws(input$n_contact %||% ""))
+      if (!nzchar(mob)) {
+        showNotification("Branch mobile number is required.", type = "error"); return()
+      }
+      if (!valid_mobile(mob)) {
+        showNotification("Branch mobile is not a valid 10-digit Indian mobile.",
+                         type = "error"); return()
+      }
+      pin <- trimws(input$n_pin %||% "")
+      if (nzchar(pin) && !grepl("^[1-9][0-9]{5}$", pin)) {
+        showNotification("Pincode must be six digits.", type = "error"); return()
       }
       id_new <- next_id(store_get("branches")$branch_id, "BR-", 3)
       store_insert("branches", list(
@@ -158,6 +286,14 @@ branches_server <- function(id, user) {
         manager = input$n_mgr, contact = input$n_contact, gstin = input$n_gstin,
         since = as.character(Sys.Date()), status = "Active"
       ))
+      # Claim the branch's own pincode straight away (CR-20). Without this a
+      # brand-new branch delivers nothing: resolve_delivery() would fall
+      # through to the distance rule for its own front door.
+      if (nzchar(pin)) {
+        store_insert("branch_pincodes", list(
+          branch_id = id_new, pincode = pin,
+          delivery_type = input$n_delivery %||% "Normal"))
+      }
       audit(user()$user_id, "create", "branches", id_new)
       removeModal()
       showNotification(paste("Branch", id_new, "created."), type = "message")

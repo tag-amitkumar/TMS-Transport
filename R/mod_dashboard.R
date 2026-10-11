@@ -137,13 +137,19 @@ dashboard_server <- function(id, user, nav) {
     output$gps_sub <- renderText({
       g <- gps()
       if (!nrow(g)) return("No live feed")
-      age <- round(as.numeric(difftime(Sys.time(), max(g$ts, na.rm = TRUE), units = "secs")))
-      sprintf("GPS feed · updated %s ago · %d vehicles",
-              if (age < 90) paste0(age, " s") else paste0(round(age / 60), " min"), nrow(g))
+      sprintf("GPS feed · last fix %s ago · %d vehicles", gps_feed_age(g$ts), nrow(g))
     })
 
+    # "healthy" used to mean "gps_pings has at least one row", which reported a
+    # seeded dataset days old as healthy. Health is the age of the newest fix.
     output$gps_health <- renderUI({
-      if (nrow(gps())) pill("GPS feed healthy", "green") else pill("No feed", "grey")
+      g <- gps()
+      if (!nrow(g)) return(pill("No feed", "grey"))
+      switch(gps_feed_state(g$ts),
+        live    = pill("GPS feed healthy", "green"),
+        delayed = pill("GPS feed delayed", "orange"),
+        stale   = pill("GPS feed stale",   "red"),
+        pill("No feed", "grey"))
     })
 
     output$map <- leaflet::renderLeaflet({
@@ -237,7 +243,7 @@ dashboard_server <- function(id, user, nav) {
             div(style = "flex:0 0 auto;", pill(r$status)),
             div(style = "min-width:0;",
                 div(style = "font-size:.8125rem;font-weight:600;color:#12275C;",
-                    paste0(r$subject, " — ", r$lr_no)),
+                    paste0(r$subject, " — ", r$cn_no)),
                 div(class = "tiny muted",
                     paste(cl$name[match(r$client_id, cl$client_id)],
                           "·", br$name[match(r$branch_id, br$branch_id)],
@@ -296,7 +302,7 @@ dashboard_server <- function(id, user, nav) {
       age_col <- ifelse(due[k] > 3, "red", ifelse(due[k] > 1, "orange", "grey"))
 
       df <- tibble::tibble(
-        Consignment = mapply(cell2, p$lr_no[k],
+        Consignment = mapply(cell2, p$cn_no[k],
                              paste(v$reg_no[match(cn$vehicle_id[i][k], v$vehicle_id)], "·",
                                    dr$name[match(cn$driver_id[i][k], dr$driver_id)])),
         Route   = paste(cn$origin_city[i][k], "→", cn$dest_city[i][k]),

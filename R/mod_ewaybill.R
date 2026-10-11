@@ -119,8 +119,8 @@ ewaybill_server <- function(id, user, nav) {
         `VALID TO`   = vt,
         GSTIN        = mono(e$gstin),
         VEHICLE      = mono(v$reg_no[match(e$vehicle_id, v$vehicle_id)]),
-        `LINKED LR`  = sprintf('<a href="#" style="color:#1667C7;font-weight:600;">%s</a>',
-                               htmlEscape(e$lr_no)),
+        `CONSIGNMENT` = sprintf('<a href="#" style="color:#1667C7;font-weight:600;">%s</a>',
+                                htmlEscape(e$cn_no)),
         STATUS       = pill_html(e$status)
       )
       tms_table(df, page = 13)
@@ -147,7 +147,7 @@ ewaybill_server <- function(id, user, nav) {
               "Transporter"  = span(class = "mono", e$transporter_id))),
             div(class = "col-md-6", dl_rows(
               "Vehicle"    = span(class = "mono", v$reg_no[match(e$vehicle_id, v$vehicle_id)]),
-              "Linked LR"  = e$lr_no,
+              "Consignment note"  = e$cn_no,
               "Valid from" = fmt_dt(e$valid_from),
               "Valid to"   = fmt_dt(e$valid_to),
               "Status"     = pill(e$status)))),
@@ -199,7 +199,12 @@ ewaybill_server <- function(id, user, nav) {
           # side effect of that, not the point of it.
           if (can(user()$role, "ewaybill", "edit"))
             btn_primary(ns("extend_one"),
-                        if (e$status == "Valid") "Re-enter Part-B" else "Re-enter Part-B and extend")
+                        if (e$status == "Valid") "Re-enter Part-B" else "Re-enter Part-B and extend"),
+          # Vehicle change files Part-B with the provider as well as locally
+          # (CR-22). Separate from the extend button above: extending is a
+          # validity problem, a vehicle change is a movement fact.
+          if (can(user()$role, "ewaybill", "edit"))
+            btn_ghost(ns("partb_api"), "File Part-B — vehicle changed")
         )
       ))
       session$userData$ewb_sel <- e$ewb_no
@@ -220,6 +225,59 @@ ewaybill_server <- function(id, user, nav) {
       audit(user()$user_id, "extend", "ewaybill", paste(n, "bills"))
       n
     }
+
+    # ---------------- provider calls (CR-21, CR-22) ----------------
+    #
+    # Each is an explicit operator action. An e-way bill is a declaration, and
+    # generating one silently from whatever is on the booking would put the
+    # carrier's name on a declaration nobody checked.
+    #
+    # With no provider configured these report what would have been sent and
+    # leave the operator to key the number in by hand. That is the designed
+    # behaviour, not a degraded one — see D-10 in CHANGE-REQUESTS-2026-09-20.md.
+    .show_api_result <- function(res, what) {
+      if (isTRUE(res$ok)) {
+        showNotification(paste(what, "accepted by the provider."),
+                         type = "message", duration = 6)
+        return(invisible(NULL))
+      }
+      showModal(modalDialog(
+        title = paste(what, "not sent"), size = "l", easyClose = TRUE,
+        callout(if (isFALSE(res$configured)) "No e-way bill provider configured"
+                else "The provider did not accept this",
+                res$message,
+                if (isFALSE(res$configured)) "warn" else "danger"),
+        if (!is.null(res$payload)) tagList(
+          p(class = "tiny muted mt-3",
+            "This is exactly what would be sent once a provider is configured.",
+            "Check it against the consignment before keying the number in by hand."),
+          tags$pre(style = "max-height:340px;overflow:auto;font-size:.75rem;",
+                   jsonlite::toJSON(res$payload, auto_unbox = TRUE,
+                                    null = "null", pretty = TRUE))),
+        footer = modalButton("Close")
+      ))
+    }
+
+    observeEvent(input$partb_api, {
+      if (!require_perm(session, user()$role, "ewaybill", "edit")) return()
+      no <- session$userData$ewb_sel
+      req(no)
+      eb <- store_get("ewaybills")
+      row <- eb[eb$ewb_no == no, , drop = FALSE]
+      res <- ewb_api_update_part_b(
+        no, vehicle_id = if (nrow(row)) row$vehicle_id[1] else "",
+        reason = "Vehicle changed", user_id = user()$user_id)
+      audit(user()$user_id, "partb-api", "ewaybill", no)
+      removeModal()
+      # The local Part-B is written either way, so say so — otherwise a failed
+      # provider call reads as "nothing happened" when the movement has in
+      # fact been recorded.
+      showNotification(
+        paste0("Part-B recorded locally; validity now ",
+               fmt_dt(res$local_valid_to), "."),
+        type = "message", duration = 6)
+      .show_api_result(res, "Part-B")
+    })
 
     observeEvent(input$extend_one, {
       if (!require_perm(session, user()$role, "ewaybill", "edit")) return()
@@ -250,11 +308,15 @@ ewaybill_server <- function(id, user, nav) {
       showModal(modalDialog(
         title = "Generate e-way bill reference", size = "l", easyClose = TRUE,
         selectInput(ns("g_cn"), "Consignment",
-                    setNames(need$cn_no, paste0(need$cn_no, " · ", need$lr_no, " · ",
+                    setNames(need$cn_no, paste0(need$cn_no, " · ",
                                                 cl$name[match(need$client_id, cl$client_id)]))),
-        callout("GSP not connected",
-                "This build records a locally-generated reference. Connect a GST Suvidha Provider in Settings → Integrations to file against the live e-way bill portal.",
-                "warn"),
+        callout(if (ewb_api_configured()) "Filed with the provider"
+                else "No provider connected",
+                if (ewb_api_configured())
+                  "This will be filed against the live e-way bill portal and the number it returns is the one recorded."
+                else
+                  "No e-way bill provider is configured, so a local reference is recorded instead. It is a placeholder and will not survive a checkpost — set TMS_EWB_BASE_URL, TMS_EWB_USERNAME and TMS_EWB_PASSWORD to file for real.",
+                if (ewb_api_configured()) "ok" else "warn"),
         footer = tagList(modalButton("Cancel"), btn_primary(ns("g_save"), "Generate reference"))
       ))
     })
@@ -267,24 +329,67 @@ ewaybill_server <- function(id, user, nav) {
       cl <- store_get("clients")
       ref <- safe_ref(12, existing = get_ewaybills()$ewb_no)
 
+      # Ask the provider first (CR-21). A bill generated at NIC comes back with
+      # the real 12-digit number, and that number is the document — a locally
+      # minted reference is a placeholder that will not survive a checkpost.
+      #
+      # With no provider configured this falls through to the local reference
+      # exactly as before, and says which of the two happened. Silently issuing
+      # a made-up number that looks identical to a real one is the failure mode
+      # worth avoiding here.
+      api <- ewb_api_generate_part_a(c1$booking_no)
+      from_api <- isTRUE(api$ok) && !is.null(api$body) &&
+                  !is.null(api$body$ewayBillNo)
+      if (from_api) ref <- as.character(api$body$ewayBillNo)
+
+      # The invoice number on the bill is the customer's invoice, not something
+      # derived from our own consignment number. Bookings carry their invoices
+      # now (CR-15, CR-18), so use the first of them and only fall back to a
+      # synthesised reference for older bookings that have none.
+      inv <- booking_invoices(c1$booking_no)
+      inv_no <- if (nrow(inv)) inv$invoice_no[1]
+                else paste0("TMS/26-27/", sub("CN-", "", c1$cn_no))
+
       store_insert("ewaybills", list(
         ewb_no = ref,
-        invoice_no = paste0("TMS/26-27/", sub("LR-", "", c1$lr_no)),
+        invoice_no = inv_no,
         cn_no = c1$cn_no, lr_no = c1$lr_no,
         gstin = cl$gstin[match(c1$client_id, cl$client_id)],
         vehicle_id = c1$vehicle_id,
         transporter_id = paste0(substr(setting("company_gstin", ""), 1, 13), "ZT"),
         status = "Valid"
       ))
+
+      # Write the number back onto the invoice rows it covers, so the booking
+      # stops reporting a missing e-way bill the moment one exists.
+      for (i in seq_len(nrow(inv))) {
+        if (!nzchar(trimws(inv$ewb_no[i]))) {
+          store_update("booking_invoices",
+                       list(booking_no = c1$booking_no,
+                            invoice_no = inv$invoice_no[i]),
+                       list(ewb_no = ref))
+        }
+      }
       # Validity does not start with Part-A — filing the first Part-B is what
       # starts the clock. Setting the window there rather than duplicating the
       # arithmetic here keeps one rule in one place for generation and renewal.
       ewb_partb_add(ref, vehicle_id = c1$vehicle_id,
                     reason  = "First Part-B entered at generation",
                     mode    = "Manual", user_id = user()$user_id)
-      audit(user()$user_id, "generate", "ewaybill", paste(ref, "for", c1$lr_no))
+      audit(user()$user_id, if (from_api) "generate-api" else "generate",
+            "ewaybill", paste(ref, "for", c1$cn_no))
       removeModal()
-      showNotification(paste("Reference", ref, "generated for", c1$lr_no), type = "message")
+      if (from_api) {
+        showNotification(paste0("E-way bill ", ref, " generated at the provider for ",
+                                c1$cn_no, "."), type = "message", duration = 7)
+      } else {
+        showNotification(
+          HTML(paste0("Local reference <b>", htmlEscape(ref), "</b> recorded for ",
+                      htmlEscape(c1$cn_no), ". ",
+                      "<br/><span class='tiny'>", htmlEscape(api$message),
+                      "</span>")),
+          type = "warning", duration = 10)
+      }
     })
 
     observeEvent(input$upload, {

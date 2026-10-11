@@ -594,10 +594,10 @@ build_seed <- function() {
 
   # A small slice were written on paper during an outage and keyed in later.
   manual <- rep(FALSE, n_bk); manual[sample(n_bk, round(n_bk * 0.04))] <- TRUE
-  bookings$entry_mode <- ifelse(manual, "Manual", "Online")
+  bookings$entry_mode <- ifelse(manual, "Offline", "Online")
   bookings$manual_ref <- ifelse(
     manual,
-    paste0(toupper(substr(bookings$origin_city, 1, 3)), "/LR/",
+    paste0(toupper(substr(bookings$origin_city, 1, 3)), "/CN/",
            sprintf("%04d", sample(1000:9999, n_bk, TRUE))), "")
   bookings$manual_dt <- ifelse(
     manual, paste(bookings$booking_date, "07:40:00"), "")
@@ -1077,6 +1077,10 @@ build_seed <- function() {
     ts = character(), user_id = character(),
     action = character(), module = character(), detail = character()
   )
+
+  # Masters shared with the minimal profile — see seed_cr_masters() in
+  # R/seed_minimal.R. Both profiles must produce these or ODA cannot resolve.
+  out <- c(out, seed_cr_masters(out$branches))
 
   out
 }

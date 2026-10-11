@@ -119,7 +119,7 @@ brand_mark <- function(size = 38) {
 #' Falls back to the mark when the artwork is absent, because it is a
 #' binary asset that cannot live in this file: without the fallback a fresh
 #' clone would render a broken-image icon on the login screen and on every
-#' lorry receipt.
+#' consignment note.
 #' @param fill Size the logo by the width of its container rather than by
 #'   `height`, cropping the empty bands the artwork carries above and below
 #'   (see .brand-logo-fill in styles.css). Used in the sidebar, where the point
@@ -127,11 +127,32 @@ brand_mark <- function(size = 38) {
 brand_logo <- function(height = 56, alt = BRAND$company, fill = FALSE) {
   p <- file.path("www", BRAND$logo)
   if (file.exists(p)) {
-    if (fill) return(tags$img(src = BRAND$logo, alt = alt, class = "brand-logo-fill"))
-    return(tags$img(src = BRAND$logo, alt = alt, height = paste0(height, "px"),
+    src <- asset_url(BRAND$logo)
+    if (fill) return(tags$img(src = src, alt = alt, class = "brand-logo-fill"))
+    return(tags$img(src = src, alt = alt, height = paste0(height, "px"),
                     style = "display:block;width:auto;max-width:100%;"))
   }
   brand_mark(height)
+}
+
+#' Content-hashed query string for a file in www/, e.g. "styles.css?v=1a2b3c4d5e".
+#'
+#' Shiny serves www/ at stable, unversioned URLs, and a CDN in front of the app
+#' will happily cache /styles.css on its own default TTL — Cloudflare uses four
+#' hours for .css when the origin sends no Cache-Control, which httpuv does not.
+#' The result is that a deploy changing the stylesheet keeps serving the old one
+#' to the edge's cache until it expires: the new markup arrives styled by the
+#' previous release, which looks like the layout has fallen apart rather than
+#' like a caching problem.
+#'
+#' Hashing the contents rather than stamping mtime matters here: `docker build`
+#' rewrites mtimes on every COPY, so a timestamp would bust the cache on every
+#' rebuild whether or not the file changed, while an unchanged file keeps its
+#' hash and stays cached.
+asset_url <- function(file) {
+  p <- file.path("www", file)
+  if (!file.exists(p)) return(file)
+  paste0(file, "?v=", substr(unname(tools::md5sum(p)), 1, 10))
 }
 
 #' TRUE when the real artwork is in place.
@@ -161,15 +182,35 @@ SEED_PROFILE <- Sys.getenv("TMS_SEED_PROFILE", "minimal")
 
 # Roles offered as one-click previews on the login screen.
 #
-# Every chip needs something behind it — an active account for an internal role,
-# or a master record for Customer/Vendor — otherwise clicking it just produces
-# an error. The minimal profile has exactly two accounts, so it offers exactly
-# two chips.
-DEMO_ROLES <- if (identical(SEED_PROFILE, "minimal")) {
-  c("Super Admin", "Operations Manager", "Driver")
-} else {
-  c("Super Admin", "Branch Admin", "Dispatcher", "Accountant",
-    "HR Manager", "Vendor", "Customer")
+# Every chip needs something behind it — an active account for an internal
+# role, or a master record for Customer/Vendor — otherwise clicking it just
+# produces an error.
+#
+# Worked out from the data rather than listed per profile. The list used to be
+# hardcoded, which meant adding a user changed nothing on the login screen and
+# the chips quietly described a dataset that no longer existed. Asking the
+# question the comment above already poses — is there something behind this
+# chip? — keeps the two in step without anyone remembering to.
+#
+# A function, not a constant: global.R is sourced before the seed has
+# necessarily been written, so this cannot be answered at load time.
+demo_roles <- function() {
+  roles <- character()
+  u <- tryCatch(store_get("users"), error = function(e) NULL)
+  if (!is.null(u) && nrow(u)) {
+    live <- u[(u$status %||% "Active") == "Active", , drop = FALSE]
+    roles <- unique(live$role)
+  }
+  # Customer and Vendor sign in against the client/vendor master rather than a
+  # user row — see the quick-chip handler in R/mod_auth.R.
+  has_rows <- function(tbl) {
+    d <- tryCatch(store_get(tbl), error = function(e) NULL)
+    !is.null(d) && nrow(d) > 0
+  }
+  if (has_rows("clients")) roles <- c(roles, "Customer")
+  if (has_rows("vendors")) roles <- c(roles, "Vendor")
+  # Shown in the order the security matrix lists them, not discovery order.
+  intersect(ROLE_LEVELS, unique(roles))
 }
 
 # Receipt/POD photos come off phone cameras, which routinely exceed Shiny's
@@ -186,7 +227,16 @@ TABLES <- c(
   "ewaybills", "ewaybill_partb", "pods", "gps_pings",
   "complaints", "invoices", "payments", "vendor_payments",
   "attendance", "leave_types", "leave_requests", "payroll",
-  "settings", "notification_events", "integrations", "audit_log"
+  "settings", "notification_events", "integrations", "audit_log",
+  # Added for the 20 Sep 2026 change requests. branch_pincodes and
+  # freight_rates are branch-maintained masters; booking_invoices is the
+  # one-to-many the e-way bill threshold is summed over; product_types
+  # carries the exemption flag.
+  "branch_pincodes", "freight_rates", "booking_invoices", "product_types",
+  # Customer notifications. message_templates mirrors what Meta has approved;
+  # wa_optin is the consent record; notification_outbox is every attempt and
+  # why it did or did not go.
+  "message_templates", "wa_optin", "notification_outbox"
 )
 
 tbl_path <- function(name) file.path(DATA_DIR, paste0(name, ".csv"))
@@ -241,6 +291,72 @@ ROLE_LEVELS <- c("Super Admin", "Branch Admin", "Operations Manager",
 # with only the hint "RCM flagged per client configuration", so the rate is
 # stored per client rather than inferred — see clients$gst_mode / gst_pct.
 GST_MODES <- c("RCM", "FCM")
+
+# ------------------------------------------------------------------
+# Dispatch mode (CR-10)
+#
+# Whether the consignment shares a vehicle or takes one. LTL is first because
+# it is the overwhelming majority of bookings on a part-load network — making
+# the rarer FTL the default would mean the clerk unsets it all day.
+# ------------------------------------------------------------------
+DISPATCH_TYPES <- c("LTL", "FTL")
+
+DISPATCH_LABEL <- c(
+  "LTL" = "LTL — Less Than Truck Load",
+  "FTL" = "FTL — Full Truck Load"
+)
+
+# ------------------------------------------------------------------
+# Serviceability (CR-09, CR-11, CR-20)
+#
+# A delivery address is either inside a branch's ordinary beat or outside it.
+# Outside costs more and takes longer, so it has to be known at booking time
+# rather than discovered by the delivery branch.
+#
+# Two tests were specified and they can disagree, so their precedence is
+# fixed here rather than left to whichever screen asks first:
+#
+#   1. The branch pincode list is authoritative. A pincode someone has
+#      explicitly entered against a branch carries a human decision, and that
+#      beats any calculation.
+#   2. For a pincode nobody has classified, fall back to distance: within
+#      ODA_RADIUS_KM of the nearest branch is Normal, beyond it is ODA.
+#
+# The distance is straight-line (geo_haversine over branches.lat/lon), which
+# is all the stored data supports. Road distance is longer than straight-line,
+# so this errs toward calling a borderline address Normal — the cheaper
+# quote — and that is the error worth flagging if a routing service is ever
+# added.
+# ------------------------------------------------------------------
+DELIVERY_TYPES <- c("Normal", "ODA")
+
+ODA_RADIUS_KM <- 15
+
+# ------------------------------------------------------------------
+# Who may raise a TBB booking (CR-05, CR-13)
+#
+# The meeting said "operator". No role of that name exists in ROLE_LEVELS, so
+# it is read as the two roles that actually operate the booking counter.
+# Super Admin is included because it is included everywhere.
+# ------------------------------------------------------------------
+OPERATOR_ROLES <- c("Super Admin", "Branch Admin",
+                    "Operations Manager", "Booking Executive")
+
+# ------------------------------------------------------------------
+# E-way bill thresholds (CR-16, CR-19)
+#
+# Rule 138 requires an e-way bill once consignment value crosses the limit.
+# The limit differs by movement: states set their own intrastate floor, and
+# the interstate floor is the statutory 50,000.
+#
+# Applied to the SUM of all invoices on the booking (CR-19), not to each
+# invoice, because the consignment is what moves and the consignment is what
+# the bill covers. Splitting one load across three invoices to stay under the
+# limit is precisely what the aggregate test exists to prevent.
+# ------------------------------------------------------------------
+EWB_THRESHOLD_INTRASTATE <- 100000
+EWB_THRESHOLD_INTERSTATE <- 50000
+
 
 # ------------------------------------------------------------------
 # Freight payment terms
@@ -356,6 +472,70 @@ expiry_state <- function(d, warn = 30) {
     n <= warn ~ "warn",
     TRUE      ~ "ok"
   )
+}
+
+# Staleness of the GPS feed, shared by Live GPS and the dashboard so one
+# threshold change updates both at once — the same reason expiry_state exists.
+#
+# This needs to exist because "is there a row?" is not the same question as "is
+# the feed live?". Positions come from a driver's handset over the browser's
+# Geolocation API, and that stops for entirely ordinary reasons: the phone
+# sleeps, the browser is backgrounded, the tab is closed, the driver revokes
+# permission, the truck is in a tunnel. None of those produce an error the app
+# ever sees — the pings simply stop arriving.
+#
+# So a screen that reports "live" whenever gps_pings is non-empty will keep
+# saying "live" over a position that stopped moving hours ago, and the operator
+# reads a stale dot as the truck having gone back somewhere. Saying how old the
+# fix is, and colouring it, is the difference between a map that is trusted and
+# one that quietly misleads.
+#
+# Thresholds are in terms of the driver's own reporting interval rather than
+# absolute seconds, so changing DRIVER_PING_SECONDS cannot silently make every
+# feed look stale. Two missed reports is ordinary jitter; ten means it stopped.
+gps_feed_state <- function(ts) {
+  if (!length(ts) || all(is.na(ts))) return("none")
+  every <- if (exists("DRIVER_PING_SECONDS")) DRIVER_PING_SECONDS else 30
+  age <- as.numeric(difftime(Sys.time(), max(ts, na.rm = TRUE), units = "secs"))
+  if (is.na(age))            "none"
+  else if (age <= every * 3) "live"
+  else if (age <= every * 10) "delayed"
+  else                        "stale"
+}
+
+# Human-readable age of the newest fix: "12 s", "4 min", "3 h", "12 d".
+# Hours and days matter — a seeded dataset is days old, and "17487 min ago"
+# tells an operator nothing they can act on.
+gps_feed_age <- function(ts) {
+  if (!length(ts) || all(is.na(ts))) return("never")
+  s <- as.numeric(difftime(Sys.time(), max(ts, na.rm = TRUE), units = "secs"))
+  if (is.na(s))        "never"
+  else if (s < 90)     paste0(round(s), " s")
+  else if (s < 5400)   paste0(round(s / 60), " min")
+  else if (s < 172800) paste0(round(s / 3600), " h")
+  else                 paste0(round(s / 86400), " d")
+}
+
+#' Is this a usable Indian mobile number? (CR-02, CR-27)
+#'
+#' One rule in one place, because "mobile number for all" means the booking
+#' form, the offline form, the branch master, customers, vendors and users all
+#' have to agree on what a number is. Five copies of a regex become four
+#' copies and one that drifts.
+#'
+#' Accepts an optional +91 or 91 prefix and ignores spaces and dashes, because
+#' that is how people write numbers down and rejecting a correct number for
+#' its punctuation trains everyone to fight the field. The number itself must
+#' be ten digits starting 6-9, which is the whole of the Indian mobile range.
+valid_mobile <- function(x) {
+  v <- gsub("[ ()-]", "", trimws(as.character(x %||% "")))
+  grepl("^(\\+?91)?[6-9][0-9]{9}$", v)
+}
+
+#' The digits alone, for storage — so one number is not held three ways.
+clean_mobile <- function(x) {
+  v <- gsub("[ ()-]", "", trimws(as.character(x %||% "")))
+  sub("^(\\+?91)", "", v)
 }
 
 # Next id in a prefixed series, e.g. next_id(bookings$booking_no, "BKG-") on
