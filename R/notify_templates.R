@@ -42,6 +42,37 @@ NOTIFY_STAGES <- c(
   "delivery_delayed"
 )
 
+#' Push these definitions into the store.
+#'
+#' The templates are a data table, so editing this file changes nothing on a
+#' deployment that has already seeded — which cost two rejected submissions:
+#' the body was corrected here, the stored row still held the original, and
+#' Meta was re-sent the exact text it had just refused.
+#'
+#' A changed body resets the status to Draft, because an approved template
+#' whose text has been edited is no longer the thing Meta approved. Rows are
+#' matched on `stage`, which is what the app keys on; meta_name can change
+#' freely, as it must when a rejected name has to be retired.
+refresh_templates_from_seed <- function() {
+  seed <- seed_message_templates()
+  cur  <- store_get("message_templates")
+  changed <- character()
+  for (i in seq_len(nrow(seed))) {
+    row <- seed[i, ]
+    hit <- cur[cur$stage == row$stage, , drop = FALSE]
+    if (!nrow(hit)) {
+      store_insert("message_templates", as.list(row)); changed <- c(changed, row$stage); next
+    }
+    if (!identical(hit$body[1], row$body) || !identical(hit$meta_name[1], row$meta_name)) {
+      store_update("message_templates", list(stage = row$stage),
+                   list(meta_name = row$meta_name, body = row$body,
+                        category = row$category, vars = row$vars, status = "Draft"))
+      changed <- c(changed, row$stage)
+    }
+  }
+  changed
+}
+
 #' Seed the template master. Shared by both seed profiles.
 #'
 #' `status` is Meta's, not ours: Draft until submitted, Pending while under
@@ -52,7 +83,14 @@ seed_message_templates <- function() {
   tibble::tribble(
     ~template_id, ~stage, ~meta_name, ~category, ~language, ~status, ~vars, ~body,
 
-    "TPL-001", "booking_confirmed", "tms_booking_confirmed", "UTILITY", "en", "Draft",
+    # _v2 because Meta holds a deleted template's name for far longer than the
+    # "try again in less than a minute" its own error claims — the first
+    # submission was rejected as INCORRECT_CATEGORY, deleted, and the name was
+    # still unusable hours later. Meta's advice in that same error is to use a
+    # new name, so the version suffix is the documented route rather than a
+    # workaround. Only the name Meta knows changes; `stage` is what this app
+    # keys on and that stays put.
+    "TPL-001", "booking_confirmed", "tms_booking_confirmed_v3", "UTILITY", "en", "Draft",
     "1=consignee name|2=consignment no|3=origin|4=destination|5=expected delivery date",
     # Rejected by Meta first time round as INCORRECT_CATEGORY. The offending
     # line was "Track it any time with your consignment number and delivery
@@ -62,7 +100,9 @@ seed_message_templates <- function() {
     # with it: the sender is already identified, and repeating it is brand
     # presence, not information.
     paste0("Hello {{1}}, consignment {{2}} has been booked.\n\n",
-           "From: {{3}}\nTo: {{4}}\nExpected delivery: {{5}}"),
+           "From: {{3}}\nTo: {{4}}\nExpected delivery: {{5}}\n\n",
+           "Please ensure someone is available at the delivery address to ",
+           "receive and sign for the goods."),
 
     "TPL-002", "vehicle_allocated", "tms_vehicle_allocated", "UTILITY", "en", "Draft",
     "1=consignee name|2=consignment no|3=vehicle number|4=driver name|5=driver mobile",
